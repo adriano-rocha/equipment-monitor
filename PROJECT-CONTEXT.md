@@ -99,6 +99,8 @@ Resolvidas durante a criação inicial ou na revisão de QA da Fase 01 (ver `doc
 - ✅ IP informado vs. IP observado → **ADR-008** (`reported_ip` não confiável vs. `source_ip` autoritativo).
 - ✅ Atomicidade do heartbeat → **ADR-003** (heartbeat + `last_seen` na mesma transação).
 - ✅ Ruído de formatação do prompt original (seção 16 duplicada, fragmento cortado na Fase 08) — sem impacto em regra de negócio.
+- ✅ Formato do header de autenticação de dispositivo → `Authorization: DeviceKey <key_id>:<secret>` (decidido no início da Fase 02).
+- ✅ Tratamento de `X-Forwarded-For` → não é lido nesta fase; `source_ip` vem exclusivamente de `request.client.host` até haver infraestrutura de proxy confiável definida (decidido no início da Fase 02; ADR-008 será revisitada quando a infra de produção existir).
 
 **Ainda em aberto (não bloqueiam a Fase 02):**
 
@@ -136,3 +138,4 @@ Resolvidas durante a criação inicial ou na revisão de QA da Fase 01 (ver `doc
 - `communication_status` (calculado) e `operational_state` (persistido, administrativo) são campos separados e ortogonais (ADR-007).
 - `communication_status` é sempre calculado pelo backend a partir de `last_seen`, nunca reportado pelo agente.
 - Heartbeat + atualização de `last_seen` ocorrem em uma única transação (ADR-003).
+- Gerenciamento de dependências Python via `uv` (`pyproject.toml` + `uv.lock`), sem Poetry.

@@ -1,0 +1,28 @@
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+
+# Banco local (se usado)
+*.sqlite3

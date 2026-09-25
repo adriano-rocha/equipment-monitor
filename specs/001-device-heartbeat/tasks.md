@@ -1,6 +1,6 @@
 # TASKS — SPEC-001 Device Heartbeat
 
-- [ ] T01 — Estrutura inicial do backend (`backend/app/{domain,application,infrastructure,interface}`), `pyproject.toml`/`requirements.txt`, config via `pydantic-settings`.
+- [ ] T01 — Estrutura inicial do backend (`backend/app/{domain,application,infrastructure,interface}`), `pyproject.toml` gerenciado via `uv` (sem Poetry), config via `pydantic-settings`.
 - [ ] T02 — Docker Compose com serviço `postgres` + `backend`; `.env.example`.
 - [ ] T03 — Alembic inicializado e configurado (`alembic init`, `env.py` apontando para a config do projeto).
 - [ ] T04 — Entidades de domínio `Device` e `Heartbeat` (sem dependência de framework).

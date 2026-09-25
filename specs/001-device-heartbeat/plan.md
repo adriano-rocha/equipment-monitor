@@ -7,7 +7,7 @@ Interface (FastAPI)
   POST /api/v1/heartbeats
   ├── HeartbeatRequestSchema (Pydantic): hostname?, reported_ip?, battery_level?, metadata?, device_timestamp?
   └── dependência get_current_device:
-        1. extrai key_id + secret do header de autenticação
+        1. extrai key_id + secret do header `Authorization: DeviceKey <key_id>:<secret>` (esquema obrigatório; ausente/malformado → 401)
         2. busca DeviceCredential por key_id (indexado)
         3. valida status == ACTIVE e secret contra secret_hash
         4. carrega e retorna a entidade Device já resolvida
@@ -52,7 +52,7 @@ Infrastructure
 6. **Application:** `RegisterHeartbeatUseCase(device, credential_id, payload, source_ip)` — recebe o `Device` já resolvido; testável isoladamente com repositórios fake/in-memory; a transação (passos 3, 4 e 5 do fluxo acima: insert heartbeat + update last_seen + update last_used_at) é responsabilidade explícita do use case (ou de um `UnitOfWork` simples injetado, a decidir na implementação sem overengineering).
 7. **Interface:**
    - dependência `get_current_device` (implementa o fluxo de autenticação acima, retorna `Device` + `credential_id`);
-   - captura de `source_ip` a partir do `Request` do FastAPI, seguindo a regra de confiança da ADR-008: `request.client.host` por padrão; `X-Forwarded-For` só é lido se a requisição vier de um proxy reverso explicitamente cadastrado como confiável (lista de trusted proxies, decisão de infra da Fase 02) — nunca o primeiro valor do header por padrão;
+   - captura de `source_ip` a partir do `Request` do FastAPI, exclusivamente via `request.client.host` (`X-Forwarded-For` não é lido nesta fase — ver `PROJECT-CONTEXT.md`);
    - rota `POST /api/v1/heartbeats` orquestra: recebe `Device` + `credential_id` (via dependência) + payload validado + `source_ip` → chama o use case → mapeia resultado para `201`.
    - mapeamento de exceções de domínio → HTTP: credencial ausente/inválida/revogada → 401; erro de validação Pydantic → 422 (automático).
 8. **Testes:**
