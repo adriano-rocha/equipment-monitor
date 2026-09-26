@@ -9,7 +9,7 @@ Comprovam que:
 import pytest
 from pydantic import ValidationError
 
-from app.infrastructure.config import get_settings
+from app.infrastructure.config import Settings, get_settings
 
 
 @pytest.fixture(autouse=True)
@@ -47,5 +47,7 @@ def test_settings_missing_required_var_raises(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
 
+    # _env_file=None isola este teste do .env real do projeto — sem isso, o
+    # teste passaria a ler os valores reais do .env em vez de simular ausência.
     with pytest.raises(ValidationError):
-        get_settings()
+        Settings(_env_file=None)

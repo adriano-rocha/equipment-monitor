@@ -6,24 +6,27 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: ${POSTGRES_DB:-equipment_monitor}
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-equipment_monitor}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # backend:
-  #   build: ./backend
-  #   env_file: .env
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   ports:
-  #     - "8000:8000"
-  # Habilitar quando o backend (Fase 02) existir de fato — ainda não implementado.
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-equipment_monitor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-equipment_monitor}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
 
 volumes:
   postgres_data:
