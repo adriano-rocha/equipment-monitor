@@ -78,8 +78,8 @@ Não adicionar campos/entidades por antecipação — apenas quando uma spec dem
 
 | Fase | Objetivo | Status |
 |------|----------|--------|
-| 01 — Levantamento e Arquitetura | PROJECT-CONTEXT, CLAUDE.md, AGENTS.md, ADRs iniciais, primeira spec | **CONCLUÍDA**|
-| 02 — Backend + PostgreSQL | FastAPI, SQLAlchemy, Alembic, Clean Architecture, SPEC-001 Device Heartbeat | Não iniciada |
+| 01 — Levantamento e Arquitetura | PROJECT-CONTEXT, CLAUDE.md, AGENTS.md, ADRs iniciais, primeira spec | **CONCLUÍDA** |
+| 02 — Backend + PostgreSQL | FastAPI, SQLAlchemy, Alembic, Clean Architecture, SPEC-001 Device Heartbeat | **CONCLUÍDA** |
 | 03 — Windows Agent | Cliente Python de monitoramento (execução manual → Windows Service) | Não iniciada |
 | 04 — Dashboard | React/Vite/TS, login, lista/detalhe de equipamentos | Não iniciada |
 | 05 — Realtime + Telegram | WebSocket, detecção de mudança de status, alertas Telegram | Não iniciada |
@@ -139,3 +139,41 @@ Resolvidas durante a criação inicial ou na revisão de QA da Fase 01 (ver `doc
 - `communication_status` é sempre calculado pelo backend a partir de `last_seen`, nunca reportado pelo agente.
 - Heartbeat + atualização de `last_seen` ocorrem em uma única transação (ADR-003).
 - Gerenciamento de dependências Python via `uv` (`pyproject.toml` + `uv.lock`), sem Poetry.
+
+
+## Fase 02 — Encerramento (SPEC-001 concluída)
+
+SPEC-001 (Device Heartbeat) implementada e com todos os 7 critérios de
+aceitação comprovados por teste automatizado:
+
+- **Estrutura**: backend Python/FastAPI com uv, Clean Architecture pragmática
+  (domain -> application -> infrastructure -> interface).
+- **Infra**: Docker Compose (postgres + backend), Alembic com migration
+  inicial (devices, device_credentials, heartbeats).
+- **Domínio**: entidades Device, Heartbeat, DeviceCredential (Python puro).
+- **Persistência**: repositórios SQLAlchemy implementando os ports da camada
+  de aplicação; atomicidade comprovada (heartbeat + last_seen + last_used_at
+  na mesma transação, com rollback total em caso de falha).
+- **Autenticação**: DeviceAuthService (header `Authorization: DeviceKey
+  key_id:secret`, hash argon2, ADR-006).
+- **API**: `POST /api/v1/heartbeats`, autenticado, com validação de payload
+  (battery_level 0-100, metadata <= 2KB) e mapeamento de erros (401/422).
+- **Testes**: 33 testes automatizados (unitários, integração com PostgreSQL
+  real, e testes de API via TestClient) — nenhum mock substituindo o banco
+  nos testes de integração/API.
+- **Seed manual**: `backend/scripts/seed_device.py` para gerar credenciais de
+  teste.
+
+Decisões de implementação tomadas nesta fase (complementam os ADRs):
+- Header de autenticação: `Authorization: DeviceKey <key_id>:<secret>`.
+- `source_ip` via `request.client.host`; `X-Forwarded-For` não é lido nesta
+  fase (sem infraestrutura de proxy confiável definida ainda).
+- Gerenciamento de dependências Python via `uv` (`pyproject.toml` + `uv.lock`).
+- Banco de teste de integração: `equipment_monitor_test`, mesmo container
+  Postgres do ambiente de desenvolvimento.
+
+Fora do escopo desta spec (ficam para specs futuras): communication_status,
+dashboard, WebSocket, Telegram, Android, Windows Agent completo, revogação de
+credencial via API.
+
+Próximo passo: Fase 03 — Windows Agent.
