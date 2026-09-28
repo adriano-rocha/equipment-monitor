@@ -42,6 +42,8 @@ function App() {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('TODOS')
 
   useEffect(() => {
     let active = true
@@ -95,6 +97,22 @@ function App() {
     (device) => device.status === 'OFFLINE',
   ).length
 
+  const normalizedSearch = search.trim().toLowerCase()
+
+  const filteredDevices = devices.filter((device) => {
+    const matchesSearch =
+      normalizedSearch === '' ||
+      device.asset_number?.toLowerCase().includes(normalizedSearch) ||
+      device.hostname?.toLowerCase().includes(normalizedSearch) ||
+      device.reported_ip?.toLowerCase().includes(normalizedSearch)
+
+    const matchesStatus =
+      statusFilter === 'TODOS' ||
+      device.status === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+
   return (
     <main>
       <header className="dashboard-header">
@@ -131,8 +149,53 @@ function App() {
 
       <section className="devices-section">
         <div className="section-header">
-          <h2>Equipamentos</h2>
-          <span>{devices.length} equipamento(s)</span>
+          <div>
+            <h2>Equipamentos</h2>
+            <span>
+              Exibindo {filteredDevices.length} de {devices.length}
+            </span>
+          </div>
+        </div>
+
+        <div className="filters">
+          <input
+            type="text"
+            placeholder="Buscar patrimônio, hostname ou IP..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+
+          <div className="status-filters">
+            <button
+              className={statusFilter === 'TODOS' ? 'active' : ''}
+              onClick={() => setStatusFilter('TODOS')}
+            >
+              Todos
+            </button>
+
+            <button
+              className={statusFilter === 'ONLINE' ? 'active' : ''}
+              onClick={() => setStatusFilter('ONLINE')}
+            >
+              Online
+            </button>
+
+            <button
+              className={
+                statusFilter === 'SEM COMUNICAÇÃO' ? 'active' : ''
+              }
+              onClick={() => setStatusFilter('SEM COMUNICAÇÃO')}
+            >
+              Sem comunicação
+            </button>
+
+            <button
+              className={statusFilter === 'OFFLINE' ? 'active' : ''}
+              onClick={() => setStatusFilter('OFFLINE')}
+            >
+              Offline
+            </button>
+          </div>
         </div>
 
         <div className="table-container">
@@ -149,7 +212,7 @@ function App() {
             </thead>
 
             <tbody>
-              {devices.map((device) => (
+              {filteredDevices.map((device) => (
                 <tr key={device.id}>
                   <td className="asset-number">
                     {device.asset_number}
@@ -172,6 +235,14 @@ function App() {
                   <td>{device.last_seen ?? '-'}</td>
                 </tr>
               ))}
+
+              {filteredDevices.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="empty-state">
+                    Nenhum equipamento encontrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

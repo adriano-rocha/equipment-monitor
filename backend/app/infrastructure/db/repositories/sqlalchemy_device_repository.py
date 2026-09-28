@@ -19,6 +19,10 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
             return None
         return self._to_domain(model)
 
+    def list_all(self) -> list[Device]:
+        models = self._session.query(DeviceModel).all()
+        return [self._to_domain(model) for model in models]
+
     def update(self, device: Device) -> None:
         """Reaplica os campos do Device no model já rastreado pela sessão.
 

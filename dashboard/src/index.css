@@ -112,6 +112,55 @@ main {
   font-size: 14px;
 }
 
+.filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.filters input {
+  width: 100%;
+  max-width: 420px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.filters input:focus {
+  border-color: #6b7280;
+}
+
+.status-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-filters button {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.status-filters button:hover {
+  background: #f3f4f6;
+}
+
+.status-filters button.active {
+  background: #1f2937;
+  color: white;
+  border-color: #1f2937;
+}
+
 .table-container {
   overflow-x: auto;
 }
@@ -179,6 +228,23 @@ tbody tr:hover {
 .status-unknown {
   color: #374151;
   background: #e5e7eb;
+}
+
+.empty-state {
+  padding: 32px;
+  text-align: center;
+  color: #6b7280;
+}
+
+@media (max-width: 900px) {
+  .filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filters input {
+    max-width: none;
+  }
 }
 
 @media (max-width: 768px) {

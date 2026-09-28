@@ -17,10 +17,14 @@ class DeviceRepository(ABC):
         """Busca um Device pela PK técnica. Retorna None se não existir."""
 
     @abstractmethod
-    def update(self, device: Device) -> None:
+    def update(self, device: Device) -> None:        
         """Persiste as alterações feitas em um Device já existente.
 
         Não faz commit — a transação é responsabilidade de quem orquestra o
         use case (RegisterHeartbeatUseCase), para garantir atomicidade com os
         outros writes (heartbeat, last_used_at).
         """
+
+    @abstractmethod
+    def list_all(self) -> list[Device]:
+        """Lista todos os Devices."""
