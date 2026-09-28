@@ -26,3 +26,4 @@ build/
 
 # Banco local (se usado)
 *.sqlite3
+**/agent.toml
