@@ -29,6 +29,15 @@ function StatusBadge({ status }) {
   )
 }
 
+function StatusCard({ title, count, className }) {
+  return (
+    <div className={`status-card ${className}`}>
+      <span className="status-card-title">{title}</span>
+      <strong className="status-card-count">{count}</strong>
+    </div>
+  )
+}
+
 function App() {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -74,43 +83,99 @@ function App() {
     return <p>{error}</p>
   }
 
+  const onlineCount = devices.filter(
+    (device) => device.status === 'ONLINE',
+  ).length
+
+  const warningCount = devices.filter(
+    (device) => device.status === 'SEM COMUNICAÇÃO',
+  ).length
+
+  const offlineCount = devices.filter(
+    (device) => device.status === 'OFFLINE',
+  ).length
+
   return (
     <main>
-      <h1>Equipment Monitor</h1>
+      <header className="dashboard-header">
+        <div>
+          <h1>Equipment Monitor</h1>
+          <p>Monitoramento de equipamentos</p>
+        </div>
 
-      <p>Equipamentos monitorados: {devices.length}</p>
+        <div className="device-total">
+          <span>Equipamentos monitorados</span>
+          <strong>{devices.length}</strong>
+        </div>
+      </header>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Patrimônio</th>
-            <th>Hostname</th>
-            <th>IP</th>
-            <th>Bateria</th>
-            <th>Status</th>
-            <th>Último contato</th>
-          </tr>
-        </thead>
+      <section className="status-grid">
+        <StatusCard
+          title="ONLINE"
+          count={onlineCount}
+          className="card-online"
+        />
 
-        <tbody>
-          {devices.map((device) => (
-            <tr key={device.id}>
-              <td>{device.asset_number}</td>
-              <td>{device.hostname ?? '-'}</td>
-              <td>{device.reported_ip ?? '-'}</td>
-              <td>
-                {device.battery_level !== null
-                  ? `${device.battery_level}%`
-                  : '-'}
-              </td>
-              <td>
-                <StatusBadge status={device.status} />
-              </td>
-              <td>{device.last_seen ?? '-'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        <StatusCard
+          title="SEM COMUNICAÇÃO"
+          count={warningCount}
+          className="card-warning"
+        />
+
+        <StatusCard
+          title="OFFLINE"
+          count={offlineCount}
+          className="card-offline"
+        />
+      </section>
+
+      <section className="devices-section">
+        <div className="section-header">
+          <h2>Equipamentos</h2>
+          <span>{devices.length} equipamento(s)</span>
+        </div>
+
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Patrimônio</th>
+                <th>Hostname</th>
+                <th>IP</th>
+                <th>Bateria</th>
+                <th>Status</th>
+                <th>Último contato</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {devices.map((device) => (
+                <tr key={device.id}>
+                  <td className="asset-number">
+                    {device.asset_number}
+                  </td>
+
+                  <td>{device.hostname ?? '-'}</td>
+
+                  <td>{device.reported_ip ?? '-'}</td>
+
+                  <td>
+                    {device.battery_level !== null
+                      ? `${device.battery_level}%`
+                      : '-'}
+                  </td>
+
+                  <td>
+                    <StatusBadge status={device.status} />
+                  </td>
+
+                  <td>{device.last_seen ?? '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
   )
 }
