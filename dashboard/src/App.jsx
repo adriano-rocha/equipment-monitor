@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
+
 import { getDevices } from './services/api'
+
+const WS_URL = 'ws://127.0.0.1:8000/api/v1/ws'
+const RECONNECT_DELAY_MS = 3000
 
 function StatusBadge({ status }) {
   const statusConfig = {
@@ -47,16 +51,20 @@ function App() {
 
   useEffect(() => {
     let active = true
+    let websocket = null
+    let reconnectTimeoutId = null
 
     async function fetchDevices() {
       try {
         const data = await getDevices()
 
-        if (active) {
-          setDevices(data)
-          setError(null)
-          setLoading(false)
+        if (!active) {
+          return
         }
+
+        setDevices(data)
+        setError(null)
+        setLoading(false)
       } catch (err) {
         console.error('Erro ao carregar equipamentos:', err)
 
@@ -67,13 +75,83 @@ function App() {
       }
     }
 
-    fetchDevices()
+    function connectWebSocket() {
+      if (!active) {
+        return
+      }
 
-    const intervalId = setInterval(fetchDevices, 30_000)
+      websocket = new WebSocket(WS_URL)
+
+      websocket.onopen = () => {
+        console.info('WebSocket conectado.')
+      }
+
+      websocket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data)
+
+          if (payload.event !== 'device_status_changed') {
+            return
+          }
+
+          setDevices((currentDevices) =>
+            currentDevices.map((device) =>
+              String(device.id) === String(payload.device_id)
+                ? {
+                    ...device,
+                    status: payload.status,
+                  }
+                : device,
+            ),
+          )
+        } catch (err) {
+          console.error('Erro ao processar evento WebSocket:', err)
+        }
+      }
+
+      websocket.onerror = (event) => {
+        console.error('Erro no WebSocket:', event)
+      }
+
+      websocket.onclose = () => {
+        websocket = null
+
+        if (!active) {
+          return
+        }
+
+        console.warn(
+          `WebSocket desconectado. Tentando reconectar em ${
+            RECONNECT_DELAY_MS / 1000
+          } segundos...`,
+        )
+
+        reconnectTimeoutId = window.setTimeout(() => {
+          connectWebSocket()
+        }, RECONNECT_DELAY_MS)
+      }
+    }
+
+    async function initialize() {
+      await fetchDevices()
+
+      if (active) {
+        connectWebSocket()
+      }
+    }
+
+    initialize()
 
     return () => {
       active = false
-      clearInterval(intervalId)
+
+      if (reconnectTimeoutId !== null) {
+        window.clearTimeout(reconnectTimeoutId)
+      }
+
+      if (websocket !== null) {
+        websocket.close()
+      }
     }
   }, [])
 

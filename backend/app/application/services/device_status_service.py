@@ -1,25 +1,43 @@
-from datetime import datetime, timedelta, timezone
+"""Serviço de cálculo do estado de comunicação do equipamento."""
+
+from datetime import datetime, timezone
+
+from app.infrastructure.config import Settings
 
 
-ONLINE_THRESHOLD = timedelta(minutes=2)
-SEM_COMUNICACAO_THRESHOLD = timedelta(minutes=5)
+ONLINE = "ONLINE"
+SEM_COMUNICACAO = "SEM COMUNICAÇÃO"
+OFFLINE = "OFFLINE"
+SEM_REGISTRO = "SEM REGISTRO"
 
 
-def calculate_communication_status(last_seen: datetime | None) -> str:
+def calculate_communication_status(
+    last_seen: datetime | None,
+    settings: Settings,
+) -> str:
+    """Calcula o estado atual de comunicação de um device.
+
+    Regras da Fase 05:
+    - até HEARTBEAT_INTERVAL_SECONDS: ONLINE
+    - acima do intervalo esperado até OFFLINE_THRESHOLD_SECONDS:
+      SEM COMUNICAÇÃO
+    - acima de OFFLINE_THRESHOLD_SECONDS: OFFLINE
+    """
+
     if last_seen is None:
-        return "SEM REGISTRO"
+        return SEM_REGISTRO
 
     now = datetime.now(timezone.utc)
 
     if last_seen.tzinfo is None:
         last_seen = last_seen.replace(tzinfo=timezone.utc)
 
-    elapsed = now - last_seen
+    elapsed_seconds = max(0.0, (now - last_seen).total_seconds())
 
-    if elapsed <= ONLINE_THRESHOLD:
-        return "ONLINE"
+    if elapsed_seconds <= settings.heartbeat_interval_seconds:
+        return ONLINE
 
-    if elapsed <= SEM_COMUNICACAO_THRESHOLD:
-        return "SEM COMUNICAÇÃO"
+    if elapsed_seconds <= settings.offline_threshold_seconds:
+        return SEM_COMUNICACAO
 
-    return "OFFLINE"
+    return OFFLINE

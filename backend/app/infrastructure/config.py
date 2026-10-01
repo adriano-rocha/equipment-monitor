@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     heartbeat_interval_seconds: int = 30
     offline_threshold_seconds: int = 90
 
+    # Telegram (Phase 05)
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
