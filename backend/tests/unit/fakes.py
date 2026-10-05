@@ -1,5 +1,6 @@
 """Implementações fake dos ports — reutilizadas pelos testes unitários de
-DeviceAuthService e RegisterHeartbeatUseCase. Sem banco, só dicts em memória."""
+DeviceAuthService e RegisterHeartbeatUseCase. Sem banco, só dicts em memória.
+"""
 
 from app.application.ports.device_credential_repository import DeviceCredentialRepository
 from app.application.ports.device_repository import DeviceRepository
@@ -18,6 +19,9 @@ class FakeDeviceRepository(DeviceRepository):
 
     def update(self, device):
         self._by_id[device.id] = device
+
+    def list_all(self):
+        return list(self._by_id.values())
 
 
 class FakeDeviceCredentialRepository(DeviceCredentialRepository):

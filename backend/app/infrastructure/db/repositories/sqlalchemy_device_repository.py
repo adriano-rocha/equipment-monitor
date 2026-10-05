@@ -15,8 +15,10 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
 
     def get_by_id(self, device_id: UUID) -> Device | None:
         model = self._session.get(DeviceModel, device_id)
+
         if model is None:
             return None
+
         return self._to_domain(model)
 
     def list_all(self) -> list[Device]:
@@ -26,15 +28,17 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
     def update(self, device: Device) -> None:
         """Reaplica os campos do Device no model já rastreado pela sessão.
 
-        🔑 palavra-chave: session.get() com o MESMO id, na MESMA sessão, não
-        gera uma segunda consulta — o SQLAlchemy resolve pela identity map
-        (cache interno da sessão), reaproveitando o objeto já carregado
-        (ex.: pelo DeviceAuthService). Isso satisfaz a regra de "não fazer
-        lookup duplicado ao Device".
+        O update do heartbeat altera somente os campos espelhados pelo
+        agente. Os campos de inventário são administrados pelo fluxo
+        operacional da Fase 06.
         """
         model = self._session.get(DeviceModel, device.id)
+
         if model is None:
-            raise ValueError(f"Device {device.id} não encontrado para atualização.")
+            raise ValueError(
+                f"Device {device.id} não encontrado para atualização."
+            )
+
         model.hostname = device.hostname
         model.reported_ip = device.reported_ip
         model.battery_level = device.battery_level
@@ -45,6 +49,10 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
         return Device(
             id=model.id,
             asset_number=model.asset_number,
+            device_type=model.device_type,
+            manufacturer=model.manufacturer,
+            model=model.model,
+            serial_number=model.serial_number,
             hostname=model.hostname,
             reported_ip=model.reported_ip,
             battery_level=model.battery_level,

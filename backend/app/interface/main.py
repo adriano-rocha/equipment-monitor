@@ -5,14 +5,31 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.application.exceptions import InvalidDeviceCredentialsError
+from app.application.exceptions import (
+    DeviceNotFoundError,
+    EventDeviceAlreadyActiveError,
+    EventDeviceNotFoundError,
+    EventNotFoundError,
+    InvalidDeviceCredentialsError,
+    UserNotFoundError,
+)
 from app.application.services.status_monitor import StatusMonitor
 from app.infrastructure.config import get_settings
 from app.infrastructure.notifications.telegram_service import TelegramService
 from app.interface.api.v1.devices import router as devices_router
+from app.interface.api.v1.event_devices import router as event_devices_router
+from app.interface.api.v1.events import router as events_router
 from app.interface.api.v1.heartbeats import router as heartbeats_router
 from app.interface.api.v1.realtime import router as realtime_router
-from app.interface.error_handlers import invalid_device_credentials_handler
+from app.interface.api.v1.users import router as users_router
+from app.interface.error_handlers import (
+    device_not_found_handler,
+    event_device_already_active_handler,
+    event_device_not_found_handler,
+    event_not_found_handler,
+    invalid_device_credentials_handler,
+    user_not_found_handler,
+)
 from app.interface.realtime.websocket_manager import websocket_manager
 
 
@@ -70,6 +87,24 @@ app.include_router(
 )
 
 app.include_router(
+    events_router,
+    prefix="/api/v1",
+    tags=["events"],
+)
+
+app.include_router(
+    users_router,
+    prefix="/api/v1",
+    tags=["users"],
+)
+
+app.include_router(
+    event_devices_router,
+    prefix="/api/v1",
+    tags=["event-devices"],
+)
+
+app.include_router(
     realtime_router,
     prefix="/api/v1",
     tags=["realtime"],
@@ -78,4 +113,29 @@ app.include_router(
 app.add_exception_handler(
     InvalidDeviceCredentialsError,
     invalid_device_credentials_handler,
+)
+
+app.add_exception_handler(
+    EventNotFoundError,
+    event_not_found_handler,
+)
+
+app.add_exception_handler(
+    DeviceNotFoundError,
+    device_not_found_handler,
+)
+
+app.add_exception_handler(
+    UserNotFoundError,
+    user_not_found_handler,
+)
+
+app.add_exception_handler(
+    EventDeviceNotFoundError,
+    event_device_not_found_handler,
+)
+
+app.add_exception_handler(
+    EventDeviceAlreadyActiveError,
+    event_device_already_active_handler,
 )

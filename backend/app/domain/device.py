@@ -1,9 +1,10 @@
 """Entidade de domínio: Device.
 
-Nesta fase (SPEC-001 — Device Heartbeat), Device só carrega os campos que o
-fluxo de heartbeat lê e atualiza. communication_status (calculado, ADR-007) e
-operational_state (administrativo) não entram aqui ainda — expandir quando a
-SPEC-002 (comunicação) ou a fase de eventos/responsáveis exigir.
+Representa um equipamento do inventário e também os dados espelhados
+recebidos pelo heartbeat.
+
+O status de comunicação é calculado pelo backend a partir de last_seen e
+não faz parte da entidade como estado persistido.
 """
 
 from dataclasses import dataclass
@@ -15,6 +16,10 @@ from uuid import UUID
 class Device:
     id: UUID
     asset_number: str
+    device_type: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    serial_number: str | None = None
     hostname: str | None = None
     reported_ip: str | None = None
     battery_level: int | None = None
@@ -28,16 +33,18 @@ class Device:
         reported_ip: str | None,
         battery_level: int | None,
     ) -> None:
-        """Atualiza os campos "espelhados" a partir do heartbeat mais recente.
+        """Atualiza os campos espelhados a partir do heartbeat mais recente.
 
-        🔑 palavra-chave: campo só é sobrescrito se o agente MANDOU aquele
-        campo no heartbeat — None aqui significa "não informado", nunca
-        "apagar o valor anterior".
+        None significa "não informado" e não deve apagar o valor
+        anteriormente armazenado.
         """
         self.last_seen = received_at
+
         if hostname is not None:
             self.hostname = hostname
+
         if reported_ip is not None:
             self.reported_ip = reported_ip
+
         if battery_level is not None:
             self.battery_level = battery_level

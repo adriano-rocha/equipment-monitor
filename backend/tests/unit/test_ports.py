@@ -29,9 +29,15 @@ def test_fake_device_repository_satisfies_contract():
         def update(self, device):
             self._devices[device.id] = device
 
+        def list_all(self):
+            return list(self._devices.values())
+
     repo = FakeDeviceRepository()
     device = Device(id=uuid4(), asset_number="NB-001")
 
     assert repo.get_by_id(device.id) is None
+
     repo.update(device)
+
     assert repo.get_by_id(device.id) is device
+    assert repo.list_all() == [device]

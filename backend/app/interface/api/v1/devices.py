@@ -26,6 +26,10 @@ def list_devices(
         DeviceResponse(
             id=device.id,
             asset_number=device.asset_number,
+            device_type=device.device_type,
+            manufacturer=device.manufacturer,
+            model=device.model,
+            serial_number=device.serial_number,
             hostname=device.hostname,
             reported_ip=device.reported_ip,
             battery_level=device.battery_level,
