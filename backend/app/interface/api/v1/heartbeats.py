@@ -45,4 +45,6 @@ def register_heartbeat(
 
     heartbeat = use_case.execute(command)
 
+    session.commit()
+
     return HeartbeatResponse(id=heartbeat.id, device_id=heartbeat.device_id, received_at=heartbeat.received_at)
