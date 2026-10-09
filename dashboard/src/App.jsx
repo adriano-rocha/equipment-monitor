@@ -1,36 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
-import { getDevices } from './services/api'
+import { getDevices } from "./services/api";
 
-const WS_URL = 'ws://127.0.0.1:8000/api/v1/ws'
-const RECONNECT_DELAY_MS = 3000
+const WS_URL = "ws://127.0.0.1:8000/api/v1/ws";
+const RECONNECT_DELAY_MS = 3000;
+const REFRESH_INTERVAL_MS = 30000
 
 function StatusBadge({ status }) {
   const statusConfig = {
     ONLINE: {
-      label: 'ONLINE',
-      className: 'status-online',
+      label: "ONLINE",
+      className: "status-online",
     },
-    'SEM COMUNICAÇÃO': {
-      label: 'SEM COMUNICAÇÃO',
-      className: 'status-warning',
+    "SEM COMUNICAÇÃO": {
+      label: "SEM COMUNICAÇÃO",
+      className: "status-warning",
     },
     OFFLINE: {
-      label: 'OFFLINE',
-      className: 'status-offline',
+      label: "OFFLINE",
+      className: "status-offline",
     },
-  }
+  };
 
   const config = statusConfig[status] ?? {
-    label: status ?? 'SEM REGISTRO',
-    className: 'status-unknown',
-  }
+    label: status ?? "SEM REGISTRO",
+    className: "status-unknown",
+  };
 
   return (
-    <span className={`status-badge ${config.className}`}>
-      {config.label}
-    </span>
-  )
+    <span className={`status-badge ${config.className}`}>{config.label}</span>
+  );
 }
 
 function StatusCard({ title, count, className }) {
@@ -39,59 +38,83 @@ function StatusCard({ title, count, className }) {
       <span className="status-card-title">{title}</span>
       <strong className="status-card-count">{count}</strong>
     </div>
-  )
+  );
+}
+
+function formatBrasiliaDateTime(timestamp) {
+  if (!timestamp) {
+    return "-";
+  }
+
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
 }
 
 function App() {
-  const [devices, setDevices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('TODOS')
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("TODOS");
 
   useEffect(() => {
-    let active = true
-    let websocket = null
-    let reconnectTimeoutId = null
+    let active = true;
+    let websocket = null;
+    let reconnectTimeoutId = null;
+    let refreshIntervalId = null
 
     async function fetchDevices() {
       try {
-        const data = await getDevices()
+        const data = await getDevices();
 
         if (!active) {
-          return
+          return;
         }
 
-        setDevices(data)
-        setError(null)
-        setLoading(false)
+        setDevices(data);
+        setError(null);
+        setLoading(false);
       } catch (err) {
-        console.error('Erro ao carregar equipamentos:', err)
+        console.error("Erro ao carregar equipamentos:", err);
 
         if (active) {
-          setError('Não foi possível carregar os equipamentos.')
-          setLoading(false)
+          setError("Não foi possível carregar os equipamentos.");
+          setLoading(false);
         }
       }
     }
 
     function connectWebSocket() {
       if (!active) {
-        return
+        return;
       }
 
-      websocket = new WebSocket(WS_URL)
+      websocket = new WebSocket(WS_URL);
 
       websocket.onopen = () => {
-        console.info('WebSocket conectado.')
-      }
+        console.info("WebSocket conectado.");
+      };
 
       websocket.onmessage = (event) => {
         try {
-          const payload = JSON.parse(event.data)
+          const payload = JSON.parse(event.data);
 
-          if (payload.event !== 'device_status_changed') {
-            return
+          if (payload.event !== "device_status_changed") {
+            return;
           }
 
           setDevices((currentDevices) =>
@@ -103,93 +126,102 @@ function App() {
                   }
                 : device,
             ),
-          )
+          );
         } catch (err) {
-          console.error('Erro ao processar evento WebSocket:', err)
+          console.error("Erro ao processar evento WebSocket:", err);
         }
-      }
+      };
 
       websocket.onerror = (event) => {
-        console.error('Erro no WebSocket:', event)
-      }
+        console.error("Erro no WebSocket:", event);
+      };
 
       websocket.onclose = () => {
-        websocket = null
+        websocket = null;
 
         if (!active) {
-          return
+          return;
         }
 
         console.warn(
           `WebSocket desconectado. Tentando reconectar em ${
             RECONNECT_DELAY_MS / 1000
           } segundos...`,
-        )
+        );
 
         reconnectTimeoutId = window.setTimeout(() => {
-          connectWebSocket()
-        }, RECONNECT_DELAY_MS)
-      }
+          connectWebSocket();
+        }, RECONNECT_DELAY_MS);
+      };
     }
 
-    async function initialize() {
-      await fetchDevices()
+  async function initialize() {
+  await fetchDevices();
 
-      if (active) {
-        connectWebSocket()
-      }
+  if (!active) {
+    return;
+  }
+
+  connectWebSocket();
+
+  refreshIntervalId = window.setInterval(() => {
+    fetchDevices();
+  }, REFRESH_INTERVAL_MS);
+}
+
+initialize();
+
+  return () => {
+    active = false;
+
+    if (refreshIntervalId !== null) {
+      window.clearInterval(refreshIntervalId);
     }
 
-    initialize()
-
-    return () => {
-      active = false
-
-      if (reconnectTimeoutId !== null) {
-        window.clearTimeout(reconnectTimeoutId)
-      }
-
-      if (websocket !== null) {
-        websocket.close()
-      }
+    if (reconnectTimeoutId !== null) {
+      window.clearTimeout(reconnectTimeoutId);
     }
-  }, [])
+
+    if (websocket !== null) {
+      websocket.close();
+    }
+  };
+}, []);
 
   if (loading) {
-    return <p>Carregando equipamentos...</p>
+    return <p>Carregando equipamentos...</p>;
   }
 
   if (error) {
-    return <p>{error}</p>
+    return <p>{error}</p>;
   }
 
   const onlineCount = devices.filter(
-    (device) => device.status === 'ONLINE',
-  ).length
+    (device) => device.status === "ONLINE",
+  ).length;
 
   const warningCount = devices.filter(
-    (device) => device.status === 'SEM COMUNICAÇÃO',
-  ).length
+    (device) => device.status === "SEM COMUNICAÇÃO",
+  ).length;
 
   const offlineCount = devices.filter(
-    (device) => device.status === 'OFFLINE',
-  ).length
+    (device) => device.status === "OFFLINE",
+  ).length;
 
-  const normalizedSearch = search.trim().toLowerCase()
+  const normalizedSearch = search.trim().toLowerCase();
 
   const filteredDevices = devices.filter((device) => {
     const matchesSearch =
-      normalizedSearch === '' ||
+      normalizedSearch === "" ||
       device.asset_number?.toLowerCase().includes(normalizedSearch) ||
       device.hostname?.toLowerCase().includes(normalizedSearch) ||
-      device.reported_ip?.toLowerCase().includes(normalizedSearch)
+      device.reported_ip?.toLowerCase().includes(normalizedSearch);
 
     const matchesStatus =
-      statusFilter === 'TODOS' ||
-      device.status === statusFilter
+      statusFilter === "TODOS" || device.status === statusFilter;
 
-    return matchesSearch && matchesStatus
-  })
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <main>
@@ -245,31 +277,29 @@ function App() {
 
           <div className="status-filters">
             <button
-              className={statusFilter === 'TODOS' ? 'active' : ''}
-              onClick={() => setStatusFilter('TODOS')}
+              className={statusFilter === "TODOS" ? "active" : ""}
+              onClick={() => setStatusFilter("TODOS")}
             >
               Todos
             </button>
 
             <button
-              className={statusFilter === 'ONLINE' ? 'active' : ''}
-              onClick={() => setStatusFilter('ONLINE')}
+              className={statusFilter === "ONLINE" ? "active" : ""}
+              onClick={() => setStatusFilter("ONLINE")}
             >
               Online
             </button>
 
             <button
-              className={
-                statusFilter === 'SEM COMUNICAÇÃO' ? 'active' : ''
-              }
-              onClick={() => setStatusFilter('SEM COMUNICAÇÃO')}
+              className={statusFilter === "SEM COMUNICAÇÃO" ? "active" : ""}
+              onClick={() => setStatusFilter("SEM COMUNICAÇÃO")}
             >
               Sem comunicação
             </button>
 
             <button
-              className={statusFilter === 'OFFLINE' ? 'active' : ''}
-              onClick={() => setStatusFilter('OFFLINE')}
+              className={statusFilter === "OFFLINE" ? "active" : ""}
+              onClick={() => setStatusFilter("OFFLINE")}
             >
               Offline
             </button>
@@ -292,25 +322,23 @@ function App() {
             <tbody>
               {filteredDevices.map((device) => (
                 <tr key={device.id}>
-                  <td className="asset-number">
-                    {device.asset_number}
-                  </td>
+                  <td className="asset-number">{device.asset_number}</td>
 
-                  <td>{device.hostname ?? '-'}</td>
+                  <td>{device.hostname ?? "-"}</td>
 
-                  <td>{device.reported_ip ?? '-'}</td>
+                  <td>{device.reported_ip ?? "-"}</td>
 
                   <td>
                     {device.battery_level !== null
                       ? `${device.battery_level}%`
-                      : '-'}
+                      : "-"}
                   </td>
 
                   <td>
                     <StatusBadge status={device.status} />
                   </td>
 
-                  <td>{device.last_seen ?? '-'}</td>
+                  <td>{formatBrasiliaDateTime(device.last_seen)}</td>
                 </tr>
               ))}
 
@@ -326,7 +354,7 @@ function App() {
         </div>
       </section>
     </main>
-  )
+  );
 }
 
-export default App
+export default App;
