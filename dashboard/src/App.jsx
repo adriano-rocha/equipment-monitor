@@ -4,7 +4,7 @@ import { getDevices } from "./services/api";
 
 const WS_URL = "ws://127.0.0.1:8000/api/v1/ws";
 const RECONNECT_DELAY_MS = 3000;
-const REFRESH_INTERVAL_MS = 30000
+const REFRESH_INTERVAL_MS = 30000;
 
 function StatusBadge({ status }) {
   const statusConfig = {
@@ -75,7 +75,7 @@ function App() {
     let active = true;
     let websocket = null;
     let reconnectTimeoutId = null;
-    let refreshIntervalId = null
+    let refreshIntervalId = null;
 
     async function fetchDevices() {
       try {
@@ -155,38 +155,38 @@ function App() {
       };
     }
 
-  async function initialize() {
-  await fetchDevices();
+    async function initialize() {
+      await fetchDevices();
 
-  if (!active) {
-    return;
-  }
+      if (!active) {
+        return;
+      }
 
-  connectWebSocket();
+      connectWebSocket();
 
-  refreshIntervalId = window.setInterval(() => {
-    fetchDevices();
-  }, REFRESH_INTERVAL_MS);
-}
-
-initialize();
-
-  return () => {
-    active = false;
-
-    if (refreshIntervalId !== null) {
-      window.clearInterval(refreshIntervalId);
+      refreshIntervalId = window.setInterval(() => {
+        fetchDevices();
+      }, REFRESH_INTERVAL_MS);
     }
 
-    if (reconnectTimeoutId !== null) {
-      window.clearTimeout(reconnectTimeoutId);
-    }
+    initialize();
 
-    if (websocket !== null) {
-      websocket.close();
-    }
-  };
-}, []);
+    return () => {
+      active = false;
+
+      if (refreshIntervalId !== null) {
+        window.clearInterval(refreshIntervalId);
+      }
+
+      if (reconnectTimeoutId !== null) {
+        window.clearTimeout(reconnectTimeoutId);
+      }
+
+      if (websocket !== null) {
+        websocket.close();
+      }
+    };
+  }, []);
 
   if (loading) {
     return <p>Carregando equipamentos...</p>;
@@ -211,11 +211,19 @@ initialize();
   const normalizedSearch = search.trim().toLowerCase();
 
   const filteredDevices = devices.filter((device) => {
+    const searchableValues = [
+      device.asset_number,
+      device.hostname,
+      device.reported_ip,
+    ];
+
     const matchesSearch =
       normalizedSearch === "" ||
-      device.asset_number?.toLowerCase().includes(normalizedSearch) ||
-      device.hostname?.toLowerCase().includes(normalizedSearch) ||
-      device.reported_ip?.toLowerCase().includes(normalizedSearch);
+      searchableValues.some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(normalizedSearch),
+      );
 
     const matchesStatus =
       statusFilter === "TODOS" || device.status === statusFilter;
@@ -269,7 +277,8 @@ initialize();
 
         <div className="filters">
           <input
-            type="text"
+            type="search"
+            aria-label="Buscar equipamentos por patrimônio, hostname ou IP"
             placeholder="Buscar patrimônio, hostname ou IP..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -277,28 +286,36 @@ initialize();
 
           <div className="status-filters">
             <button
+              type="button"
               className={statusFilter === "TODOS" ? "active" : ""}
+              aria-pressed={statusFilter === "TODOS"}
               onClick={() => setStatusFilter("TODOS")}
             >
               Todos
             </button>
 
             <button
+              type="button"
               className={statusFilter === "ONLINE" ? "active" : ""}
+              aria-pressed={statusFilter === "ONLINE"}
               onClick={() => setStatusFilter("ONLINE")}
             >
               Online
             </button>
 
             <button
+              type="button"
               className={statusFilter === "SEM COMUNICAÇÃO" ? "active" : ""}
+              aria-pressed={statusFilter === "SEM COMUNICAÇÃO"}
               onClick={() => setStatusFilter("SEM COMUNICAÇÃO")}
             >
               Sem comunicação
             </button>
 
             <button
+              type="button"
               className={statusFilter === "OFFLINE" ? "active" : ""}
+              aria-pressed={statusFilter === "OFFLINE"}
               onClick={() => setStatusFilter("OFFLINE")}
             >
               Offline
@@ -329,7 +346,7 @@ initialize();
                   <td>{device.reported_ip ?? "-"}</td>
 
                   <td>
-                    {device.battery_level !== null
+                    {typeof device.battery_level === "number"
                       ? `${device.battery_level}%`
                       : "-"}
                   </td>
