@@ -23,10 +23,11 @@ from app.interface.api.v1.schemas.event_device_schema import (
     EventDeviceResponse,
     EventDeviceResponsibleUpdate,
 )
-from app.interface.deps import get_db_session
+from app.interface.deps import get_current_user, get_db_session
 
-router = APIRouter()
-
+router = APIRouter(
+    dependencies=[Depends(get_current_user)],
+)
 
 def _get_event_device_service(session: Session) -> EventDeviceService:
     """Cria o serviço de associações com seus repositórios concretos."""

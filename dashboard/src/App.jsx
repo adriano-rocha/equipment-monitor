@@ -1,377 +1,348 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { getDevices } from "./services/api";
+import { useDevices } from "./hooks/useDevices";
+import Login from "./Login";
+import { clearAccessToken, getAccessToken } from "./services/api";
 
-const WS_URL = "ws://127.0.0.1:8000/api/v1/ws";
-const RECONNECT_DELAY_MS = 3000;
-const REFRESH_INTERVAL_MS = 30000;
+const STATUS = {
+ONLINE: "ONLINE",
+WARNING: "SEM COMUNICAÇÃO",
+OFFLINE: "OFFLINE",
+};
+
+const STATUS_BADGES = {
+[STATUS.ONLINE]: { label: "ONLINE", className: "status-online" },
+[STATUS.WARNING]: {
+label: "SEM COMUNICAÇÃO",
+className: "status-warning",
+},
+[STATUS.OFFLINE]: { label: "OFFLINE", className: "status-offline" },
+};
+
+const SUMMARY_CARDS = [
+{ status: STATUS.ONLINE, title: "ONLINE", className: "card-online" },
+{
+status: STATUS.WARNING,
+title: "SEM COMUNICAÇÃO",
+className: "card-warning",
+},
+{ status: STATUS.OFFLINE, title: "OFFLINE", className: "card-offline" },
+];
+
+const STATUS_FILTERS = [
+{ value: "TODOS", label: "Todos" },
+{ value: STATUS.ONLINE, label: "Online" },
+{ value: STATUS.WARNING, label: "Sem comunicação" },
+{ value: STATUS.OFFLINE, label: "Offline" },
+];
+
+const TABLE_COLUMNS = [
+"Patrimônio",
+"Hostname",
+"IP",
+"Bateria",
+"Status",
+"Último contato",
+];
+
+const brasiliaDateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+timeZone: "America/Sao_Paulo",
+day: "2-digit",
+month: "2-digit",
+year: "numeric",
+hour: "2-digit",
+minute: "2-digit",
+second: "2-digit",
+hourCycle: "h23",
+});
+
+function formatBrasiliaDateTime(timestamp) {
+if (!timestamp) {
+return "-";
+}
+
+const date = new Date(timestamp);
+
+if (Number.isNaN(date.getTime())) {
+return "-";
+}
+
+return brasiliaDateTimeFormatter.format(date);
+}
 
 function StatusBadge({ status }) {
-  const statusConfig = {
-    ONLINE: {
-      label: "ONLINE",
-      className: "status-online",
-    },
-    "SEM COMUNICAÇÃO": {
-      label: "SEM COMUNICAÇÃO",
-      className: "status-warning",
-    },
-    OFFLINE: {
-      label: "OFFLINE",
-      className: "status-offline",
-    },
-  };
+const config = STATUS_BADGES[status] ?? {
+label: status ?? "SEM REGISTRO",
+className: "status-unknown",
+};
 
-  const config = statusConfig[status] ?? {
-    label: status ?? "SEM REGISTRO",
-    className: "status-unknown",
-  };
-
-  return (
-    <span className={`status-badge ${config.className}`}>{config.label}</span>
-  );
+return (
+<span className={`status-badge ${config.className}`}>
+{config.label} </span>
+);
 }
 
 function StatusCard({ title, count, className }) {
-  return (
-    <div className={`status-card ${className}`}>
-      <span className="status-card-title">{title}</span>
-      <strong className="status-card-count">{count}</strong>
-    </div>
-  );
+return (
+<div className={`status-card ${className}`}> <span className="status-card-title">{title}</span> <strong className="status-card-count">{count}</strong> </div>
+);
 }
 
-function formatBrasiliaDateTime(timestamp) {
-  if (!timestamp) {
-    return "-";
-  }
-
-  const date = new Date(timestamp);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).format(date);
+function getEmptyMessage({ totalDevices, hasError }) {
+if (totalDevices > 0) {
+return "Nenhum equipamento corresponde aos filtros selecionados.";
 }
 
-function App() {
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("TODOS");
+return hasError
+? "Sem dados para exibir."
+: "Nenhum equipamento cadastrado.";
+}
 
-  useEffect(() => {
-    let active = true;
-    let websocket = null;
-    let reconnectTimeoutId = null;
-    let refreshIntervalId = null;
+function DevicesTable({ devices, emptyMessage }) {
+return ( <div className="table-container"> <table> <thead> <tr>
+{TABLE_COLUMNS.map((column) => ( <th key={column} scope="col">
+{column} </th>
+))} </tr> </thead>
 
-    async function fetchDevices() {
-      try {
-        const data = await getDevices();
+```
+    <tbody>
+      {devices.map((device) => (
+        <tr key={device.id}>
+          <td className="asset-number">{device.asset_number ?? "-"}</td>
+          <td>{device.hostname ?? "-"}</td>
+          <td>{device.reported_ip ?? "-"}</td>
+          <td>
+            {typeof device.battery_level === "number"
+              ? `${device.battery_level}%`
+              : "-"}
+          </td>
+          <td>
+            <StatusBadge status={device.status} />
+          </td>
+          <td>{formatBrasiliaDateTime(device.last_seen)}</td>
+        </tr>
+      ))}
 
-        if (!active) {
-          return;
-        }
+      {devices.length === 0 && (
+        <tr>
+          <td colSpan={TABLE_COLUMNS.length} className="empty-state">
+            {emptyMessage}
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+```
 
-        setDevices(data);
-        setError(null);
-        setLoading(false);
-      } catch (err) {
-        console.error("Erro ao carregar equipamentos:", err);
+);
+}
 
-        if (active) {
-          setError("Não foi possível carregar os equipamentos.");
-          setLoading(false);
-        }
-      }
-    }
+function Dashboard({ onLogout }) {
+const { devices, loading, refreshing, error, lastUpdated, refresh } =
+useDevices();
 
-    function connectWebSocket() {
-      if (!active) {
-        return;
-      }
+const [search, setSearch] = useState("");
+const [statusFilter, setStatusFilter] = useState("TODOS");
 
-      websocket = new WebSocket(WS_URL);
+const counts = useMemo(() => {
+const result = {};
 
-      websocket.onopen = () => {
-        console.info("WebSocket conectado.");
-      };
+```
+for (const device of devices) {
+  result[device.status] = (result[device.status] ?? 0) + 1;
+}
 
-      websocket.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
+return result;
+```
 
-          if (payload.event !== "device_status_changed") {
-            return;
-          }
+}, [devices]);
 
-          setDevices((currentDevices) =>
-            currentDevices.map((device) =>
-              String(device.id) === String(payload.device_id)
-                ? {
-                    ...device,
-                    status: payload.status,
-                  }
-                : device,
-            ),
-          );
-        } catch (err) {
-          console.error("Erro ao processar evento WebSocket:", err);
-        }
-      };
+const filteredDevices = useMemo(() => {
+const normalizedSearch = search.trim().toLowerCase();
 
-      websocket.onerror = (event) => {
-        console.error("Erro no WebSocket:", event);
-      };
-
-      websocket.onclose = () => {
-        websocket = null;
-
-        if (!active) {
-          return;
-        }
-
-        console.warn(
-          `WebSocket desconectado. Tentando reconectar em ${
-            RECONNECT_DELAY_MS / 1000
-          } segundos...`,
-        );
-
-        reconnectTimeoutId = window.setTimeout(() => {
-          connectWebSocket();
-        }, RECONNECT_DELAY_MS);
-      };
-    }
-
-    async function initialize() {
-      await fetchDevices();
-
-      if (!active) {
-        return;
-      }
-
-      connectWebSocket();
-
-      refreshIntervalId = window.setInterval(() => {
-        fetchDevices();
-      }, REFRESH_INTERVAL_MS);
-    }
-
-    initialize();
-
-    return () => {
-      active = false;
-
-      if (refreshIntervalId !== null) {
-        window.clearInterval(refreshIntervalId);
-      }
-
-      if (reconnectTimeoutId !== null) {
-        window.clearTimeout(reconnectTimeoutId);
-      }
-
-      if (websocket !== null) {
-        websocket.close();
-      }
-    };
-  }, []);
-
-  if (loading) {
-    return <p>Carregando equipamentos...</p>;
-  }
-
-  if (error) {
-    return <p>{error}</p>;
-  }
-
-  const onlineCount = devices.filter(
-    (device) => device.status === "ONLINE",
-  ).length;
-
-  const warningCount = devices.filter(
-    (device) => device.status === "SEM COMUNICAÇÃO",
-  ).length;
-
-  const offlineCount = devices.filter(
-    (device) => device.status === "OFFLINE",
-  ).length;
-
-  const normalizedSearch = search.trim().toLowerCase();
-
-  const filteredDevices = devices.filter((device) => {
-    const searchableValues = [
-      device.asset_number,
-      device.hostname,
-      device.reported_ip,
-    ];
-
-    const matchesSearch =
-      normalizedSearch === "" ||
-      searchableValues.some((value) =>
+```
+return devices.filter((device) => {
+  const matchesSearch =
+    normalizedSearch === "" ||
+    [device.asset_number, device.hostname, device.reported_ip].some(
+      (value) =>
         String(value ?? "")
           .toLowerCase()
           .includes(normalizedSearch),
-      );
+    );
 
-    const matchesStatus =
-      statusFilter === "TODOS" || device.status === statusFilter;
+  const matchesStatus =
+    statusFilter === "TODOS" || device.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+  return matchesSearch && matchesStatus;
+});
+```
 
-  return (
-    <main>
-      <header className="dashboard-header">
-        <div>
-          <h1>Equipment Monitor</h1>
-          <p>Monitoramento de equipamentos</p>
-        </div>
+}, [devices, search, statusFilter]);
 
-        <div className="device-total">
-          <span>Equipamentos monitorados</span>
-          <strong>{devices.length}</strong>
-        </div>
-      </header>
+if (loading) {
+return ( <main className="dashboard-loading" aria-live="polite"> <p>Carregando equipamentos...</p> </main>
+);
+}
 
-      <section className="status-grid">
-        <StatusCard
-          title="ONLINE"
-          count={onlineCount}
-          className="card-online"
-        />
+return ( <main> <header className="dashboard-header"> <div className="brand"> <img
+         src="/asaph.png"
+         alt="Logo ASAPH"
+         className="brand-logo"
+       /> </div>
 
-        <StatusCard
-          title="SEM COMUNICAÇÃO"
-          count={warningCount}
-          className="card-warning"
-        />
+```
+    <div className="device-total">
+      <button
+        type="button"
+        className="logout-button"
+        onClick={onLogout}
+      >
+        Sair
+      </button>
 
-        <StatusCard
-          title="OFFLINE"
-          count={offlineCount}
-          className="card-offline"
-        />
-      </section>
+      <span>Equipamentos monitorados</span>
+      <strong>{devices.length}</strong>
+    </div>
+  </header>
 
-      <section className="devices-section">
-        <div className="section-header">
-          <div>
-            <h2>Equipamentos</h2>
-            <span>
-              Exibindo {filteredDevices.length} de {devices.length}
-            </span>
-          </div>
-        </div>
+  {error && (
+    <div className="error-banner" role="alert">
+      <span>{error}</span>
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={refreshing}
+      >
+        Tentar novamente
+      </button>
+    </div>
+  )}
 
-        <div className="filters">
-          <input
-            type="search"
-            aria-label="Buscar equipamentos por patrimônio, hostname ou IP"
-            placeholder="Buscar patrimônio, hostname ou IP..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+  <section className="status-grid" aria-label="Resumo dos status">
+    {SUMMARY_CARDS.map((card) => (
+      <StatusCard
+        key={card.status}
+        title={card.title}
+        count={counts[card.status] ?? 0}
+        className={card.className}
+      />
+    ))}
+  </section>
 
-          <div className="status-filters">
-            <button
-              type="button"
-              className={statusFilter === "TODOS" ? "active" : ""}
-              aria-pressed={statusFilter === "TODOS"}
-              onClick={() => setStatusFilter("TODOS")}
-            >
-              Todos
-            </button>
+  <section className="devices-section">
+    <div className="section-header">
+      <div>
+        <h2>Equipamentos</h2>
+        <span>
+          Exibindo {filteredDevices.length} de {devices.length} equipamentos
+        </span>
+      </div>
 
-            <button
-              type="button"
-              className={statusFilter === "ONLINE" ? "active" : ""}
-              aria-pressed={statusFilter === "ONLINE"}
-              onClick={() => setStatusFilter("ONLINE")}
-            >
-              Online
-            </button>
+      <div className="refresh-info">
+        <span>
+          Atualizado:{" "}
+          {lastUpdated
+            ? formatBrasiliaDateTime(lastUpdated)
+            : "Aguardando atualização"}
+        </span>
 
-            <button
-              type="button"
-              className={statusFilter === "SEM COMUNICAÇÃO" ? "active" : ""}
-              aria-pressed={statusFilter === "SEM COMUNICAÇÃO"}
-              onClick={() => setStatusFilter("SEM COMUNICAÇÃO")}
-            >
-              Sem comunicação
-            </button>
+        <button
+          type="button"
+          className="refresh-button"
+          onClick={refresh}
+          disabled={refreshing}
+        >
+          {refreshing ? "Atualizando..." : "Atualizar"}
+        </button>
+      </div>
+    </div>
 
-            <button
-              type="button"
-              className={statusFilter === "OFFLINE" ? "active" : ""}
-              aria-pressed={statusFilter === "OFFLINE"}
-              onClick={() => setStatusFilter("OFFLINE")}
-            >
-              Offline
-            </button>
-          </div>
-        </div>
+    <div className="filters">
+      <input
+        type="search"
+        aria-label="Buscar equipamentos por patrimônio, hostname ou IP"
+        placeholder="Buscar patrimônio, hostname ou IP..."
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+      />
 
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Patrimônio</th>
-                <th>Hostname</th>
-                <th>IP</th>
-                <th>Bateria</th>
-                <th>Status</th>
-                <th>Último contato</th>
-              </tr>
-            </thead>
+      <div className="status-filters" aria-label="Filtrar por status">
+        {STATUS_FILTERS.map((filter) => (
+          <button
+            type="button"
+            key={filter.value}
+            className={statusFilter === filter.value ? "active" : ""}
+            aria-pressed={statusFilter === filter.value}
+            onClick={() => setStatusFilter(filter.value)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+    </div>
 
-            <tbody>
-              {filteredDevices.map((device) => (
-                <tr key={device.id}>
-                  <td className="asset-number">{device.asset_number}</td>
+    <DevicesTable
+      devices={filteredDevices}
+      emptyMessage={getEmptyMessage({
+        totalDevices: devices.length,
+        hasError: Boolean(error),
+      })}
+    />
+  </section>
 
-                  <td>{device.hostname ?? "-"}</td>
+  <footer className="dashboard-footer">
+    <span>ASAPH | Grupo Pleno</span>
+    <span>Monitoramento de ativos</span>
+  </footer>
+</main>
+```
 
-                  <td>{device.reported_ip ?? "-"}</td>
+);
+}
 
-                  <td>
-                    {typeof device.battery_level === "number"
-                      ? `${device.battery_level}%`
-                      : "-"}
-                  </td>
+function App() {
+const [authenticated, setAuthenticated] = useState(() =>
+Boolean(getAccessToken()),
+);
 
-                  <td>
-                    <StatusBadge status={device.status} />
-                  </td>
+useEffect(() => {
+function handleSessionExpired() {
+clearAccessToken();
+setAuthenticated(false);
+}
 
-                  <td>{formatBrasiliaDateTime(device.last_seen)}</td>
-                </tr>
-              ))}
+```
+window.addEventListener(
+  "equipment-monitor:session-expired",
+  handleSessionExpired,
+);
 
-              {filteredDevices.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="empty-state">
-                    Nenhum equipamento encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+return () => {
+  window.removeEventListener(
+    "equipment-monitor:session-expired",
+    handleSessionExpired,
   );
+};
+```
+
+}, []);
+
+function handleLoginSuccess() {
+setAuthenticated(true);
+}
+
+function handleLogout() {
+clearAccessToken();
+setAuthenticated(false);
+}
+
+if (!authenticated) {
+return <Login onLoginSuccess={handleLoginSuccess} />;
+}
+
+return <Dashboard onLogout={handleLogout} />;
 }
 
 export default App;

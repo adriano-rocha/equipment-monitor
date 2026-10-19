@@ -9,9 +9,11 @@ from app.infrastructure.db.repositories.sqlalchemy_device_repository import (
     SqlAlchemyDeviceRepository,
 )
 from app.interface.api.v1.schemas.device_schema import DeviceResponse
-from app.interface.deps import get_db_session
+from app.interface.deps import get_current_user, get_db_session
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/devices", response_model=list[DeviceResponse])

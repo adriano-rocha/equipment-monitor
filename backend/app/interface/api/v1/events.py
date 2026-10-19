@@ -16,9 +16,11 @@ from app.interface.api.v1.schemas.event_schema import (
     EventResponse,
     EventUpdate,
 )
-from app.interface.deps import get_db_session
+from app.interface.deps import get_current_user, get_db_session
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _get_event_service(session: Session) -> EventService:

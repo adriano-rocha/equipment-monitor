@@ -22,6 +22,7 @@ from app.interface.api.v1.events import router as events_router
 from app.interface.api.v1.heartbeats import router as heartbeats_router
 from app.interface.api.v1.realtime import router as realtime_router
 from app.interface.api.v1.users import router as users_router
+from app.interface.api.v1 import auth
 from app.interface.error_handlers import (
     device_not_found_handler,
     event_device_already_active_handler,
@@ -69,6 +70,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:5174",
     ],
+    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -108,6 +110,12 @@ app.include_router(
     realtime_router,
     prefix="/api/v1",
     tags=["realtime"],
+)
+
+app.include_router(
+    auth.router, 
+    prefix="/api/v1", 
+    tags=["Autenticação"]
 )
 
 app.add_exception_handler(

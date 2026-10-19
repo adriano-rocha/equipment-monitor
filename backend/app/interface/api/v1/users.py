@@ -14,10 +14,11 @@ from app.interface.api.v1.schemas.user_schema import (
     UserCreate,
     UserResponse,
 )
-from app.interface.deps import get_db_session
+from app.interface.deps import get_current_user, get_db_session
 
-router = APIRouter()
-
+router = APIRouter(
+    dependencies=[Depends(get_current_user)],
+)
 
 def _get_user_service(session: Session) -> UserService:
     return UserService(
