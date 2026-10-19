@@ -652,6 +652,45 @@ tbody tr:last-child td {
   cursor: wait;
 }
 
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 46px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.password-toggle:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-primary-soft);
+}
+
+.password-toggle:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .login-error {
   padding: 12px 14px;
   border: 1px solid rgb(239 68 68 / 40%);
