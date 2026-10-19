@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   font-family:
     Inter,
     -apple-system,
@@ -6,28 +7,37 @@
     "Segoe UI",
     sans-serif;
 
-  color: #182230;
-  background: #f3f6fb;
+  color: #e6e8eb;
+  background: #141618;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Cores */
-  --color-primary: #174ea6;
-  --color-primary-dark: #123c80;
-  --color-text: #182230;
-  --color-muted: #64748b;
-  --color-border: #e2e8f0;
-  --color-surface: #ffffff;
-  --color-background: #f3f6fb;
-  --color-success: #15803d;
-  --color-warning: #a16207;
-  --color-danger: #b91c1c;
+  /* Marca (verde da logo ASAPH) */
+  --color-primary: #168a53;
+  --color-primary-dark: #1fa866;
+  --color-primary-soft: #34d399;
+  --color-primary-glow: rgb(31 168 102 / 28%);
+
+  /* Texto e superfícies */
+  --color-text: #e6e8eb;
+  --color-muted: #9aa4b2;
+  --color-border: #2a2f36;
+  --color-surface: #1c1e21;
+  --color-surface-alt: #202328;
+  --color-surface-hover: #24282d;
+  --color-input: #141618;
+  --color-background: #141618;
+
+  /* Status */
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-danger: #f87171;
 
   /* Componentes */
   --radius-card: 14px;
-  --shadow-card: 0 4px 18px rgb(15 23 42 / 4%);
+  --shadow-card: 0 4px 18px rgb(0 0 0 / 35%);
 }
 
 /* =========================================================
@@ -41,6 +51,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  background: var(--color-background);
 }
 
 body {
@@ -74,7 +85,7 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 3px solid rgb(23 78 166 / 25%);
+  outline: 3px solid var(--color-primary-glow);
   outline-offset: 2px;
 }
 
@@ -118,44 +129,6 @@ main {
   object-fit: contain;
 }
 
-.brand-logo:first-child {
-  justify-self: start;
-}
-
-.brand-logo:last-child {
-  justify-self: center;
-}
-
-.brand-mark {
-  display: grid;
-  flex: 0 0 52px;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  border-radius: 13px;
-  background: var(--color-primary);
-  color: #ffffff;
-  font-size: 25px;
-  font-weight: 800;
-  box-shadow: 0 5px 12px rgb(23 78 166 / 18%);
-}
-
-.dashboard-header h1 {
-  margin: 0 0 7px;
-  color: var(--color-text);
-  font-size: clamp(20px, 2vw, 27px);
-  font-weight: 750;
-  letter-spacing: -0.7px;
-  line-height: 1.25;
-}
-
-.dashboard-header p {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
 /* Quantidade de equipamentos */
 
 .device-total {
@@ -175,7 +148,7 @@ main {
 }
 
 .device-total strong {
-  color: var(--color-primary);
+  color: var(--color-primary-soft);
   font-size: 32px;
   font-weight: 800;
   line-height: 1.2;
@@ -212,7 +185,7 @@ main {
 
 .status-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 50%);
 }
 
 .status-card-title {
@@ -321,8 +294,8 @@ main {
     border-color 160ms ease;
 }
 
-.refresh-button:hover,
-.error-banner button:hover {
+.refresh-button:hover:not(:disabled),
+.error-banner button:hover:not(:disabled) {
   border-color: var(--color-primary-dark);
   background: var(--color-primary-dark);
 }
@@ -344,7 +317,7 @@ main {
   gap: 18px;
   padding: 20px 26px;
   border-bottom: 1px solid var(--color-border);
-  background: #fcfdff;
+  background: var(--color-surface-alt);
 }
 
 .filters input {
@@ -352,10 +325,10 @@ main {
   max-width: 420px;
   min-height: 42px;
   padding: 10px 14px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 9px;
   outline: none;
-  background: #ffffff;
+  background: var(--color-input);
   color: var(--color-text);
   font-size: 13px;
   transition:
@@ -364,12 +337,12 @@ main {
 }
 
 .filters input::placeholder {
-  color: #94a3b8;
+  color: #6b7686;
 }
 
 .filters input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgb(23 78 166 / 9%);
+  border-color: var(--color-primary-dark);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .status-filters {
@@ -382,10 +355,10 @@ main {
 .status-filters button {
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid #dbe3ed;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
-  color: #475569;
+  background: var(--color-input);
+  color: #c3cad4;
   font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
@@ -397,8 +370,9 @@ main {
 }
 
 .status-filters button:hover {
-  border-color: #b8c8df;
-  background: #f1f5f9;
+  border-color: var(--color-primary-dark);
+  background: var(--color-surface-hover);
+  color: var(--color-primary-soft);
 }
 
 .status-filters button.active {
@@ -426,14 +400,14 @@ table {
 th,
 td {
   padding: 16px 20px;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid #262a30;
   text-align: left;
   white-space: nowrap;
 }
 
 th {
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--color-surface-alt);
+  color: var(--color-muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.7px;
@@ -441,7 +415,7 @@ th {
 }
 
 td {
-  color: #334155;
+  color: #d4d9e0;
   font-size: 12px;
 }
 
@@ -450,7 +424,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: #f8fbff;
+  background: var(--color-surface-hover);
 }
 
 tbody tr:last-child td {
@@ -458,7 +432,7 @@ tbody tr:last-child td {
 }
 
 .asset-number {
-  color: #1e293b;
+  color: #f1f3f5;
   font-weight: 750;
 }
 
@@ -477,23 +451,23 @@ tbody tr:last-child td {
 }
 
 .status-online {
-  background: #dcfce7;
-  color: #166534;
+  background: rgb(34 197 94 / 16%);
+  color: #4ade80;
 }
 
 .status-warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: rgb(234 179 8 / 16%);
+  color: #facc15;
 }
 
 .status-offline {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgb(239 68 68 / 16%);
+  color: #f87171;
 }
 
 .status-unknown {
-  background: #e2e8f0;
-  color: #475569;
+  background: #2a3038;
+  color: #b4bcc8;
 }
 
 /* Estado sem resultados */
@@ -517,10 +491,10 @@ tbody tr:last-child td {
   gap: 16px;
   margin-bottom: 24px;
   padding: 16px 18px;
-  border: 1px solid #fecaca;
+  border: 1px solid rgb(239 68 68 / 40%);
   border-radius: 10px;
-  background: #fef2f2;
-  color: #991b1b;
+  background: rgb(239 68 68 / 12%);
+  color: #fca5a5;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -530,9 +504,9 @@ tbody tr:last-child td {
   background: #b91c1c;
 }
 
-.error-banner button:hover {
-  border-color: #991b1b;
-  background: #991b1b;
+.error-banner button:hover:not(:disabled) {
+  border-color: #dc2626;
+  background: #dc2626;
 }
 
 .dashboard-loading {
@@ -581,7 +555,7 @@ tbody tr:last-child td {
   margin: 0;
   padding: 24px;
   background:
-    radial-gradient(circle at top left, rgb(23 78 166 / 8%), transparent 42%),
+    radial-gradient(circle at top left, rgb(22 138 83 / 12%), transparent 42%),
     var(--color-background);
 }
 
@@ -592,7 +566,7 @@ tbody tr:last-child td {
   border: 1px solid var(--color-border);
   border-radius: 18px;
   background: var(--color-surface);
-  box-shadow: 0 12px 40px rgb(15 23 42 / 8%);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
 }
 
 .login-brand {
@@ -653,9 +627,9 @@ tbody tr:last-child td {
   width: 100%;
   min-height: 46px;
   padding: 12px 14px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 9px;
-  background: #ffffff;
+  background: var(--color-input);
   color: var(--color-text);
   font-size: 14px;
   transition:
@@ -664,26 +638,26 @@ tbody tr:last-child td {
 }
 
 .login-field input::placeholder {
-  color: #94a3b8;
+  color: #6b7686;
 }
 
 .login-field input:focus {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-dark);
   outline: none;
-  box-shadow: 0 0 0 3px rgb(23 78 166 / 10%);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .login-field input:disabled {
-  background: #f8fafc;
+  background: var(--color-surface);
   cursor: wait;
 }
 
 .login-error {
   padding: 12px 14px;
-  border: 1px solid #fecaca;
+  border: 1px solid rgb(239 68 68 / 40%);
   border-radius: 9px;
-  background: #fef2f2;
-  color: #991b1b;
+  background: rgb(239 68 68 / 12%);
+  color: #fca5a5;
   font-size: 12px;
   line-height: 1.6;
 }
@@ -752,13 +726,13 @@ tbody tr:last-child td {
 }
 
 .logout-button:hover {
-  border-color: var(--color-primary);
-  background: #f1f5f9;
-  color: var(--color-primary);
+  border-color: var(--color-primary-dark);
+  background: var(--color-surface-hover);
+  color: var(--color-primary-soft);
 }
 
 .logout-button:focus-visible {
-  outline: 3px solid rgb(23 78 166 / 25%);
+  outline: 3px solid var(--color-primary-glow);
   outline-offset: 2px;
 }
 
@@ -843,29 +817,8 @@ tbody tr:last-child td {
     margin-bottom: 20px;
     padding: 20px;
   }
-  .brand-logo:last-child {
-    justify-self: end;
-  }
-
-  .brand-mark {
-    flex-basis: 44px;
-    width: 44px;
-    height: 44px;
-    border-radius: 11px;
-    font-size: 22px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 20px;
-  }
-
-  .dashboard-header p {
-    font-size: 12px;
-  }
 
   .device-total {
-    grid-column: 1 / -1;
-    justify-self: stretch;
     width: 100%;
     align-items: flex-start;
     padding-top: 14px;
@@ -954,17 +907,6 @@ tbody tr:last-child td {
 
   .brand-logo {
     height: 40px;
-  }
-
-  .brand-mark {
-    flex-basis: 38px;
-    width: 38px;
-    height: 38px;
-    font-size: 19px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 18px;
   }
 
   .status-card {
