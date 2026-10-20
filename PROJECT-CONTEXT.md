@@ -12,7 +12,7 @@
 
 # 1. O que é este produto
 
-Equipment Monitor é uma plataforma para uma empresa que fornece/aluga equipamentos (notebooks Dell com Windows, smartphones Samsung com Android) para eventos corporativos e grandes eventos (Expo São Paulo, Expo Transamérica, Anhembi, etc.).
+Equipment Monitor é uma plataforma para uma empresa que fornece/aluga equipamentos (notebooks Dell com Windows, smartphones Samsung com Android) para eventos corporativos e grandes eventos, como Expo São Paulo, Expo Transamérica e Anhembi.
 
 Um coordenador acompanha, via dashboard web, quais equipamentos estão comunicando, sem comunicação ou offline, em qual evento estão, quem é o responsável e o histórico de comunicação.
 
@@ -21,7 +21,6 @@ Um coordenador acompanha, via dashboard web, quais equipamentos estão comunican
 O sistema distingue dois eixos independentes:
 
 * `communication_status`: `ONLINE` | `SEM_COMUNICACAO` | `OFFLINE`
-
 * `operational_state`: `ATIVO` | `RECOLHIDO` | `EM_MANUTENCAO` | `DESATIVADO`
 
 `SEM_COMUNICACAO` ou `OFFLINE` não significa automaticamente equipamento roubado.
@@ -36,1050 +35,1177 @@ A comunicação com o backend é a fonte utilizada para determinar o estado de c
 
 ```text
 React + Vite (Dashboard)
-
         │
-
    REST API / WebSocket
-
         │
-
      FastAPI
-
         │
-
- Services / Use Cases
-
+  Services / Use Cases
         │
-
     Repositories
-
         │
-
     PostgreSQL
 
 Windows Agent ──► FastAPI
+Android App ────► FastAPI
+FastAPI ────────► Telegram
+FastAPI ────────► Google / Android Management (capacidades futuras)
+```
 
-Android App ──► FastAPI
+Infraestrutura utilizada ou prevista conforme o ambiente:
 
-FastAPI ──► Telegram
+* Docker e Docker Compose para desenvolvimento e execução local;
+* PostgreSQL;
+* SQLAlchemy;
+* Alembic para migrações;
+* `uv` para gerenciamento das dependências Python;
+* autenticação JWT para usuários;
+* autenticação própria para dispositivos;
+* HTTPS para produção;
+* Render e Neon na tentativa de implantação remota do MVP.
 
-FastAPI ──► Google / Android Management (futuro)
+O Windows Agent e o Android App são clientes da API e não substituem a autoridade do backend sobre regras de negócio ou estado de comunicação.
 
-Infraestrutura planejada:
+O estado atual da implantação remota deve ser consultado na seção **9.4 — Implantação remota e banco de dados**.
 
-Docker + Docker Compose
-PostgreSQL
-autenticação JWT para usuários
-autenticação própria para dispositivos
-HTTPS em produção
+---
 
-O Windows Agent e o futuro Android App são clientes da API e não substituem a autoridade do backend sobre regras de negócio ou estado de comunicação.
+# 3. Regras de negócio permanentes
 
-3. Regras de negócio permanentes
-#	Regra
-01	Todo equipamento possui um patrimônio operacional (asset_number).
-02	O patrimônio não é chave primária do banco.
-03	Cada dispositivo possui um identificador técnico interno (PK própria).
-04	Um equipamento pode participar de vários eventos ao longo da vida útil.
-05	O relacionamento equipamento↔evento é feito via tabela de associação (event_devices), nunca por um event_id fixo dentro de devices.
-06	Um equipamento pode ter diferentes responsáveis ao longo do tempo.
-07	Histórico de comunicação (heartbeats) é preservado, nunca sobrescrito.
-08	last_seen representa a última comunicação conhecida do dispositivo.
-09	O backend decide o communication_status; o agente nunca decide sozinho que está offline.
-10	O agente nunca se autodeclara offline.
-11	Offline/sem comunicação não significa roubado.
-12	Alertas e eventos importantes devem ser registrados.
-13–14	Segredos nunca ficam em código; devem ser fornecidos por configuração/mecanismo seguro.
-15	Senhas devem utilizar hash seguro (bcrypt/argon2).
-16	Toda entrada externa deve ser validada.
-17	Endpoints protegidos exigem autenticação.
-18	Ações administrativas exigem autorização por papel/permissão (RBAC).
+|    Nº | Regra                                                                                                                                     |
+| ----: | ----------------------------------------------------------------------------------------------------------------------------------------- |
+|    01 | Todo equipamento possui um patrimônio operacional (`asset_number`).                                                                       |
+|    02 | O patrimônio não é chave primária do banco.                                                                                               |
+|    03 | Cada dispositivo possui um identificador técnico interno (PK própria).                                                                    |
+|    04 | Um equipamento pode participar de vários eventos ao longo da vida útil.                                                                   |
+|    05 | O relacionamento equipamento↔evento é feito via tabela de associação (`event_devices`), nunca por um `event_id` fixo dentro de `devices`. |
+|    06 | Um equipamento pode ter diferentes responsáveis ao longo do tempo.                                                                        |
+|    07 | Histórico de comunicação (`heartbeats`) é preservado, nunca sobrescrito.                                                                  |
+|    08 | `last_seen` representa a última comunicação conhecida do dispositivo.                                                                     |
+|    09 | O backend decide o `communication_status`; o agente nunca decide sozinho que está offline.                                                |
+|    10 | O agente nunca se autodeclara offline.                                                                                                    |
+|    11 | Offline/sem comunicação não significa roubado.                                                                                            |
+|    12 | Alertas e eventos importantes devem ser registrados conforme as funcionalidades implementadas e suas respectivas specs.                   |
+| 13–14 | Segredos nunca ficam em código; devem ser fornecidos por configuração ou mecanismo seguro.                                                |
+|    15 | Senhas devem utilizar hash seguro, como Argon2.                                                                                           |
+|    16 | Toda entrada externa deve ser validada.                                                                                                   |
+|    17 | Endpoints protegidos exigem autenticação.                                                                                                 |
+|    18 | Ações administrativas exigem autorização por papel/permissão (RBAC), conforme o escopo definido para usuários.                            |
 
 As regras acima não devem ser reinterpretadas por um agente sem justificativa arquitetural e, quando aplicável, atualização da ADR/spec correspondente.
 
-4. Modelo conceitual
-4.1 Entidades principais
+---
 
-Entidades principais atuais:
+# 4. Modelo conceitual
 
-users
-devices
-events
-event_devices
-heartbeats
-alerts
+## 4.1 Entidades principais
+
+Entidades principais do domínio:
+
+* `users`
+* `devices`
+* `events`
+* `event_devices`
+* `heartbeats`
+* `alerts`
 
 Entidades futuras possíveis:
 
-employees
-event_assignments
-device_locations
-device_commands
-audit_logs
-notification_channels
-capabilities
+* `employees`
+* `event_assignments`
+* `device_locations`
+* `device_commands`
+* `audit_logs`
+* `notification_channels`
+* `capabilities`
 
 Não adicionar campos ou entidades por antecipação. A necessidade deve ser demonstrada por uma spec.
 
-4.2 Device
+## 4.2 Device
 
 Modelo conceitual:
 
+```text
 device
-
 ├── id (UUID, PK)
-
 ├── asset_number
-
 ├── type
-
 ├── manufacturer
-
 ├── model
-
 ├── serial_number
-
 ├── hostname
-
 ├── operating_system
-
 ├── battery_level
-
 ├── last_seen
-
 ├── operational_state
-
 ├── created_at
-
 └── updated_at
+```
 
-asset_number não é chave primária.
+`asset_number` não é chave primária.
 
-communication_status não é armazenado como coluna persistida neste modelo. Ele é determinado pelo backend a partir da comunicação conhecida do dispositivo e das regras definidas na respectiva spec.
+`communication_status` não é armazenado como coluna persistida neste modelo. Ele é determinado pelo backend a partir da comunicação conhecida do dispositivo e das regras definidas na respectiva spec.
 
-Não existe um campo genérico status para substituir esses conceitos.
+Não existe um campo genérico `status` para substituir esses conceitos.
 
-4.3 Device Credential
+## 4.3 Device Credential
+
+```text
 device_credential
-
 ├── id
-
 ├── device_id (FK)
-
 ├── key_id (único, indexado)
-
 ├── secret_hash
-
 ├── status (ACTIVE/REVOKED)
-
 ├── created_at
-
 ├── revoked_at
-
 └── last_used_at
+```
 
 A autenticação de dispositivo utiliza o par:
 
-key_id + secret
+`key_id + secret`
 
 O secret em sua forma original não é armazenado como credencial persistente pelo backend; o backend mantém o hash correspondente.
 
-O formato de autenticação atualmente implementado é:
+Formato de autenticação implementado:
 
-Authorization: DeviceKey <key_id>:<secret>
+`Authorization: DeviceKey <key_id>:<secret>`
 
 Detalhes arquiteturais estão registrados na ADR-006.
 
-4.4 Heartbeat
+## 4.4 Heartbeat
+
+```text
 heartbeat
-
 ├── id
-
 ├── device_id
-
 ├── received_at
-
 ├── source_ip
-
 ├── reported_ip (opcional)
-
 ├── battery_level
-
 ├── hostname
-
 ├── metadata
-
 └── device_timestamp (informativo)
+```
 
-received_at representa o momento em que o backend recebeu a comunicação.
+`received_at` representa o momento em que o backend recebeu a comunicação.
 
-source_ip representa o endereço observado pelo backend.
+`source_ip` representa o endereço observado pelo backend.
 
-reported_ip, quando utilizado, representa informação fornecida pelo agente e não é tratado como fonte autoritativa.
+`reported_ip`, quando utilizado, representa informação fornecida pelo agente e não é tratado como fonte autoritativa.
 
-device_timestamp é informativo e não substitui o timestamp de recebimento do servidor.
+`device_timestamp` é informativo e não substitui o timestamp de recebimento do servidor.
 
 Detalhes relacionados a IP estão documentados na ADR-008.
 
-4.5 Alert
+## 4.5 Alert
+
+```text
 alert
-
 ├── id
-
 ├── device_id
-
 ├── event_id
-
 ├── type
-
 ├── status
-
 ├── message
-
 ├── created_at
-
 └── resolved_at
-4.6 User
+```
+
+## 4.6 User
+
+```text
 user
-
 ├── id
-
 ├── name
-
 ├── email
-
 ├── password_hash
-
 ├── role
-
 ├── created_at
-
 └── updated_at
-5. Fases do projeto
-Fase	Objetivo	Status
-01 — Levantamento e Arquitetura	PROJECT-CONTEXT, CLAUDE.md, AGENTS.md, ADRs iniciais e primeira spec	CONCLUÍDA
-02 — Backend + PostgreSQL	FastAPI, SQLAlchemy, Alembic, Clean Architecture e SPEC-001 Device Heartbeat	CONCLUÍDA
-03 — Windows Agent	Cliente Python de monitoramento para Windows, inicialmente com execução controlada	CONCLUÍDA
-04 — Dashboard	React/Vite, consumo da API, lista, status, busca e filtros de equipamentos	CONCLUÍDA — MVP
-05 — Realtime + Telegram	WebSocket, detecção de mudança de status e alertas Telegram	NÃO INICIADA
-06 — Eventos + Responsáveis	CRUD de eventos, associação equipamento↔evento↔responsável	NÃO INICIADA
-07 — Android	App Kotlin utilizando a mesma plataforma/backend	NÃO INICIADA
-08 — Android Recovery / Google Management	Validação de Find Hub, Lost Mode e Android Management API	NÃO INICIADA
-09 — Segurança Dell Nível 2	BIOS/TPM/BitLocker/Secure Boot e matriz de compatibilidade	NÃO INICIADA
-10 — Hardware Tracker Nível 3	Só inicia após a Fase 08; decisão via ADR	BLOQUEADA ATÉ FASE 08
-6. Estado das especificações
-SPEC-001 — Device Heartbeat
+```
 
-Status:
+A autenticação de usuário utiliza e-mail e senha.
 
-CONCLUÍDA E IMPLEMENTADA
+O backend possui serviço de autenticação de usuários com hash e verificação de senha Argon2, emissão de JWT e validação do token.
 
-Artefatos:
+O Dashboard utiliza o token de acesso nas requisições autenticadas por meio do cabeçalho:
 
-specs/001-device-heartbeat/
+`Authorization: Bearer <token>`
 
-├── spec.md
+A existência do campo `role` não comprova, isoladamente, que todas as regras de autorização RBAC estejam implementadas. O escopo de autorização deve ser verificado na implementação, nas specs e nos testes correspondentes.
 
-├── plan.md
+---
 
-└── tasks.md
+# 5. Fases do projeto
+
+| Fase                                      | Objetivo                                                                     | Estado atualizado                                                                                                                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 — Levantamento e Arquitetura           | `PROJECT-CONTEXT`, `CLAUDE.md`, `AGENTS.md`, ADRs iniciais e primeira spec   | **CONCLUÍDA**                                                                                                                                                       |
+| 02 — Backend + PostgreSQL                 | FastAPI, SQLAlchemy, Alembic, Clean Architecture e SPEC-001 Device Heartbeat | **Implementada e validada em desenvolvimento. Implantação remota ainda exige validação do banco e das migrações.**                                                  |
+| 03 — Windows Agent                        | Cliente Python de monitoramento para Windows                                 | **CONCLUÍDA E VALIDADA em ambiente de desenvolvimento. Piloto ASUS reportado como funcional.**                                                                      |
+| 04 — Dashboard                            | React/Vite, consumo da API, listagem, status, busca e filtros                | **Implementada com incrementos posteriores: login, sessão JWT, tema visual, paginação e controle de exibição da senha.**                                            |
+| 05 — Realtime + Telegram                  | WebSocket, detecção de mudança de status e alertas Telegram                  | **Consultar a spec e os testes atuais para confirmar os critérios de encerramento e a validação end-to-end.**                                                       |
+| 06 — Eventos + Responsáveis               | CRUD de eventos e associação equipamento↔evento↔responsável                  | **Consultar a implementação e os critérios de aceitação em `specs/006 - events-responsibles/`.**                                                                    |
+| 07 — Android                              | App Kotlin utilizando a mesma plataforma/backend                             | **Implementado e testado em Samsung real, com heartbeat contínuo e teste de desconexão controlada reportados.**                                                     |
+| 08 — Android Recovery / Google Management | Validação de recursos de recuperação/gestão Google                           | **Validação básica de localização via Google/Maps realizada. Recursos corporativos avançados não devem ser considerados implementados sem evidências específicas.** |
+| 09 — Segurança Dell                       | BIOS/TPM/BitLocker/Secure Boot e matriz de compatibilidade                   | **Documentação/revisão iniciada. A validação específica em hardware Dell permanece pendente por falta de equipamento disponível.**                                  |
+| 10 — Hardware Tracker Nível 3             | Rastreamento e recursos avançados de hardware                                | **BLOQUEADA até apresentação da proposta e aprovação explícita do cliente.**                                                                                        |
+
+As fases 05 e 06 devem ser marcadas formalmente como concluídas somente após conferir os critérios de aceitação, a implementação atual e os testes existentes no repositório. A existência de código ou de uma spec, isoladamente, não comprova validação completa.
+
+**Prioridade atual:** fechamento das lacunas do MVP, correção/validação da implantação e preparação para o teste do cliente.
+
+A Fase 10 não deve ser iniciada antes da apresentação da proposta e da aprovação explícita do cliente. Não iniciar uma Fase 11 sem autorização expressa.
+
+---
+
+# 6. Estado das especificações
+
+As especificações conhecidas no repositório são:
+
+```text
+specs/
+├── 001-device-heartbeat/
+│   ├── spec.md
+│   ├── plan.md
+│   └── tasks.md
+├── 002-windows-agent/
+│   ├── spec.md
+│   ├── plan.md
+│   └── tasks.md
+├── 003-realtime-telegram/
+│   ├── spec.md
+│   ├── plan.md
+│   └── task.md
+├── 006 - events-responsibles/
+│   ├── spec.md
+│   ├── plan.md
+│   └── task.md
+├── 007 - android/
+│   ├── spec.md
+│   ├── plan.md
+│   └── task.md
+├── 008 - Android Recovery - Google Management/
+│   ├── spec.md
+│   ├── plan.md
+│   └── task.md
+└── 009 - Segurança Dell/
+    ├── spec.md
+    ├── plan.md
+    └── task.md
+```
+
+Essa listagem representa a estrutura registrada para o projeto. Antes de criar ou numerar novas specs, verificar a estrutura real do repositório.
+
+## 6.1 SPEC-001 — Device Heartbeat
+
+**Status: CONCLUÍDA E IMPLEMENTADA.**
+
+Artefatos: `specs/001-device-heartbeat/`.
 
 A SPEC-001 define o contrato de heartbeat consumido pelos clientes de dispositivo.
 
-SPEC-002 — Windows Agent
+A implementação contempla autenticação de dispositivo, validação de payload, persistência do heartbeat e atualização de dados de comunicação.
 
-Status:
+## 6.2 SPEC-002 — Windows Agent
 
-CONCLUÍDA E IMPLEMENTADA
+**Status: CONCLUÍDA E IMPLEMENTADA.**
 
-Artefatos:
-
-specs/002-windows-agent/
-
-├── spec.md
-
-├── plan.md
-
-└── tasks.md
+Artefatos: `specs/002-windows-agent/`.
 
 A SPEC-002 define o comportamento do cliente Windows responsável por tentar enviar telemetria/heartbeat ao backend.
 
-O plan.md definiu a estratégia de implementação.
+O `plan.md` definiu a estratégia de implementação. O `tasks.md` contém as tarefas de implementação, testes e revisão.
 
-O tasks.md contém as tarefas de implementação, testes e revisão.
+A implementação foi validada em ambiente de desenvolvimento e posteriormente houve um piloto reportado em notebook ASUS.
 
-O TASKS-002 foi utilizado como fonte operacional para execução da Fase 03.
+## 6.3 SPEC-003 — Realtime + Telegram
 
-A implementação foi concluída e validada em ambiente de desenvolvimento.
+Artefatos: `specs/003-realtime-telegram/`.
 
-7. Regras específicas da Fase 03 — Windows Agent
+Consultar `spec.md`, `plan.md`, `task.md` e os testes correspondentes para confirmar o estado real dos fluxos de comunicação em tempo real e de notificações Telegram.
+
+Não declarar a funcionalidade completamente validada sem evidências dos cenários de aceitação relevantes.
+
+## 6.4 SPEC-006 — Eventos + Responsáveis
+
+Artefatos: `specs/006 - events-responsibles/`.
+
+A implementação e o estado de conclusão devem ser confirmados na spec, nas tarefas e nos testes existentes. Decisões sobre a representação de responsáveis devem respeitar a regra de negócio definida neste documento e os requisitos da spec.
+
+## 6.5 SPEC-007 — Android
+
+Artefatos: `specs/007 - android/`.
+
+O agente Android foi executado em um Samsung real. Foram reportados testes de heartbeat contínuo e de desconexão controlada, com atualização do estado de comunicação no Dashboard.
+
+## 6.6 SPEC-008 — Android Recovery / Google Management
+
+Artefatos: `specs/008 - Android Recovery - Google Management/`.
+
+A validação básica de localização por meio dos recursos Google/Maps foi reportada como realizada.
+
+Não assumir que funcionalidades corporativas avançadas, Android Management API, Lost Mode ou gestão remota foram implementadas apenas porque estão mencionadas no planejamento.
+
+## 6.7 SPEC-009 — Segurança Dell
+
+Artefatos: `specs/009 - Segurança Dell/`.
+
+A documentação da revisão de segurança Dell foi registrada. A validação física específica em hardware Dell permanece pendente enquanto não houver equipamento disponível para os testes necessários.
+
+O teste do agente Windows em ASUS comprova um cenário de compatibilidade com hardware Windows não Dell, mas não substitui os testes específicos de BIOS, TPM, BitLocker ou Secure Boot de um Dell.
+
+## 6.8 Autenticação de usuários
+
+A autenticação de usuários foi adicionada posteriormente ao planejamento original do Dashboard.
+
+Os artefatos de código conhecidos incluem:
+
+* `backend/app/infrastructure/auth/user_auth_service.py`
+* `backend/app/interface/deps.py`
+* `backend/app/interface/api/v1/auth.py`
+* `backend/tests/api/test_auth_api.py`
+* `dashboard/src/services/api.js`
+* `dashboard/src/Login.jsx`
+* `dashboard/src/App.jsx`
+
+Também existe a migração:
+
+`backend/alembic/versions/0be30206e712_adiciona_hash_de_senha_aos_usuarios.py`
+
+A autenticação implementada utiliza Argon2 para verificação de senha e JWT para autenticação de usuário.
+
+**Pendência documental:** revisar e atualizar as specs, plans, tasks e documentação pertinentes para registrar o fluxo real de login/logout, a proteção dos endpoints, a emissão e validação do JWT, a migração de banco e os critérios de aceitação.
+
+Antes de criar uma spec nova, verificar se existe outra especificação ou documentação atual que deva ser estendida. Não criar especificações duplicadas.
+
+---
+
+# 7. Regras específicas da Fase 03 — Windows Agent
 
 As regras completas da Fase 03 estão em:
 
-specs/002-windows-agent/spec.md
-
-specs/002-windows-agent/plan.md
-
-specs/002-windows-agent/tasks.md
+* `specs/002-windows-agent/spec.md`
+* `specs/002-windows-agent/plan.md`
+* `specs/002-windows-agent/tasks.md`
 
 As regras abaixo são os invariantes mais importantes para a continuidade entre agentes.
 
-7.1 Papel do Agent
+## 7.1 Papel do Agent
 
 O Windows Agent é um cliente de comunicação/telemetria.
 
 Ele:
 
-coleta os dados previstos pela SPEC-002;
-tenta comunicar com o backend;
-envia heartbeats conforme o contrato da SPEC-001;
-trata falhas de comunicação de acordo com a spec;
-mantém sua execução de forma controlada conforme definido pela Fase 03.
+* coleta os dados previstos pela SPEC-002;
+* tenta comunicar com o backend;
+* envia heartbeats conforme o contrato da SPEC-001;
+* trata falhas de comunicação de acordo com a spec;
+* mantém sua execução de forma controlada conforme definido pela Fase 03.
 
 O Agent não é responsável por determinar o estado de comunicação do dispositivo.
 
-7.2 Status de comunicação
+## 7.2 Status de comunicação
 
 O Agent:
 
-não calcula communication_status;
-não envia communication_status;
-não determina ONLINE;
-não determina SEM_COMUNICACAO;
-não determina OFFLINE;
-não altera o estado do dispositivo no backend.
+* não calcula `communication_status`;
+* não envia `communication_status`;
+* não determina `ONLINE`;
+* não determina `SEM_COMUNICACAO`;
+* não determina `OFFLINE`;
+* não altera o estado do dispositivo no backend.
 
 O backend permanece como fonte de verdade para o estado de comunicação.
 
 Falha na tentativa de comunicação pelo Agent representa uma falha de comunicação, não uma declaração de estado de negócio.
 
-7.3 Histórico
+## 7.3 Histórico
 
 O Agent não mantém histórico persistente de heartbeats.
 
 A persistência e o histórico dos heartbeats pertencem ao backend.
 
-Não implementar, nesta fase:
+Não implementar SQLite, fila local, store-and-forward ou mecanismo equivalente de persistência de telemetria sem nova spec aprovada.
 
-SQLite;
-fila local;
-store-and-forward;
-banco local para heartbeats;
-mecanismo equivalente de persistência de telemetria.
-7.4 Asset Number
+## 7.4 Asset Number
 
-asset_number não faz parte da responsabilidade de identificação/comunicação do Agent nesta implementação.
+`asset_number` não faz parte da responsabilidade de identificação/autenticação técnica do Agent nesta implementação.
 
 Não utilizar patrimônio como chave primária ou mecanismo de autenticação do dispositivo.
 
-7.5 Credencial do dispositivo
+## 7.5 Credencial do dispositivo
 
 A autenticação do Agent utiliza o contrato definido na SPEC-001.
 
 O secret:
 
-não deve ser hardcoded;
-não deve aparecer em logs;
-não deve aparecer em argumentos de linha de comando;
-não deve aparecer em URLs;
-não deve ser exposto em mensagens de erro;
-não deve ser transformado pelo Agent em hash para autenticação;
-não deve ser validado criptograficamente pelo Agent.
+* não deve ser hardcoded;
+* não deve aparecer em logs;
+* não deve aparecer em argumentos de linha de comando;
+* não deve aparecer em URLs;
+* não deve ser exposto em mensagens de erro;
+* não deve ser transformado pelo Agent em hash para autenticação;
+* não deve ser validado criptograficamente pelo Agent.
 
 O Agent utiliza a credencial conforme o contrato existente do backend.
 
-7.6 Escopo
+## 7.6 Escopo
 
 A Fase 03 não deve antecipar funcionalidades de fases posteriores.
 
-Não implementar nesta fase:
+Não implementar nesta fase, sem especificação própria:
 
-dashboard;
-WebSocket;
-Telegram;
-gerenciamento de eventos;
-responsáveis;
-Android;
-Android Management;
-rastreamento físico;
-inventário avançado de hardware;
-mecanismos de recuperação;
-funcionalidades de segurança Dell de nível posterior.
-8. Decisões e ambiguidades
+* dashboard;
+* gerenciamento de eventos;
+* responsáveis;
+* Android Management;
+* rastreamento físico;
+* inventário avançado de hardware;
+* mecanismos de recuperação;
+* funcionalidades avançadas de segurança Dell.
 
-Decisões arquiteturais consolidadas:
+---
 
-ADR-003 — Atomicidade do Heartbeat
+# 8. Decisões e ambiguidades
 
-Heartbeat e atualização de last_seen ocorrem na mesma transação.
+## ADR-003 — Atomicidade do Heartbeat
+
+Heartbeat e atualização de `last_seen` ocorrem na mesma transação.
 
 Uma falha deve resultar em rollback da operação.
 
-ADR-006 — Identidade e autenticação de dispositivo
+## ADR-006 — Identidade e autenticação de dispositivo
 
 Existe separação entre:
 
-identidade interna do dispositivo (id);
-identificador público da credencial (key_id);
-segredo da credencial (secret).
+* identidade interna do dispositivo (`id`);
+* identificador público da credencial (`key_id`);
+* segredo da credencial (`secret`).
 
 O patrimônio não é identidade técnica.
 
 O segredo não é chave primária.
 
-ADR-007 — Comunicação vs. estado operacional
+## ADR-007 — Comunicação vs. estado operacional
 
-communication_status e operational_state representam conceitos diferentes.
+`communication_status` e `operational_state` representam conceitos diferentes.
 
-communication_status
+`communication_status`:
 
-    ONLINE
+* `ONLINE`
+* `SEM_COMUNICACAO`
+* `OFFLINE`
 
-    SEM_COMUNICACAO
+`operational_state`:
 
-    OFFLINE
-operational_state
+* `ATIVO`
+* `RECOLHIDO`
+* `EM_MANUTENCAO`
+* `DESATIVADO`
 
-    ATIVO
+Eles não devem ser fundidos em um único campo genérico `status`.
 
-    RECOLHIDO
+## ADR-008 — IP observado vs. IP informado
 
-    EM_MANUTENCAO
+`source_ip` representa o endereço observado pelo backend.
 
-    DESATIVADO
+`reported_ip` representa informação enviada pelo dispositivo e não é considerada autoritativa.
 
-Eles não devem ser fundidos em um único campo genérico status.
+Até que exista infraestrutura de proxy reverso confiável definida, o backend utiliza `request.client.host`.
 
-ADR-008 — IP observado vs. IP informado
+`X-Forwarded-For` não é considerado nesta implementação atual.
 
-source_ip representa o endereço observado pelo backend.
+As decisões arquiteturais devem continuar registradas nas ADRs pertinentes. Não alterar silenciosamente contratos existentes.
 
-reported_ip representa informação enviada pelo dispositivo e não é considerada autoritativa.
+---
 
-Até que exista infraestrutura de proxy reverso confiável definida, o backend utiliza request.client.host.
+# 9. Pendências de negócio e arquitetura
 
-X-Forwarded-For não é considerado nesta implementação atual.
-
-9. Pendências de negócio e arquitetura
-
-As seguintes questões permanecem abertas e não devem ser decididas arbitrariamente por um agente quando dependerem de decisão de negócio:
-
-9.1 Responsável pelo equipamento
+## 9.1 Responsável pelo equipamento
 
 A REGRA 06 estabelece que um equipamento pode ter diferentes responsáveis ao longo do tempo.
 
-Ainda não está definido se o responsável será:
+Ainda é necessário seguir a spec de Eventos + Responsáveis para definir e manter a representação correta do responsável:
 
-um user do sistema; ou
-um employee cadastrado sem acesso ao sistema.
+* um `user` do sistema; ou
+* um `employee` cadastrado sem acesso ao sistema.
 
-Essa decisão pertence à spec de Eventos + Responsáveis da Fase 06.
+Essa decisão não deve ser tomada arbitrariamente fora da spec correspondente.
 
-9.2 Intervalo e threshold de heartbeat
+## 9.2 Intervalo e threshold de heartbeat
 
-O intervalo atual utilizado pelo Windows Agent no MVP é:
+O intervalo registrado na configuração local anteriormente verificada era:
 
-30 segundos
+`HEARTBEAT_INTERVAL_SECONDS=30`
 
-O cálculo atual do communication_status no backend utiliza:
+A configuração local também indicava:
 
-last_seen <= 2 minutos
-    → ONLINE
+`OFFLINE_THRESHOLD_SECONDS=90`
 
-last_seen > 2 minutos e <= 5 minutos
-    → SEM COMUNICAÇÃO
+Esses valores devem ser confirmados na configuração efetiva do ambiente antes de qualquer alteração.
 
-last_seen > 5 minutos
-    → OFFLINE
+Não confundir o threshold de comunicação do backend com o intervalo de polling do Dashboard. São configurações distintas.
 
-last_seen inexistente
-    → SEM REGISTRO
-
-Esses valores devem permanecer configuráveis/evolutivos conforme definido pela arquitetura/spec correspondente.
+O `communication_status` deve continuar sendo calculado pelo backend a partir de `last_seen` e das regras/configurações vigentes.
 
 Granularidade por dispositivo ou evento somente deve ser implementada se houver necessidade comprovada.
 
-9.3 Proxy reverso / X-Forwarded-For
+## 9.3 Proxy reverso / X-Forwarded-For
 
-O tratamento de X-Forwarded-For permanece dependente da infraestrutura de produção.
+O tratamento de `X-Forwarded-For` permanece dependente da infraestrutura de produção.
 
-Até que exista uma cadeia de proxy confiável definida, não alterar o comportamento atual de source_ip.
+Até que exista uma cadeia de proxy confiável definida, não alterar o comportamento atual de `source_ip`.
 
-10. Fase 02 — Encerramento
+## 9.4 Implantação remota e banco de dados
 
-A SPEC-001 (Device Heartbeat) foi implementada e teve seus critérios de aceitação comprovados por testes automatizados.
+Durante a implantação do backend com Render e Neon, o serviço iniciou, mas foi observado o erro:
 
-Estrutura
+`sqlalchemy.exc.ProgrammingError: relation "devices" does not exist`
 
-Backend Python/FastAPI utilizando uv e Clean Architecture pragmática:
+O erro ocorreu durante uma consulta do monitor de status, envolvendo o repositório de dispositivos.
 
+Portanto, a implantação remota **não deve ser considerada validada end-to-end** até que:
+
+1. seja confirmado que o serviço utiliza a URL do banco esperado;
+2. seja verificado o estado das migrações Alembic nesse banco;
+3. sejam aplicadas as migrações pendentes somente após confirmar o banco de destino;
+4. seja confirmado que as tabelas necessárias existem;
+5. sejam testados os endpoints necessários no ambiente hospedado;
+6. seja validado o fluxo real entre agente, backend, banco e Dashboard.
+
+Não presumir que a tabela `devices` foi criada.
+
+Não executar migrações contra um banco sem confirmar o destino.
+
+Não considerar o problema resolvido apenas porque o container inicia ou o processo FastAPI informa que concluiu a inicialização.
+
+## 9.5 Autenticação de usuários
+
+A autenticação de usuários foi implementada no backend e integrada ao Dashboard.
+
+Ainda é necessário finalizar a revisão documental e comprovar os critérios relevantes para o MVP:
+
+* login com e-mail e senha;
+* verificação segura de senha;
+* emissão e validação do JWT;
+* expiração do token;
+* proteção dos endpoints que exigem autenticação;
+* tratamento de token ausente ou inválido;
+* comportamento de sessão expirada no Dashboard;
+* logout;
+* autorização por papel, quando exigida;
+* migração de banco para `password_hash`.
+
+A implementação e os testes existentes devem ser a referência. Não reescrever arquivos de autenticação sem identificar uma falha concreta.
+
+O logout do Dashboard limpa o token armazenado no cliente. Não afirmar que o token é revogado no servidor sem implementação específica que comprove isso.
+
+---
+
+# 10. Fase 02 — Encerramento
+
+A SPEC-001 (Device Heartbeat) foi implementada e teve seus critérios de aceitação comprovados por testes automatizados no ambiente de desenvolvimento.
+
+## Estrutura
+
+Backend Python/FastAPI utilizando `uv` e Clean Architecture pragmática:
+
+```text
 domain
-
     ↓
-
 application
-
     ↓
-
 infrastructure
-
     ↓
-
 interface / API
-Infraestrutura
-Docker Compose
-PostgreSQL
-Alembic
-migrations para as estruturas necessárias ao Device Heartbeat
-Domínio
+```
 
-Entidades implementadas:
+## Infraestrutura
 
-Device
-Heartbeat
-DeviceCredential
+* Docker Compose;
+* PostgreSQL;
+* Alembic;
+* migrações para as estruturas necessárias ao Device Heartbeat.
+
+## Domínio
+
+Entidades implementadas na base do heartbeat:
+
+* `Device`
+* `Heartbeat`
+* `DeviceCredential`
 
 As entidades de domínio não dependem diretamente do framework web.
 
-Persistência
+## Persistência
 
 Repositórios SQLAlchemy implementam os ports definidos pela camada de aplicação.
 
-A atomicidade do heartbeat foi comprovada:
+A atomicidade do heartbeat foi definida para que:
 
-heartbeat
+* heartbeat;
+* atualização de `last_seen`;
+* atualização de `last_used_at`;
 
-+
+ocorram dentro da mesma transação.
 
-last_seen
+## Autenticação de dispositivo
 
-+
+Implementada através de:
 
-last_used_at
-
-ocorrem dentro da mesma transação.
-
-Autenticação
-
-Autenticação de dispositivo implementada através de:
-
-Authorization: DeviceKey <key_id>:<secret>
+`Authorization: DeviceKey <key_id>:<secret>`
 
 O backend utiliza Argon2 para armazenamento seguro do segredo.
 
-API
+## API
 
 Endpoint implementado:
 
-POST /api/v1/heartbeats
+`POST /api/v1/heartbeats`
 
 Com:
 
-autenticação de dispositivo;
-validação de payload;
-battery_level entre 0 e 100;
-metadata limitada conforme contrato;
-mapeamento de erros HTTP.
+* autenticação de dispositivo;
+* validação de payload;
+* `battery_level` entre 0 e 100;
+* `metadata` limitada conforme contrato;
+* mapeamento de erros HTTP.
 
-Endpoint adicional implementado para consumo do Dashboard:
+Endpoint adicional para consumo do Dashboard:
 
-GET /api/v1/devices
+`GET /api/v1/devices`
 
-Esse endpoint retorna os dispositivos e o communication_status calculado pelo backend.
+Esse endpoint retorna os dispositivos e o `communication_status` calculado pelo backend.
 
-Testes
+## Testes
 
-A Fase 02 possui:
+O registro histórico da conclusão da Fase 02 indicava 33 testes automatizados, incluindo:
 
-33 testes automatizados
+* testes unitários;
+* testes de integração com PostgreSQL real;
+* testes de API através de TestClient.
 
-incluindo:
+Esse número é um registro histórico, não necessariamente o total atual da suíte. A contagem e os resultados atuais devem ser confirmados por execução dos testes.
 
-testes unitários;
-testes de integração com PostgreSQL real;
-testes de API através de TestClient.
+Os testes de integração/API não devem substituir o banco real por mocks quando o critério exige validação real de persistência.
 
-Os testes de integração/API não substituem o banco real por mocks.
-
-Seed
+## Seed
 
 Existe um script manual para criação de dispositivo/credencial de teste:
 
-backend/scripts/seed_device.py
-11. Fase 03 — Windows Agent: estado concluído
+`backend/scripts/seed_device.py`
 
-A Fase 03 foi implementada e validada.
+---
+
+# 11. Fase 03 — Windows Agent: estado concluído
+
+A Fase 03 foi implementada e validada em ambiente de desenvolvimento.
 
 Artefatos:
 
-specs/002-windows-agent/spec.md
+* `specs/002-windows-agent/spec.md`
+* `specs/002-windows-agent/plan.md`
+* `specs/002-windows-agent/tasks.md`
 
-specs/002-windows-agent/plan.md
+Comando utilizado anteriormente:
 
-specs/002-windows-agent/tasks.md
-
-O Windows Agent foi validado em ambiente de desenvolvimento utilizando execução controlada.
-
-Comando utilizado:
-
+```powershell
 python .\agent_pilot.py
+```
 
-Exemplo de execução validada:
+Exemplo de execução validada anteriormente:
 
+```text
 Agent iniciado; destino=http://localhost:8000 intervalo=30s
 Heartbeat aceito (HTTP 201)
+```
 
-O Agent envia heartbeat aproximadamente a cada 30 segundos.
+O Agent envia heartbeat aproximadamente a cada 30 segundos, conforme a configuração registrada.
 
-O Agent não calcula nem envia communication_status.
+O Agent não calcula nem envia `communication_status`.
 
 O backend continua sendo a autoridade para determinar:
 
-ONLINE
-SEM COMUNICAÇÃO
-OFFLINE
+* `ONLINE`
+* `SEM_COMUNICACAO`
+* `OFFLINE`
 
-A Fase 03 não introduziu:
+## Validação em hardware não Dell
 
-SQLite;
-fila local;
-store-and-forward;
-Dashboard;
-WebSocket;
-Telegram;
-Eventos;
-Android.
-12. Fase 04 — Dashboard: estado concluído
+Foi reportado um piloto com notebook ASUS:
 
-A Fase 04 foi implementada como MVP funcional.
+* patrimônio: `NB-PILOTO-001`;
+* IP: `192.168.15.60`;
+* estado observado: `ONLINE`;
+* backend recebeu os dados.
 
-O Dashboard atualmente utiliza:
+Esse teste comprova o funcionamento reportado do agente em um notebook Windows não Dell.
 
+Ele não substitui a revisão específica de segurança Dell, que permanece pendente até haver hardware disponível.
+
+A Fase 03 não introduziu SQLite, fila local ou store-and-forward.
+
+---
+
+# 12. Fase 04 — Dashboard: estado atualizado
+
+A Fase 04 foi implementada como MVP funcional e recebeu incrementos posteriores de interface e autenticação.
+
+O Dashboard utiliza:
+
+```text
 React + Vite
-    ↓
-Axios
-    ↓
+      ↓
+    Axios
+      ↓
 FastAPI REST API
-12.1 Funcionalidades implementadas
-listagem de equipamentos;
-patrimônio;
-hostname;
-IP;
-bateria;
-último contato;
-status de comunicação;
-cards de resumo;
-busca por patrimônio;
-busca por hostname;
-busca por IP;
-filtros por status;
-polling automático;
-tratamento básico de carregamento;
-tratamento básico de erro;
-layout responsivo básico.
-12.2 Status
+```
 
-O Dashboard exibe:
+## 12.1 Funcionalidades implementadas
 
-ONLINE
+O Dashboard possui implementação para:
 
-SEM COMUNICAÇÃO
+* listagem de equipamentos;
+* patrimônio;
+* hostname;
+* IP;
+* bateria;
+* último contato;
+* status de comunicação;
+* cards de resumo;
+* busca por patrimônio;
+* busca por hostname;
+* busca por IP;
+* filtros por status;
+* atualização automática dos dados;
+* tratamento de carregamento;
+* tratamento de erro;
+* layout responsivo básico;
+* tema escuro com destaque verde;
+* atualização de logos;
+* favicon;
+* ajustes de layout do cabeçalho;
+* paginação dos equipamentos;
+* tela de login com e-mail e senha;
+* botão para mostrar e ocultar a senha;
+* armazenamento do token de sessão no `sessionStorage`;
+* envio do token Bearer nas requisições autenticadas;
+* tratamento de sessão expirada;
+* logout no Dashboard.
 
-OFFLINE
+A implementação dessas funcionalidades não significa que a implantação remota esteja validada.
 
-O backend também pode retornar:
+## 12.2 Status
 
-SEM REGISTRO
+O Dashboard exibe os estados de comunicação retornados pelo backend:
 
-quando um equipamento ainda não possui last_seen.
+* `ONLINE`;
+* `SEM COMUNICAÇÃO`;
+* `OFFLINE`.
+
+O backend também pode retornar `SEM REGISTRO` quando o dispositivo ainda não possui `last_seen`, conforme o contrato implementado.
 
 O Dashboard não calcula o status.
 
 A responsabilidade permanece exclusivamente no backend.
 
-12.3 Polling
+## 12.3 Polling
 
-O Dashboard realiza uma consulta inicial à API e posteriormente atualiza os dados automaticamente a cada:
+O Dashboard consulta a API e atualiza os dados automaticamente.
 
-30 segundos
+O intervalo de polling deve ser confirmado no código/configuração atual antes de ser registrado como valor definitivo. O intervalo de heartbeat de 30 segundos não prova, por si só, que o polling do Dashboard utilize o mesmo intervalo.
 
-O polling permite que uma mudança de comunicação seja refletida no Dashboard sem refresh manual da página.
+O polling permite que mudanças no estado de comunicação sejam refletidas na interface sem refresh manual.
 
-WebSocket ainda não foi implementado.
+## 12.4 Busca, filtros e paginação
 
-A implementação de WebSocket permanece planejada para uma fase posterior.
+A busca permite procurar equipamentos pelos campos suportados pela implementação atual, incluindo patrimônio, hostname e IP.
 
-12.4 Busca
+Os filtros disponíveis contemplam os estados de comunicação implementados na interface.
 
-A busca do Dashboard permite procurar por:
+A paginação foi adicionada em um incremento posterior do Dashboard. O comportamento e o tamanho da página devem seguir o código atual.
 
-asset_number
-hostname
-reported_ip
-12.5 Filtros
+A busca, a filtragem e a paginação são responsabilidades de apresentação e não alteram as regras de estado de comunicação do backend.
 
-Os filtros disponíveis são:
+## 12.5 Autenticação de usuários
 
-TODOS
-ONLINE
-SEM COMUNICAÇÃO
-OFFLINE
+A autenticação de usuários foi adicionada depois da implementação inicial do Dashboard.
 
-A filtragem é somente para apresentação dos dados.
+### Backend
 
-12.6 Validação funcional
+O serviço de autenticação está em:
 
-O fluxo completo foi validado com o Windows Agent e o Dashboard.
+`backend/app/infrastructure/auth/user_auth_service.py`
 
-Cenário validado:
+A implementação utiliza:
 
-Agent executando
-        ↓
-ONLINE
-        ↓
-Agent interrompido
-        ↓
-SEM COMUNICAÇÃO
-        ↓
-passagem do threshold
-        ↓
-OFFLINE
-        ↓
-Agent reiniciado
-        ↓
-ONLINE
+* Argon2 para hash e verificação de senha;
+* JWT para autenticação de usuário;
+* expiração de token configurada;
+* validação do token;
+* identificação do usuário pelo identificador presente no token.
 
-A alteração de estado ocorreu automaticamente através do polling, sem necessidade de atualizar manualmente a página.
+O endpoint de login está em:
 
-Esse teste confirmou a integração funcional entre:
+`backend/app/interface/api/v1/auth.py`
 
-Windows Agent
-    ↓
-FastAPI
-    ↓
-PostgreSQL
-    ↓
-cálculo de status
-    ↓
-GET /api/v1/devices
-    ↓
-Dashboard
-    ↓
-polling automático
-13. Estado atual da implementação
-Backend
+Endpoint:
 
-Implementado e funcional:
+`POST /api/v1/auth/login`
 
-FastAPI;
-PostgreSQL;
-SQLAlchemy;
-Alembic;
-Docker Compose;
-Clean Architecture pragmática;
-autenticação de dispositivo;
-heartbeat;
-persistência;
-atomicidade;
-validações;
-endpoint POST /api/v1/heartbeats;
-endpoint GET /api/v1/devices;
-cálculo backend de communication_status.
-Windows Agent
+O login recebe e-mail e senha, valida as credenciais e retorna um token de acesso e os dados do usuário. Para credenciais inválidas, o endpoint retorna erro de autenticação sem distinguir publicamente se o e-mail ou a senha está incorreto.
 
-Implementado e validado:
+A dependência de autenticação de usuário está em:
 
-execução controlada;
-coleta de dados;
-heartbeat;
-autenticação;
-comunicação com backend;
-intervalo de aproximadamente 30 segundos;
-tratamento de falhas de comunicação.
-Dashboard
+`backend/app/interface/deps.py`
 
-Implementado e validado como MVP:
+A dependência valida o JWT e carrega o usuário correspondente. Tokens inválidos ou usuários inexistentes resultam em rejeição da autenticação.
 
-React;
-Vite;
-Axios;
-listagem de equipamentos;
-status;
-cards;
-busca;
-filtros;
-polling de 30 segundos;
-layout responsivo básico.
-14. Funcionalidades ainda não implementadas
+### Dashboard
 
-Ainda não foram implementados:
+A integração com a API está em:
 
-WebSocket;
-Telegram;
-autenticação JWT de usuários;
-RBAC funcional;
-CRUD de eventos;
-associação equipamento↔evento;
-responsáveis;
-aplicativo Android;
-Android Management;
-Find Hub / Lost Mode;
-segurança Dell Nível 2;
-Hardware Tracker Nível 3;
-rastreamento físico;
-comandos remotos;
-localização de dispositivos;
-auditoria avançada.
+`dashboard/src/services/api.js`
 
-Essas funcionalidades não devem ser antecipadas sem a respectiva spec/planejamento.
+A tela de login está em:
 
-CURRENT PROJECT STATE
+`dashboard/src/Login.jsx`
 
-Fase atual:
+O controle da sessão está integrado em:
 
-FASE 04 — Dashboard
+`dashboard/src/App.jsx`
 
-Status:
+O Dashboard:
 
-CONCLUÍDA — MVP
+* envia e-mail e senha ao endpoint de login;
+* recebe o token de acesso;
+* armazena o token em `sessionStorage`;
+* envia o token nas chamadas autenticadas;
+* limpa a sessão local quando o usuário realiza logout;
+* trata respostas HTTP 401 como sessão inválida/expirada, exceto na chamada de login.
 
-Última fase concluída:
+O botão para mostrar/ocultar a senha é um recurso de usabilidade. Ele não altera o fluxo de autenticação.
 
-FASE 04 — Dashboard MVP
+### Testes existentes
 
-Fases anteriores concluídas:
+Os testes de autenticação estão em:
 
-FASE 01 — Levantamento e Arquitetura
-FASE 02 — Backend + PostgreSQL
-FASE 03 — Windows Agent
+`backend/tests/api/test_auth_api.py`
 
-Última spec concluída:
+Os testes apresentados incluem cenários para:
 
-SPEC-002 — Windows Agent
+* login válido;
+* login com credenciais inválidas;
+* token ausente em endpoints protegidos;
+* token inválido;
+* acesso autenticado a endpoint coberto pelos testes.
 
-Último incremento funcional concluído:
+A existência desses testes deve ser preservada e sua execução atual deve ser confirmada antes da conclusão do MVP.
 
-Dashboard MVP
+### Migração do banco
 
-Estado funcional atual:
+Foi criada uma migração para adicionar `password_hash` à tabela de usuários:
 
-Windows Agent
-      ↓
-Heartbeat
-      ↓
-FastAPI
-      ↓
-PostgreSQL
-      ↓
-GET /api/v1/devices
-      ↓
-Dashboard React/Vite
-      ↓
-Polling automático
-      ↓
-ONLINE / SEM COMUNICAÇÃO / OFFLINE
+`backend/alembic/versions/0be30206e712_adiciona_hash_de_senha_aos_usuarios.py`
 
-Próxima fase:
+A migração e suas dependências devem ser verificadas no banco utilizado pelo ambiente de implantação.
 
-A próxima implementação deve ser definida a partir das specs/planos existentes no repositório.
+### Limites da validação
 
-Não assumir funcionalidades novas sem consultar a respectiva SPEC/PLAN/TASKS.
+Não declarar RBAC completo apenas porque existe um campo `role` no modelo.
 
-Implementado
-Fase 01
-estrutura inicial do repositório;
-PROJECT-CONTEXT.md;
-CLAUDE.md;
-AGENTS.md;
-ADRs iniciais;
-SPEC-001;
-SPEC-002 e seus artefatos de planejamento;
-versionamento Git;
-.gitignore.
-Fase 02
-backend FastAPI;
-Clean Architecture pragmática;
-PostgreSQL;
-Docker Compose;
-Alembic;
-entidades Device, Heartbeat e DeviceCredential;
-autenticação de dispositivo;
-endpoint de heartbeat;
-persistência;
-atomicidade;
-validações;
-testes automatizados;
-seed manual de dispositivo;
-endpoint GET /api/v1/devices;
-serviço backend de cálculo de communication_status.
-Fase 03
-Windows Agent;
-execução controlada;
-coleta de telemetria;
-comunicação com backend;
-envio de heartbeat;
-autenticação;
-intervalo de aproximadamente 30 segundos;
-tratamento de falhas de comunicação;
-validação funcional contra backend real.
-Fase 04
-Dashboard React/Vite;
-integração REST com FastAPI;
-listagem de equipamentos;
-patrimônio;
-hostname;
-IP;
-bateria;
-último contato;
-status de comunicação;
-cards de status;
-busca por patrimônio;
-busca por hostname;
-busca por IP;
-filtros por status;
-polling automático a cada 30 segundos;
-tratamento básico de loading;
-tratamento básico de erro;
-layout responsivo básico;
-validação do fluxo ONLINE;
-validação do fluxo SEM COMUNICAÇÃO;
-validação do fluxo OFFLINE;
-validação do retorno para ONLINE após reinício do Agent.
-Testes
-Fase 01
+Não afirmar que o logout revoga o JWT no servidor quando o comportamento implementado é a limpeza do token no cliente.
 
-Não possui implementação funcional própria a ser testada.
+A revisão final deve verificar a proteção de todos os endpoints relevantes, a expiração do token, o comportamento de sessão e os critérios de autorização definidos para o MVP.
 
-Fase 02
+## 12.6 Validação do Dashboard e da autenticação
 
-33 testes automatizados implementados e executados como parte da conclusão da SPEC-001.
+O Dashboard foi integrado à API e recebeu os incrementos registrados acima.
 
-Incluem:
+Entretanto, o erro observado na implantação remota do banco impede considerar concluído o fluxo completo hospedado até que a conexão, as migrações e os endpoints sejam validados no ambiente remoto.
 
-testes unitários;
-testes de integração;
-testes de API;
-PostgreSQL real nos testes de integração/API aplicáveis.
-Fase 03
+A validação local e a validação da implantação são etapas distintas e devem ser registradas separadamente.
 
-Windows Agent validado em execução real no ambiente de desenvolvimento.
+---
 
-Fluxo validado:
+# 13. Estado atual da implementação
 
-Agent iniciado
-    ↓
-HTTP 201
-    ↓
-heartbeat aceito
+## Backend
 
-Também foi validado o comportamento do backend/Dashboard quando o Agent é interrompido.
+Implementado no repositório:
 
-Fase 04
+* FastAPI;
+* SQLAlchemy;
+* PostgreSQL;
+* Alembic;
+* Clean Architecture pragmática;
+* autenticação de dispositivo;
+* heartbeat;
+* persistência;
+* validações;
+* endpoint `POST /api/v1/heartbeats`;
+* endpoint `GET /api/v1/devices`;
+* cálculo backend de `communication_status`;
+* serviço de autenticação de usuário;
+* hash e verificação de senha Argon2;
+* emissão e validação de JWT;
+* endpoint `POST /api/v1/auth/login`;
+* dependência de autenticação Bearer;
+* testes de API de autenticação de usuário.
 
-Dashboard validado funcionalmente com o backend e Windows Agent.
+**Pendência de implantação:** o backend hospedado apresentou o erro `relation "devices" does not exist`. A implantação remota não deve ser declarada concluída até a verificação do banco, das migrações e dos endpoints.
 
-Fluxo validado:
+## Windows Agent
 
-ONLINE
-    ↓
-Agent interrompido
-    ↓
-SEM COMUNICAÇÃO
-    ↓
-OFFLINE
-    ↓
-Agent reiniciado
-    ↓
-ONLINE
+Implementado e validado em ambiente de desenvolvimento:
 
-A atualização ocorreu automaticamente através do polling, sem refresh manual.
+* execução controlada;
+* coleta de dados;
+* heartbeat;
+* autenticação;
+* comunicação com backend;
+* intervalo configurado de aproximadamente 30 segundos;
+* tratamento de falhas de comunicação.
 
-Decisões importantes
-Clean Architecture pragmática com separação Domain / Application / Infrastructure / Interface.
-asset_number não é PK.
-Dispositivo possui PK interna própria (id UUID).
-Autenticação de dispositivo utiliza key_id + secret.
-O backend armazena hash seguro do segredo.
-communication_status e operational_state são conceitos separados.
-communication_status é determinado pelo backend.
-Agentes nunca calculam nem enviam communication_status.
-Agentes nunca se autodeclaram offline.
-Heartbeat + atualização de last_seen ocorrem na mesma transação.
-source_ip atualmente utiliza o endereço observado pelo backend.
-reported_ip é informação fornecida pelo agente e não é autoritativa.
-X-Forwarded-For não é utilizado sem infraestrutura de proxy confiável.
-Dependências Python são gerenciadas com uv (pyproject.toml + uv.lock).
-O Windows Agent não mantém histórico persistente de heartbeats.
-A Fase 03 não introduziu SQLite, fila local ou store-and-forward.
-O Dashboard MVP utiliza polling HTTP a cada 30 segundos.
-O Dashboard não calcula communication_status.
-WebSocket ainda não foi implementado.
-Telegram ainda não foi implementado.
-Eventos e responsáveis ainda não foram implementados.
-O repositório é a fonte de verdade entre diferentes agentes/chats.
-Próximo passo
+O piloto ASUS foi reportado como funcional. A revisão de segurança específica em hardware Dell permanece pendente.
 
-Com as Fases 01, 02, 03 e o MVP da Fase 04 concluídos, o próximo passo é iniciar a próxima capacidade do produto conforme as especificações existentes no repositório.
+## Android Agent
+
+O Android Agent foi implementado e testado em um Samsung real.
+
+Foram reportados:
+
+* heartbeat contínuo por aproximadamente dois minutos;
+* desconexão controlada;
+* alteração do estado de comunicação após a desconexão;
+* retorno à comunicação quando o agente voltou a comunicar.
+
+Registro de teste conhecido em 14/10/2026:
+
+| Campo            | Valor               |
+| ---------------- | ------------------- |
+| Patrimônio       | `ANDROID-TESTE-001` |
+| Hostname         | `android-4171a697`  |
+| IP               | `192.168.15.155`    |
+| Bateria          | 51%                 |
+| Estado reportado | `ONLINE`            |
+
+Esses resultados são registros dos testes reportados. Novas afirmações de validação devem se basear nos resultados efetivamente observados.
+
+## Dashboard
+
+Implementado:
+
+* React;
+* Vite;
+* Axios;
+* listagem de equipamentos;
+* status;
+* cards;
+* busca;
+* filtros;
+* atualização automática;
+* paginação;
+* tema escuro com destaque verde;
+* atualização de logos, favicon e cabeçalho;
+* login;
+* controle de exibição da senha;
+* integração com JWT;
+* tratamento de sessão expirada;
+* logout no cliente.
+
+A validação final do MVP precisa incluir o fluxo hospedado após a resolução da pendência do banco.
+
+## Realtime, Telegram e Eventos
+
+Existem especificações para Realtime + Telegram e Eventos + Responsáveis.
+
+A conclusão formal dessas funcionalidades deve seguir os critérios de aceitação, os testes e a implementação real presentes no repositório.
+
+Não declarar uma integração end-to-end validada sem evidência dos cenários relevantes.
+
+## Android Recovery / Google Management
+
+Foi reportada uma validação básica de localização por meio dos recursos Google/Maps.
+
+Isso não comprova a implementação de todas as funcionalidades corporativas avançadas de Android Management, Lost Mode ou gerenciamento remoto.
+
+## Segurança Dell
+
+A documentação da revisão Dell foi registrada.
+
+A validação física em hardware Dell permanece pendente até que o equipamento esteja disponível.
+
+---
+
+# 14. Funcionalidades pendentes ou que exigem validação
+
+As seguintes atividades permanecem relevantes para o fechamento do MVP:
+
+1. Corrigir/verificar a implantação Render + Neon e o erro `relation "devices" does not exist`.
+2. Confirmar a conexão com o banco remoto correto.
+3. Verificar e aplicar as migrações Alembic necessárias no banco correto.
+4. Confirmar a existência das tabelas necessárias.
+5. Validar os endpoints reais no ambiente hospedado.
+6. Executar os testes relevantes e registrar resultados atuais.
+7. Revisar a autenticação de usuários e seus critérios de aceitação.
+8. Confirmar a proteção dos endpoints que exigem autenticação.
+9. Verificar expiração e validação do JWT.
+10. Revisar o comportamento de login, sessão expirada e logout.
+11. Confirmar o escopo de autorização/RBAC exigido pelo MVP.
+12. Atualizar as specs, plans, tasks e documentação de autenticação, migração e proteção de endpoints.
+13. Confirmar os critérios de aceitação e os testes dos fluxos de Telegram e Eventos + Responsáveis.
+14. Executar a revisão específica de segurança Dell quando houver hardware disponível.
+15. Manter recursos avançados de Android Management fora do escopo concluído até haver validação específica.
+16. Não iniciar Hardware Tracker/Fase 10 antes da apresentação da proposta e aprovação explícita do cliente.
+
+Não tratar itens acima como necessariamente não implementados. Alguns são funcionalidades existentes que ainda precisam de validação final, comprovação ou documentação atualizada.
+
+---
+
+# CURRENT PROJECT STATE
+
+**Prioridade atual: fechamento das lacunas do MVP existente, validação da implantação e preparação para teste/demonstração do cliente.**
+
+Não iniciar novas fases ou ampliar o escopo sem necessidade comprovada e autorização correspondente.
+
+## Estado consolidado
+
+* **Fase 01 — Levantamento e Arquitetura:** concluída.
+* **Fase 02 — Backend + PostgreSQL:** implementada e validada em desenvolvimento; implantação remota exige verificação do banco e das migrações.
+* **Fase 03 — Windows Agent:** implementada e validada em desenvolvimento; piloto ASUS reportado como funcional.
+* **Fase 04 — Dashboard:** implementada com incrementos de interface, paginação e autenticação de usuários; validação end-to-end remota pendente.
+* **Fase 05 — Realtime + Telegram:** conferir critérios de aceitação e evidências de teste antes de declarar encerramento formal.
+* **Fase 06 — Eventos + Responsáveis:** conferir estado real, critérios de aceitação e testes no repositório.
+* **Fase 07 — Android:** agente implementado e testado em Samsung real.
+* **Fase 08 — Android Recovery / Google Management:** validação básica de localização via Google/Maps realizada; recursos avançados não presumidos como concluídos.
+* **Fase 09 — Segurança Dell:** documentação/revisão registrada; validação física específica Dell pendente.
+* **Fase 10 — Hardware Tracker:** bloqueada até apresentação da proposta e aprovação explícita do cliente.
+* **Fase 11:** não iniciar nem planejar sem autorização expressa.
+
+## Fluxo funcional esperado
+
+```text
+Windows Agent / Android Agent
+          ↓
+       Heartbeat
+          ↓
+        FastAPI
+          ↓
+      PostgreSQL
+          ↓
+  status calculado pelo backend
+          ↓
+       Dashboard
+```
+
+Fluxo de autenticação de usuário:
+
+```text
+Usuário
+   ↓
+Dashboard — login
+   ↓
+POST /api/v1/auth/login
+   ↓
+Verificação da senha
+   ↓
+Emissão de JWT
+   ↓
+Dashboard armazena token da sessão
+   ↓
+Requisições autenticadas com Bearer token
+   ↓
+Backend valida JWT e autentica o usuário
+```
+
+O logout implementado no Dashboard limpa o token local. Não assumir revogação server-side sem implementação específica.
+
+**Atenção:** o fluxo hospedado só será considerado validado depois da verificação do banco remoto e dos endpoints no ambiente de implantação.
+
+## Próximas ações autorizadas
+
+### 1. Implantação
+
+* Verificar a configuração da conexão Render + Neon.
+* Confirmar o banco de destino.
+* Inspecionar o estado das migrações.
+* Aplicar as migrações necessárias somente após confirmar o banco correto.
+* Testar os endpoints hospedados.
+* Validar o fluxo entre agentes, backend, banco e Dashboard.
+
+### 2. Autenticação de usuários
+
+* Revisar o login existente.
+* Confirmar a verificação de senha Argon2.
+* Confirmar emissão, validação e expiração do JWT.
+* Confirmar proteção dos endpoints relevantes.
+* Verificar o escopo de autorização/RBAC.
+* Confirmar o tratamento de sessão expirada.
+* Registrar o comportamento real do logout.
+* Executar os testes existentes pertinentes.
+
+Não reescrever arquivos de autenticação que já foram apresentados e revisados sem uma falha concreta que justifique a alteração.
+
+### 3. Documentação
+
+Após a revisão da autenticação, atualizar:
+
+* `PROJECT-CONTEXT.md`;
+* a spec pertinente;
+* `plan.md`, quando necessário;
+* `task.md` ou `tasks.md`, conforme a estrutura existente;
+* documentação técnica pertinente;
+* ADR, caso haja uma decisão arquitetural nova ou alteração relevante de decisão existente.
+
+A documentação deve refletir o comportamento implementado e os testes realmente executados.
+
+### 4. Fechamento do MVP
+
+* Conferir as specs e tarefas existentes.
+* Validar os fluxos críticos.
+* Registrar testes e pendências.
+* Preparar o ambiente para o cliente.
+* Não iniciar Hardware Tracker sem aprovação expressa.
+
+### 5. Continuidade da engenharia
 
 Antes de qualquer nova implementação, o agente deve:
 
-Ler CLAUDE.md.
-Ler AGENTS.md.
-Ler PROJECT-CONTEXT.md.
-Verificar git status.
-Verificar git log.
-Identificar a próxima SPEC aplicável.
-Ler a respectiva spec.md.
-Ler o respectivo plan.md.
-Ler o respectivo tasks.md.
-Inspecionar a implementação real existente.
-Confirmar os critérios de aceitação.
-Somente então iniciar a implementação autorizada.
+1. Ler `CLAUDE.md`.
+2. Ler `AGENTS.md`.
+3. Ler `PROJECT-CONTEXT.md`.
+4. Verificar `git status`.
+5. Verificar `git log`.
+6. Identificar a spec aplicável.
+7. Ler a respectiva `spec.md`.
+8. Ler o respectivo `plan.md`.
+9. Ler `task.md` ou `tasks.md`, conforme existente.
+10. Inspecionar a implementação real e os testes atuais.
+11. Confirmar critérios de aceitação.
+12. Implementar somente o escopo autorizado.
+13. Executar os testes relevantes.
+14. Registrar os resultados e as pendências reais.
+15. Atualizar a documentação afetada.
 
-O agente não deve modificar silenciosamente decisões já consolidadas ou contratos existentes.
+O agente não deve modificar silenciosamente decisões consolidadas ou reabrir alterações já concluídas sem uma falha concreta que justifique a mudança.
 
-Qualquer alteração arquitetural relevante deve ser registrada na documentação correspondente e, quando aplicável, em uma nova ADR.
-
-Histórico de continuidade
+## Histórico de continuidade
 
 O projeto utiliza múltiplos agentes/chats.
 
 A continuidade deve ser obtida pelo repositório, e não pela memória de uma conversa anterior.
 
-Estado consolidado:
+Ao concluir uma nova fase ou alteração relevante, este arquivo deverá ser atualizado para registrar:
 
-FASE 01
-Levantamento e Arquitetura
-        ↓
-CONCLUÍDA
+* estado final da fase;
+* implementação efetivamente concluída;
+* testes executados e seus resultados;
+* decisões tomadas;
+* pendências restantes;
+* próximo passo autorizado.
 
-FASE 02
-Backend + PostgreSQL
-        ↓
-CONCLUÍDA
-
-FASE 03
-Windows Agent
-        ↓
-CONCLUÍDA
-
-FASE 04
-Dashboard MVP
-        ↓
-CONCLUÍDA
-
-PRÓXIMA
-Nova capacidade conforme SPEC/PLAN/TASKS
-        ↓
-A DEFINIR / INICIAR
-
-Ao concluir uma nova fase, este arquivo deverá ser atualizado novamente para registrar:
-
-status final da fase;
-implementação efetivamente concluída;
-testes executados;
-decisões tomadas;
-pendências restantes;
-próximo passo do projeto.
-
-Este documento deve refletir o estado real do repositório e nunca um estado planejado que ainda não tenha sido implementado e validado.
+**Este documento deve refletir o estado real do repositório e nunca um estado planejado que ainda não tenha sido implementado e validado.**
