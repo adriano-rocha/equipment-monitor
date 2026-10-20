@@ -987,3 +987,121 @@ tbody tr:last-child td {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* =========================================================
+   PAGINAÇÃO DA TABELA DE EQUIPAMENTOS
+   ========================================================= */
+
+.pagination-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.pagination-count {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.pagination-info {
+  min-width: 100px;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pagination-button {
+  display: inline-flex;
+  min-width: 92px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-input);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-surface-hover);
+  color: var(--color-primary-soft);
+}
+
+.pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.pagination-button:focus-visible {
+  outline: 3px solid var(--color-primary-glow);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   RESPONSIVIDADE DA PAGINAÇÃO
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .pagination-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+
+  .pagination-count {
+    text-align: center;
+  }
+
+  .pagination {
+    justify-content: center;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pagination-footer {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .pagination {
+    gap: 7px;
+  }
+
+  .pagination-button {
+    min-width: 0;
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .pagination-info {
+    min-width: 78px;
+    font-size: 11px;
+  }
+}

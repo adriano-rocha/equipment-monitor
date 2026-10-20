@@ -4,6 +4,8 @@ import { useDevices } from "./hooks/useDevices";
 import Login from "./Login";
 import { clearAccessToken, getAccessToken } from "./services/api";
 
+const ITEMS_PER_PAGE = 10;
+
 const STATUS = {
   ONLINE: "ONLINE",
   WARNING: "SEM COMUNICAÇÃO",
@@ -77,9 +79,7 @@ function StatusBadge({ status }) {
   };
 
   return (
-    <span className={`status-badge ${config.className}`}>
-      {config.label}
-    </span>
+    <span className={`status-badge ${config.className}`}>{config.label}</span>
   );
 }
 
@@ -97,9 +97,7 @@ function getEmptyMessage({ totalDevices, hasError }) {
     return "Nenhum equipamento corresponde aos filtros selecionados.";
   }
 
-  return hasError
-    ? "Sem dados para exibir."
-    : "Nenhum equipamento cadastrado.";
+  return hasError ? "Sem dados para exibir." : "Nenhum equipamento cadastrado.";
 }
 
 function DevicesTable({ devices, emptyMessage }) {
@@ -147,12 +145,45 @@ function DevicesTable({ devices, emptyMessage }) {
   );
 }
 
+function Pagination({ currentPage, totalPages, onPageChange }) {
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  return (
+    <nav className="pagination" aria-label="Paginação dos equipamentos">
+      <button
+        type="button"
+        className="pagination-button"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        Anterior
+      </button>
+
+      <span className="pagination-info" aria-live="polite">
+        Página {currentPage} de {totalPages}
+      </span>
+
+      <button
+        type="button"
+        className="pagination-button"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Próxima
+      </button>
+    </nav>
+  );
+}
+
 function Dashboard({ onLogout }) {
   const { devices, loading, refreshing, error, lastUpdated, refresh } =
     useDevices();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
+  const [requestedPage, setRequestedPage] = useState(1);
 
   const counts = useMemo(() => {
     const result = {};
@@ -184,6 +215,39 @@ function Dashboard({ onLogout }) {
     });
   }, [devices, search, statusFilter]);
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredDevices.length / ITEMS_PER_PAGE),
+  );
+
+  // Deriva a página válida a cada render: se a atualização automática
+  // reduzir a lista, a tela nunca exibe uma página inexistente.
+  const currentPage = Math.min(requestedPage, totalPages);
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  const paginatedDevices = filteredDevices.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
+
+  const firstVisibleDevice = filteredDevices.length === 0 ? 0 : startIndex + 1;
+
+  const lastVisibleDevice = Math.min(
+    startIndex + ITEMS_PER_PAGE,
+    filteredDevices.length,
+  );
+
+  function handleSearchChange(event) {
+    setSearch(event.target.value);
+    setRequestedPage(1);
+  }
+
+  function handleStatusFilterChange(value) {
+    setStatusFilter(value);
+    setRequestedPage(1);
+  }
+
   if (loading) {
     return (
       <main className="dashboard-loading" aria-live="polite">
@@ -196,19 +260,11 @@ function Dashboard({ onLogout }) {
     <main>
       <header className="dashboard-header">
         <div className="brand">
-          <img
-            src="/asaph.png"
-            alt="Logo ASAPH"
-            className="brand-logo"
-          />
+          <img src="/asaph.png" alt="Logo ASAPH" className="brand-logo" />
         </div>
 
         <div className="device-total">
-          <button
-            type="button"
-            className="logout-button"
-            onClick={onLogout}
-          >
+          <button type="button" className="logout-button" onClick={onLogout}>
             Sair
           </button>
 
@@ -220,11 +276,8 @@ function Dashboard({ onLogout }) {
       {error && (
         <div className="error-banner" role="alert">
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={refreshing}
-          >
+
+          <button type="button" onClick={refresh} disabled={refreshing}>
             Tentar novamente
           </button>
         </div>
@@ -245,8 +298,11 @@ function Dashboard({ onLogout }) {
         <div className="section-header">
           <div>
             <h2>Equipamentos</h2>
+
             <span>
-              Exibindo {filteredDevices.length} de {devices.length} equipamentos
+              {filteredDevices.length === devices.length
+                ? `${devices.length} equipamentos cadastrados`
+                : `${filteredDevices.length} de ${devices.length} equipamentos encontrados`}
             </span>
           </div>
 
@@ -275,7 +331,7 @@ function Dashboard({ onLogout }) {
             aria-label="Buscar equipamentos por patrimônio, hostname ou IP"
             placeholder="Buscar patrimônio, hostname ou IP..."
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={handleSearchChange}
           />
 
           <div className="status-filters" aria-label="Filtrar por status">
@@ -285,7 +341,7 @@ function Dashboard({ onLogout }) {
                 key={filter.value}
                 className={statusFilter === filter.value ? "active" : ""}
                 aria-pressed={statusFilter === filter.value}
-                onClick={() => setStatusFilter(filter.value)}
+                onClick={() => handleStatusFilterChange(filter.value)}
               >
                 {filter.label}
               </button>
@@ -294,12 +350,27 @@ function Dashboard({ onLogout }) {
         </div>
 
         <DevicesTable
-          devices={filteredDevices}
+          devices={paginatedDevices}
           emptyMessage={getEmptyMessage({
             totalDevices: devices.length,
             hasError: Boolean(error),
           })}
         />
+
+        {filteredDevices.length > 0 && (
+          <div className="pagination-footer">
+            <span className="pagination-count">
+              Exibindo {firstVisibleDevice}–{lastVisibleDevice} de{" "}
+              {filteredDevices.length} equipamentos
+            </span>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setRequestedPage}
+            />
+          </div>
+        )}
       </section>
 
       <footer className="dashboard-footer">
