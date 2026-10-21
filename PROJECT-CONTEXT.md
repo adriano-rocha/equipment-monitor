@@ -123,30 +123,27 @@ Não adicionar campos ou entidades por antecipação. A necessidade deve ser dem
 
 ## 4.2 Device
 
-Modelo conceitual:
+Modelo real implementado:
 
 ```text
 device
 ├── id (UUID, PK)
-├── asset_number
-├── type
-├── manufacturer
-├── model
-├── serial_number
-├── hostname
-├── operating_system
-├── battery_level
-├── last_seen
-├── operational_state
-├── created_at
-└── updated_at
+├── asset_number (VARCHAR 50, UNIQUE)
+├── device_type (VARCHAR 30: notebook | tablet | smartphone)
+├── manufacturer (VARCHAR 100, opcional)
+├── model (VARCHAR 150, opcional)
+├── serial_number (VARCHAR 150, opcional)
+├── hostname (VARCHAR 255, atualizado via heartbeat)
+├── reported_ip (VARCHAR 45, atualizado via heartbeat)
+├── battery_level (INTEGER 0-100, atualizado via heartbeat)
+└── last_seen (TIMESTAMP WITH TIME ZONE, atualizado via heartbeat)
 ```
 
 `asset_number` não é chave primária.
 
-`communication_status` não é armazenado como coluna persistida neste modelo. Ele é determinado pelo backend a partir da comunicação conhecida do dispositivo e das regras definidas na respectiva spec.
+`communication_status` não é coluna persistida: é calculado pelo backend via calculate_communication_status(last_seen, settings).
 
-Não existe um campo genérico `status` para substituir esses conceitos.
+Campos como hostname, reported_ip, battery_level e last_seen pertencem à telemetria de heartbeat e nunca são aceitos no payload de criação/edição.
 
 ## 4.3 Device Credential
 
@@ -559,28 +556,13 @@ O tratamento de `X-Forwarded-For` permanece dependente da infraestrutura de prod
 
 Até que exista uma cadeia de proxy confiável definida, não alterar o comportamento atual de `source_ip`.
 
-## 9.4 Implantação remota e banco de dados
+## 9.4 Implantação remota e banco de dados (Resolvido)
 
-Durante a implantação do backend com Render e Neon, o serviço iniciou, mas foi observado o erro:
-
-`sqlalchemy.exc.ProgrammingError: relation "devices" does not exist`
-
-O erro ocorreu durante uma consulta do monitor de status, envolvendo o repositório de dispositivos.
-
-Portanto, a implantação remota **não deve ser considerada validada end-to-end** até que:
-
-1. seja confirmado que o serviço utiliza a URL do banco esperado;
-2. seja verificado o estado das migrações Alembic nesse banco;
-3. sejam aplicadas as migrações pendentes somente após confirmar o banco de destino;
-4. seja confirmado que as tabelas necessárias existem;
-5. sejam testados os endpoints necessários no ambiente hospedado;
-6. seja validado o fluxo real entre agente, backend, banco e Dashboard.
-
-Não presumir que a tabela `devices` foi criada.
-
-Não executar migrações contra um banco sem confirmar o destino.
-
-Não considerar o problema resolvido apenas porque o container inicia ou o processo FastAPI informa que concluiu a inicialização.
+A pendência estrutural anterior (`relation "devices" does not exist`) foi corrigida.
+* As migrações do Alembic foram sincronizadas e executadas no banco PostgreSQL (Neon/Render).
+* O script de criação de usuário coordenador inicial foi executado com sucesso.
+* Autenticação via JWT (`/api/v1/auth/login`) e proteção dos endpoints com Bearer Token foram validadas no Swagger e via testes automatizados.
+* Total de 46 testes automatizados executados e passando (100% verde) em 21/10/2026.
 
 ## 9.5 Autenticação de usuários
 
@@ -1041,28 +1023,22 @@ A validação física em hardware Dell permanece pendente até que o equipamento
 
 ---
 
-# 14. Funcionalidades pendentes ou que exigem validação
+# 14. Funcionalidades do MVP em Execução
 
-As seguintes atividades permanecem relevantes para o fechamento do MVP:
+Fatiamento vertical priorizado:
+1. [CONCLUÍDO] SPEC-010: Especificação do CRUD de Equipamentos e Credencial.
+2. [EM ANDAMENTO] Etapa 1: POST /api/v1/devices com emissão única de credencial Argon2 e modal no Dashboard.
+3. [PENDENTE] Etapa 2: PATCH e DELETE /api/v1/devices/{device_id} (soft-delete / revogação).
+4. [PENDENTE] Etapa 3: SPEC-006 refinada — Eventos, pontos no evento (`location_point`) e responsável.
+5. [PENDENTE] Etapa 4: Alertas no painel — Popups de perda de comunicação e bateria <= 10% (smartphones).
+6. [PENDENTE] Etapa 5: Validação ponta a ponta e deploy final.
 
-1. Corrigir/verificar a implantação Render + Neon e o erro `relation "devices" does not exist`.
-2. Confirmar a conexão com o banco remoto correto.
-3. Verificar e aplicar as migrações Alembic necessárias no banco correto.
-4. Confirmar a existência das tabelas necessárias.
-5. Validar os endpoints reais no ambiente hospedado.
-6. Executar os testes relevantes e registrar resultados atuais.
-7. Revisar a autenticação de usuários e seus critérios de aceitação.
-8. Confirmar a proteção dos endpoints que exigem autenticação.
-9. Verificar expiração e validação do JWT.
-10. Revisar o comportamento de login, sessão expirada e logout.
-11. Confirmar o escopo de autorização/RBAC exigido pelo MVP.
-12. Atualizar as specs, plans, tasks e documentação de autenticação, migração e proteção de endpoints.
-13. Confirmar os critérios de aceitação e os testes dos fluxos de Telegram e Eventos + Responsáveis.
-14. Executar a revisão específica de segurança Dell quando houver hardware disponível.
-15. Manter recursos avançados de Android Management fora do escopo concluído até haver validação específica.
-16. Não iniciar Hardware Tracker/Fase 10 antes da apresentação da proposta e aprovação explícita do cliente.
-
-Não tratar itens acima como necessariamente não implementados. Alguns são funcionalidades existentes que ainda precisam de validação final, comprovação ou documentação atualizada.
+Fora do escopo do MVP:
+* Hardware Tracker (Fase 10).
+* Testes físicos Dell (Fase 09).
+* RBAC com múltiplos perfis de usuário (coordenador único adotado).
+* Revogação server-side de JWT (apenas limpeza no cliente no logout).
+* Alerta de bateria no Telegram (apenas no painel).
 
 ---
 
