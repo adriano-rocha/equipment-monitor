@@ -1,10 +1,12 @@
 """Implementação SQLAlchemy do port DeviceCredentialRepository."""
 
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application.ports.device_credential_repository import DeviceCredentialRepository
-from app.domain.device_credential import DeviceCredential
+from app.domain.device_credential import DeviceCredential, DeviceCredentialStatus
 from app.infrastructure.db.models.device_credential_model import DeviceCredentialModel
 
 
@@ -48,3 +50,13 @@ class SqlAlchemyDeviceCredentialRepository(DeviceCredentialRepository):
         )
         self._session.add(model)
         self._session.flush()
+
+    def get_by_device_id(self, device_id: UUID) -> DeviceCredential | None:
+        stmt = select(DeviceCredentialModel).where(
+            DeviceCredentialModel.device_id == device_id,
+            DeviceCredentialModel.status == DeviceCredentialStatus.ACTIVE,
+        )
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            return None
+        return self._to_domain(model)

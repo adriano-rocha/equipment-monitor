@@ -5,7 +5,9 @@ import Login from "./Login";
 import {
   clearAccessToken,
   createDevice,
+  deleteDevice,
   getAccessToken,
+  updateDevice,
 } from "./services/api";
 
 const ITEMS_PER_PAGE = 10;
@@ -50,6 +52,7 @@ const TABLE_COLUMNS = [
   "Bateria",
   "Status",
   "Último contato",
+  "Ações",
 ];
 
 const brasiliaDateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -105,7 +108,7 @@ function getEmptyMessage({ totalDevices, hasError }) {
   return hasError ? "Sem dados para exibir." : "Nenhum equipamento cadastrado.";
 }
 
-function DevicesTable({ devices, emptyMessage }) {
+function DevicesTable({ devices, emptyMessage, onEdit, onDelete }) {
   return (
     <div className="table-container">
       <table>
@@ -135,6 +138,24 @@ function DevicesTable({ devices, emptyMessage }) {
                 <StatusBadge status={device.status} />
               </td>
               <td>{formatBrasiliaDateTime(device.last_seen)}</td>
+              <td className="actions-cell">
+                <button
+                  type="button"
+                  className="btn-action-edit"
+                  onClick={() => onEdit(device)}
+                  title="Editar dados do equipamento"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="btn-action-delete"
+                  onClick={() => onDelete(device)}
+                  title="Desativar equipamento"
+                >
+                  Excluir
+                </button>
+              </td>
             </tr>
           ))}
 
@@ -183,7 +204,7 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   );
 }
 
-// Modal de Cadastro de Equipamento
+// Modal de Cadastro
 function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
   const [assetNumber, setAssetNumber] = useState("");
   const [deviceType, setDeviceType] = useState("");
@@ -320,11 +341,7 @@ function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
             >
               Cancelar
             </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={submitting}
-            >
+            <button type="submit" className="btn-primary" disabled={submitting}>
               {submitting ? "Cadastrando..." : "Cadastrar e Gerar Chave"}
             </button>
           </div>
@@ -334,7 +351,231 @@ function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
   );
 }
 
-// Modal de Exibição Única da Credencial (DeviceKey)
+// Modal de Edição (Etapa 2)
+// Modal de Edição (Etapa 2 - sem useEffect, inicialização limpa via props)
+function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
+  const [assetNumber, setAssetNumber] = useState(
+    () => device?.asset_number || "",
+  );
+  const [deviceType, setDeviceType] = useState(() => device?.device_type || "");
+  const [manufacturer, setManufacturer] = useState(
+    () => device?.manufacturer || "",
+  );
+  const [model, setModel] = useState(() => device?.model || "");
+  const [serialNumber, setSerialNumber] = useState(
+    () => device?.serial_number || "",
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!isOpen || !device) return null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErrorMsg("");
+
+    const trimmedAsset = assetNumber.trim();
+    if (!trimmedAsset) {
+      setErrorMsg("O patrimônio é obrigatório.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        asset_number: trimmedAsset,
+        device_type: deviceType || null,
+        manufacturer: manufacturer.trim() || null,
+        model: model.trim() || null,
+        serial_number: serialNumber.trim() || null,
+      };
+
+      await updateDevice(device.id, payload);
+      onSuccess();
+    } catch (err) {
+      const errorResponse =
+        err && typeof err === "object" && "response" in err
+          ? err.response
+          : null;
+      if (errorResponse?.status === 409) {
+        setErrorMsg("Este patrimônio já está cadastrado em outro equipamento.");
+      } else if (errorResponse?.data?.detail) {
+        setErrorMsg(String(errorResponse.data.detail));
+      } else {
+        setErrorMsg("Erro ao atualizar equipamento. Tente novamente.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3>Editar Equipamento</h3>
+          <button type="button" className="close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        {errorMsg && (
+          <div className="modal-error" role="alert">
+            {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-group">
+            <label htmlFor="edit_asset_number">
+              Patrimônio <span className="required">*</span>
+            </label>
+            <input
+              id="edit_asset_number"
+              type="text"
+              value={assetNumber}
+              onChange={(e) => setAssetNumber(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="edit_device_type">Tipo de Equipamento</label>
+            <select
+              id="edit_device_type"
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value)}
+            >
+              <option value="">Não informado</option>
+              <option value="notebook">Notebook</option>
+              <option value="tablet">Tablet</option>
+              <option value="smartphone">Smartphone</option>
+            </select>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="edit_manufacturer">Fabricante</label>
+              <input
+                id="edit_manufacturer"
+                type="text"
+                value={manufacturer}
+                onChange={(e) => setManufacturer(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="edit_model">Modelo</label>
+              <input
+                id="edit_model"
+                type="text"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="edit_serial_number">Número de Série</label>
+            <input
+              id="edit_serial_number"
+              type="text"
+              value={serialNumber}
+              onChange={(e) => setSerialNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary" disabled={submitting}>
+              {submitting ? "Salvando..." : "Salvar Alterações"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Modal de Confirmação de Exclusão (Etapa 2)
+// Modal de Confirmação de Exclusão (Etapa 2 - sem err não utilizado)
+function ConfirmDeleteModal({ device, isOpen, onClose, onSuccess }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!isOpen || !device) return null;
+
+  async function handleConfirm() {
+    setSubmitting(true);
+    setErrorMsg("");
+    try {
+      await deleteDevice(device.id);
+      onSuccess();
+    } catch {
+      setErrorMsg("Erro ao desativar equipamento. Tente novamente.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3>Confirmar Exclusão</h3>
+          <button type="button" className="close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        {errorMsg && (
+          <div className="modal-error" role="alert">
+            {errorMsg}
+          </div>
+        )}
+
+        <p style={{ color: "#e2e8f0", fontSize: "0.95rem", lineHeight: 1.5 }}>
+          Tem certeza que deseja desativar o equipamento{" "}
+          <strong style={{ color: "#38bdf8" }}>{device.asset_number}</strong>?
+        </p>
+
+        <div className="warning-banner" style={{ marginTop: "1rem" }}>
+          <strong>Atenção:</strong> O equipamento será removido da lista
+          operacional e sua credencial de comunicação será imediatamente{" "}
+          <strong>revogada</strong>. O histórico de comunicações anteriores será
+          preservado.
+        </div>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={handleConfirm}
+            disabled={submitting}
+          >
+            {submitting ? "Desativando..." : "Sim, Desativar Equipamento"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal de Exibição Única da Credencial
 function CredentialsDisplayModal({ deviceData, onClose }) {
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
@@ -398,18 +639,10 @@ function CredentialsDisplayModal({ deviceData, onClose }) {
         </div>
 
         <div className="modal-actions space-between">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={copyBoth}
-          >
+          <button type="button" className="btn-secondary" onClick={copyBoth}>
             {copiedAll ? "Copiado Tudo!" : "Copiar Ambas as Chaves"}
           </button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={onClose}
-          >
+          <button type="button" className="btn-primary" onClick={onClose}>
             Concluir e Fechar
           </button>
         </div>
@@ -426,9 +659,11 @@ function Dashboard({ onLogout }) {
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [requestedPage, setRequestedPage] = useState(1);
 
-  // Estados dos modais de cadastro e credenciais
+  // Estados dos modais
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
+  const [editingDevice, setEditingDevice] = useState(null);
+  const [deletingDevice, setDeletingDevice] = useState(null);
 
   const counts = useMemo(() => {
     const result = {};
@@ -502,6 +737,16 @@ function Dashboard({ onLogout }) {
 
   function handleCredentialsClosed() {
     setCreatedDeviceData(null);
+    refresh();
+  }
+
+  function handleEditSuccess() {
+    setEditingDevice(null);
+    refresh();
+  }
+
+  function handleDeleteSuccess() {
+    setDeletingDevice(null);
     refresh();
   }
 
@@ -622,6 +867,8 @@ function Dashboard({ onLogout }) {
             totalDevices: devices.length,
             hasError: Boolean(error),
           })}
+          onEdit={(device) => setEditingDevice(device)}
+          onDelete={(device) => setDeletingDevice(device)}
         />
 
         {filteredDevices.length > 0 && (
@@ -651,6 +898,25 @@ function Dashboard({ onLogout }) {
       <CredentialsDisplayModal
         deviceData={createdDeviceData}
         onClose={handleCredentialsClosed}
+      />
+
+      {/* Modal de Edição (Etapa 2) */}
+      {editingDevice && (
+        <EditDeviceModal
+          key={editingDevice.id}
+          device={editingDevice}
+          isOpen={Boolean(editingDevice)}
+          onClose={() => setEditingDevice(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+
+      {/* Modal de Confirmação de Exclusão (Etapa 2) */}
+      <ConfirmDeleteModal
+        device={deletingDevice}
+        isOpen={Boolean(deletingDevice)}
+        onClose={() => setDeletingDevice(null)}
+        onSuccess={handleDeleteSuccess}
       />
 
       <footer className="dashboard-footer">

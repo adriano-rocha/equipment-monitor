@@ -1291,6 +1291,70 @@ tbody tr:last-child td {
   background-color: #475569;
 }
 
+/* ==========================================================================
+   Ações da Tabela e Botão Perigo (Etapa 2)
+   ========================================================================== */
+
+.actions-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-action-edit {
+  background-color: #334155;
+  color: #38bdf8;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action-edit:hover {
+  background-color: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.btn-action-delete {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action-delete:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* =========================================================
    RESPONSIVIDADE DA PAGINAÇÃO
    ========================================================= */

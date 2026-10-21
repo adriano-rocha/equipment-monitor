@@ -24,6 +24,7 @@ class Device:
     reported_ip: str | None = None
     battery_level: int | None = None
     last_seen: datetime | None = None
+    deleted_at: datetime | None = None
 
     def register_heartbeat(
         self,

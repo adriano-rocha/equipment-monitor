@@ -49,3 +49,15 @@ class DeviceResponse(BaseModel):
     battery_level: int | None
     last_seen: datetime | None
     status: str
+
+class DeviceUpdateRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    asset_number: str | None = Field(default=None, min_length=1, max_length=50)
+    device_type: Literal["notebook", "tablet", "smartphone"] | None = None
+    manufacturer: str | None = Field(default=None, max_length=100)
+    model: str | None = Field(default=None, max_length=150)
+    serial_number: str | None = Field(default=None, max_length=150)

@@ -13,9 +13,9 @@
 - [x] 1.10 Rodar suíte completa de testes (`uv run pytest -q`) e validar ausência de regressões.
 
 ## Etapa 2 — Editar e Excluir Equipamento
-- [ ] 2.1 Implementar `UpdateDeviceUseCase` e rota `PATCH /api/v1/devices/{device_id}`.
-- [ ] 2.2 Implementar `DeleteDeviceUseCase` com revogação de credencial e rota `DELETE /api/v1/devices/{device_id}`.
-- [ ] 2.3 Escrever testes unitários e de API para PATCH e DELETE.
-- [ ] 2.4 Testar que credencial excluída retorna 401 no heartbeat.
-- [ ] 2.5 Adicionar ações de editar e excluir no Dashboard com diálogo de confirmação.
-- [ ] 2.6 Rodar suíte completa de testes.
+- [x] 2.1 Implementar `UpdateDeviceUseCase` e rota `PATCH /api/v1/devices/{device_id}`.
+- [x] 2.2 Implementar `DeleteDeviceUseCase` com revogação de credencial e rota `DELETE /api/v1/devices/{device_id}`.
+- [x] 2.3 Escrever testes unitários e de API para PATCH e DELETE.
+- [x] 2.4 Testar que credencial excluída retorna 401 no heartbeat.
+- [x] 2.5 Adicionar ações de editar e excluir no Dashboard com diálogo de confirmação.
+- [x] 2.6 Rodar suíte completa de testes.

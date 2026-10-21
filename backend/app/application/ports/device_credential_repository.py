@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from app.domain.device_credential import DeviceCredential
+from click import UUID
 
 
 class DeviceCredentialRepository(ABC):
@@ -25,3 +26,7 @@ class DeviceCredentialRepository(ABC):
         
         Sem commit — gerenciado pelo escopo da transação.
         """    
+
+    @abstractmethod
+    def get_by_device_id(self, device_id: UUID) -> DeviceCredential | None: # type: ignore
+        """Busca a credencial ativa vinculada ao ID do dispositivo."""    

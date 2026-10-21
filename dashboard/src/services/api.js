@@ -86,4 +86,14 @@ export async function createDevice(deviceData) {
   return response.data;
 }
 
+export async function updateDevice(deviceId, deviceData) {
+  const response = await api.patch(`/devices/${deviceId}`, deviceData);
+  return response.data;
+}
+
+export async function deleteDevice(deviceId) {
+  const response = await api.delete(`/devices/${deviceId}`);
+  return response.data;
+}
+
 export default api;

@@ -42,16 +42,20 @@ class DeviceAuthService:
 
         credential = self._credential_repository.get_by_key_id(key_id)
         if credential is None:
+            print("DEBUG: 1. credential is None para key_id:", key_id)
             raise InvalidDeviceCredentialsError()
 
         if not credential.is_active():
+            print("DEBUG: 2. credential NOT active! status=", repr(credential.status))
             raise InvalidDeviceCredentialsError()
 
         if not self._verify_secret(secret, credential.secret_hash):
+            print("DEBUG: 3. verify_secret falhou!")
             raise InvalidDeviceCredentialsError()
 
         device = self._device_repository.get_by_id(credential.device_id)
         if device is None:
+            print("DEBUG: 4. device is None para device_id:", credential.device_id)
             raise InvalidDeviceCredentialsError()
 
         return AuthenticatedDevice(device=device, credential=credential)
