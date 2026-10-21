@@ -18,3 +18,10 @@ class DeviceCredentialRepository(ABC):
     def update(self, credential: DeviceCredential) -> None:
         """Persiste alterações (ex.: last_used_at). Sem commit — ver
         DeviceRepository.update."""
+
+    @abstractmethod
+    def add(self, credential: DeviceCredential) -> None:
+        """Adiciona uma nova DeviceCredential vinculada a um dispositivo.
+        
+        Sem commit — gerenciado pelo escopo da transação.
+        """    

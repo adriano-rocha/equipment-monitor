@@ -81,4 +81,9 @@ export function getWebSocketUrl() {
   return url.toString();
 }
 
+export async function createDevice(deviceData) {
+  const response = await api.post("/devices", deviceData);
+  return response.data;
+}
+
 export default api;

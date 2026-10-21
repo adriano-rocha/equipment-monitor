@@ -27,3 +27,6 @@ class EventDeviceNotFoundError(Exception):
 
 class EventDeviceAlreadyActiveError(Exception):
     """Equipamento já possui associação ativa com o evento."""
+
+class DeviceAlreadyExistsError(Exception):
+    """Equipamento com este patrimônio já está cadastrado."""

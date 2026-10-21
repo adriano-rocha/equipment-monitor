@@ -36,3 +36,15 @@ class SqlAlchemyDeviceCredentialRepository(DeviceCredentialRepository):
             status=model.status,
             last_used_at=model.last_used_at,
         )
+
+    def add(self, credential: DeviceCredential) -> None:
+        model = DeviceCredentialModel(
+            id=credential.id,
+            device_id=credential.device_id,
+            key_id=credential.key_id,
+            secret_hash=credential.secret_hash,
+            status=credential.status,
+            last_used_at=credential.last_used_at,
+        )
+        self._session.add(model)
+        self._session.flush()

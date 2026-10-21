@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.application.exceptions import (
+    DeviceAlreadyExistsError,
     DeviceNotFoundError,
     EventDeviceAlreadyActiveError,
     EventDeviceNotFoundError,
@@ -24,6 +25,7 @@ from app.interface.api.v1.realtime import router as realtime_router
 from app.interface.api.v1.users import router as users_router
 from app.interface.api.v1 import auth
 from app.interface.error_handlers import (
+    device_already_exists_handler,
     device_not_found_handler,
     event_device_already_active_handler,
     event_device_not_found_handler,
@@ -146,4 +148,9 @@ app.add_exception_handler(
 app.add_exception_handler(
     EventDeviceAlreadyActiveError,
     event_device_already_active_handler,
+)
+
+app.add_exception_handler(
+    DeviceAlreadyExistsError,
+    device_already_exists_handler,
 )

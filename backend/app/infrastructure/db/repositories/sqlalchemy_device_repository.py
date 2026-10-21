@@ -3,10 +3,12 @@
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.application.ports.device_repository import DeviceRepository
 from app.domain.device import Device
 from app.infrastructure.db.models.device_model import DeviceModel
+from app.application.exceptions import DeviceAlreadyExistsError
 
 
 class SqlAlchemyDeviceRepository(DeviceRepository):
@@ -58,3 +60,36 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
             battery_level=model.battery_level,
             last_seen=model.last_seen,
         )
+
+    def add(self, device: Device) -> Device:
+        model = DeviceModel(
+            id=device.id,
+            asset_number=device.asset_number,
+            device_type=device.device_type,
+            manufacturer=device.manufacturer,
+            model=device.model,
+            serial_number=device.serial_number,
+            hostname=device.hostname,
+            reported_ip=device.reported_ip,
+            battery_level=device.battery_level,
+            last_seen=device.last_seen,
+        )
+        self._session.add(model)
+        try:
+            self._session.flush()
+        except IntegrityError as exc:
+            self._session.rollback()
+            raise DeviceAlreadyExistsError(
+                f"Patrimônio '{device.asset_number}' já cadastrado."
+            ) from exc
+        return device
+
+    def get_by_asset_number(self, asset_number: str) -> Device | None:
+        model = (
+            self._session.query(DeviceModel)
+            .filter(DeviceModel.asset_number == asset_number)
+            .first()
+        )
+        if model is None:
+            return None
+        return self._to_domain(model)

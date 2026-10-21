@@ -10,6 +10,7 @@ from app.application.exceptions import (
     EventNotFoundError,
     InvalidDeviceCredentialsError,
     UserNotFoundError,
+    DeviceAlreadyExistsError,
 )
 
 
@@ -79,4 +80,14 @@ async def event_device_already_active_handler(
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
         content={"detail": "Equipamento já está associado a este evento."},
+    )
+
+async def device_already_exists_handler(
+    request: Request,
+    exc: DeviceAlreadyExistsError,
+) -> JSONResponse:
+    """409 quando o patrimônio do equipamento já existe."""
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": "Equipamento com este patrimônio já cadastrado."},
     )

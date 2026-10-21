@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useDevices } from "./hooks/useDevices";
 import Login from "./Login";
-import { clearAccessToken, getAccessToken } from "./services/api";
+import {
+  clearAccessToken,
+  createDevice,
+  getAccessToken,
+} from "./services/api";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -40,6 +44,7 @@ const STATUS_FILTERS = [
 
 const TABLE_COLUMNS = [
   "Patrimônio",
+  "Tipo",
   "Hostname",
   "IP",
   "Bateria",
@@ -118,6 +123,7 @@ function DevicesTable({ devices, emptyMessage }) {
           {devices.map((device) => (
             <tr key={device.id}>
               <td className="asset-number">{device.asset_number ?? "-"}</td>
+              <td>{device.device_type ?? "-"}</td>
               <td>{device.hostname ?? "-"}</td>
               <td>{device.reported_ip ?? "-"}</td>
               <td>
@@ -177,6 +183,241 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   );
 }
 
+// Modal de Cadastro de Equipamento
+function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
+  const [assetNumber, setAssetNumber] = useState("");
+  const [deviceType, setDeviceType] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [model, setModel] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!isOpen) return null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErrorMsg("");
+
+    const trimmedAsset = assetNumber.trim();
+    if (!trimmedAsset) {
+      setErrorMsg("O patrimônio é obrigatório.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        asset_number: trimmedAsset,
+        device_type: deviceType || null,
+        manufacturer: manufacturer.trim() || null,
+        model: model.trim() || null,
+        serial_number: serialNumber.trim() || null,
+      };
+
+      const result = await createDevice(payload);
+      onSuccess(result);
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setErrorMsg("Este patrimônio já está cadastrado no sistema.");
+      } else if (err.response?.data?.detail) {
+        setErrorMsg(String(err.response.data.detail));
+      } else {
+        setErrorMsg("Erro ao cadastrar equipamento. Tente novamente.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3>Cadastrar Novo Equipamento</h3>
+          <button type="button" className="close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        {errorMsg && (
+          <div className="modal-error" role="alert">
+            {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-group">
+            <label htmlFor="asset_number">
+              Patrimônio <span className="required">*</span>
+            </label>
+            <input
+              id="asset_number"
+              type="text"
+              placeholder="Ex: NB-DELL-001"
+              value={assetNumber}
+              onChange={(e) => setAssetNumber(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="device_type">Tipo de Equipamento</label>
+            <select
+              id="device_type"
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value)}
+            >
+              <option value="">Não informado</option>
+              <option value="notebook">Notebook</option>
+              <option value="tablet">Tablet</option>
+              <option value="smartphone">Smartphone</option>
+            </select>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="manufacturer">Fabricante</label>
+              <input
+                id="manufacturer"
+                type="text"
+                placeholder="Ex: Dell, Samsung"
+                value={manufacturer}
+                onChange={(e) => setManufacturer(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="model">Modelo</label>
+              <input
+                id="model"
+                type="text"
+                placeholder="Ex: Latitude 3420"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="serial_number">Número de Série</label>
+            <input
+              id="serial_number"
+              type="text"
+              placeholder="Opcional"
+              value={serialNumber}
+              onChange={(e) => setSerialNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={submitting}
+            >
+              {submitting ? "Cadastrando..." : "Cadastrar e Gerar Chave"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Modal de Exibição Única da Credencial (DeviceKey)
+function CredentialsDisplayModal({ deviceData, onClose }) {
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
+
+  if (!deviceData) return null;
+
+  const { credentials, asset_number } = deviceData;
+
+  function copyToClipboard(text, setter) {
+    navigator.clipboard.writeText(text);
+    setter(true);
+    setTimeout(() => setter(false), 2000);
+  }
+
+  function copyBoth() {
+    const text = `Patrimônio: ${asset_number}\nKey ID: ${credentials.key_id}\nSecret: ${credentials.secret}`;
+    navigator.clipboard.writeText(text);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card modal-credentials">
+        <div className="modal-header">
+          <h3>Credencial do Equipamento: {asset_number}</h3>
+        </div>
+
+        <div className="warning-banner">
+          <strong>Atenção:</strong> Esta é a <u>única vez</u> que o segredo
+          (secret) será exibido. Copie e configure o agente agora.
+        </div>
+
+        <div className="credential-field">
+          <label>Identificador Público (key_id):</label>
+          <div className="copy-row">
+            <code>{credentials.key_id}</code>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(credentials.key_id, setCopiedKey)}
+            >
+              {copiedKey ? "Copiado!" : "Copiar"}
+            </button>
+          </div>
+        </div>
+
+        <div className="credential-field">
+          <label>Segredo (secret):</label>
+          <div className="copy-row">
+            <code className="secret-code">{credentials.secret}</code>
+            <button
+              type="button"
+              onClick={() =>
+                copyToClipboard(credentials.secret, setCopiedSecret)
+              }
+            >
+              {copiedSecret ? "Copiado!" : "Copiar"}
+            </button>
+          </div>
+        </div>
+
+        <div className="modal-actions space-between">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={copyBoth}
+          >
+            {copiedAll ? "Copiado Tudo!" : "Copiar Ambas as Chaves"}
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={onClose}
+          >
+            Concluir e Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({ onLogout }) {
   const { devices, loading, refreshing, error, lastUpdated, refresh } =
     useDevices();
@@ -184,6 +425,10 @@ function Dashboard({ onLogout }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [requestedPage, setRequestedPage] = useState(1);
+
+  // Estados dos modais de cadastro e credenciais
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createdDeviceData, setCreatedDeviceData] = useState(null);
 
   const counts = useMemo(() => {
     const result = {};
@@ -201,11 +446,15 @@ function Dashboard({ onLogout }) {
     return devices.filter((device) => {
       const matchesSearch =
         normalizedSearch === "" ||
-        [device.asset_number, device.hostname, device.reported_ip].some(
-          (value) =>
-            String(value ?? "")
-              .toLowerCase()
-              .includes(normalizedSearch),
+        [
+          device.asset_number,
+          device.device_type,
+          device.hostname,
+          device.reported_ip,
+        ].some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(normalizedSearch),
         );
 
       const matchesStatus =
@@ -220,8 +469,6 @@ function Dashboard({ onLogout }) {
     Math.ceil(filteredDevices.length / ITEMS_PER_PAGE),
   );
 
-  // Deriva a página válida a cada render: se a atualização automática
-  // reduzir a lista, a tela nunca exibe uma página inexistente.
   const currentPage = Math.min(requestedPage, totalPages);
 
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -246,6 +493,16 @@ function Dashboard({ onLogout }) {
   function handleStatusFilterChange(value) {
     setStatusFilter(value);
     setRequestedPage(1);
+  }
+
+  function handleCreateSuccess(newDeviceWithCredentials) {
+    setIsCreateOpen(false);
+    setCreatedDeviceData(newDeviceWithCredentials);
+  }
+
+  function handleCredentialsClosed() {
+    setCreatedDeviceData(null);
+    refresh();
   }
 
   if (loading) {
@@ -306,22 +563,32 @@ function Dashboard({ onLogout }) {
             </span>
           </div>
 
-          <div className="refresh-info">
-            <span>
-              Atualizado:{" "}
-              {lastUpdated
-                ? formatBrasiliaDateTime(lastUpdated)
-                : "Aguardando atualização"}
-            </span>
-
+          <div className="header-actions">
             <button
               type="button"
-              className="refresh-button"
-              onClick={refresh}
-              disabled={refreshing}
+              className="btn-create-device"
+              onClick={() => setIsCreateOpen(true)}
             >
-              {refreshing ? "Atualizando..." : "Atualizar"}
+              + Cadastrar equipamento
             </button>
+
+            <div className="refresh-info">
+              <span>
+                Atualizado:{" "}
+                {lastUpdated
+                  ? formatBrasiliaDateTime(lastUpdated)
+                  : "Aguardando atualização"}
+              </span>
+
+              <button
+                type="button"
+                className="refresh-button"
+                onClick={refresh}
+                disabled={refreshing}
+              >
+                {refreshing ? "Atualizando..." : "Atualizar"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -329,7 +596,7 @@ function Dashboard({ onLogout }) {
           <input
             type="search"
             aria-label="Buscar equipamentos por patrimônio, hostname ou IP"
-            placeholder="Buscar patrimônio, hostname ou IP..."
+            placeholder="Buscar patrimônio, tipo, hostname ou IP..."
             value={search}
             onChange={handleSearchChange}
           />
@@ -372,6 +639,19 @@ function Dashboard({ onLogout }) {
           </div>
         )}
       </section>
+
+      {/* Modal de Formulário de Cadastro */}
+      <CreateDeviceModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={handleCreateSuccess}
+      />
+
+      {/* Modal de Exibição Única da Credencial */}
+      <CredentialsDisplayModal
+        deviceData={createdDeviceData}
+        onClose={handleCredentialsClosed}
+      />
 
       <footer className="dashboard-footer">
         <span>ASAPH | Grupo Pleno</span>

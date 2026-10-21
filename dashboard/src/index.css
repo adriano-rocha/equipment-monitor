@@ -1061,6 +1061,236 @@ tbody tr:last-child td {
   outline-offset: 2px;
 }
 
+/* ==========================================================================
+   Modais e Botão de Cadastro (Etapa 1)
+   ========================================================================== */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn-create-device {
+  background-color: #10b981;
+  color: #0f172a;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-create-device:hover {
+  background-color: #34d399;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 520px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #f1f5f9;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #f8fafc;
+}
+
+.modal-error {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  color: #cbd5e1;
+}
+
+.form-group .required {
+  color: #ef4444;
+}
+
+.form-group input,
+.form-group select {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.625rem;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #10b981;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.modal-actions.space-between {
+  justify-content: space-between;
+}
+
+.btn-primary {
+  background-color: #10b981;
+  color: #0f172a;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #34d399;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #334155;
+  color: #f8fafc;
+  padding: 0.625rem 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #475569;
+}
+
+/* Modal de Credenciais */
+.warning-banner {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid #f59e0b;
+  color: #fcd34d;
+  padding: 0.875rem;
+  border-radius: 6px;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.credential-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.credential-field label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.copy-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.copy-row code {
+  flex: 1;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  padding: 0.625rem;
+  border-radius: 6px;
+  font-family: monospace;
+  color: #38bdf8;
+  word-break: break-all;
+}
+
+.copy-row code.secret-code {
+  color: #34d399;
+}
+
+.copy-row button {
+  background-color: #334155;
+  color: #f8fafc;
+  border: none;
+  padding: 0.625rem 0.875rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.copy-row button:hover {
+  background-color: #475569;
+}
+
 /* =========================================================
    RESPONSIVIDADE DA PAGINAÇÃO
    ========================================================= */
