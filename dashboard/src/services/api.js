@@ -96,4 +96,64 @@ export async function deleteDevice(deviceId) {
   return response.data;
 }
 
+// --- Eventos ---
+export async function getEvents() {
+  const response = await api.get("/events");
+  return response.data;
+}
+
+export async function getEvent(eventId) {
+  const response = await api.get(`/events/${eventId}`);
+  return response.data;
+}
+
+export async function createEvent(eventData) {
+  const response = await api.post("/events", eventData);
+  return response.data;
+}
+
+export async function updateEvent(eventId, eventData) {
+  const response = await api.patch(`/events/${eventId}`, eventData);
+  return response.data;
+}
+
+// --- Associações Equipamento <-> Evento (Pontos Físicos e Responsáveis) ---
+export async function getEventDevices(eventId, activeOnly = true) {
+  const response = await api.get(`/events/${eventId}/devices`, {
+    params: { active_only: activeOnly },
+  });
+  return response.data;
+}
+
+export async function addDeviceToEvent(eventId, payload) {
+  // payload: { device_id, location_point, assigned_user_id }
+  const response = await api.post(`/events/${eventId}/devices`, payload);
+  return response.data;
+}
+
+export async function updateEventDevice(eventId, deviceId, payload) {
+  // payload: { location_point, assigned_user_id, clear_user }
+  const response = await api.patch(
+    `/events/${eventId}/devices/${deviceId}`,
+    payload,
+  );
+  return response.data;
+}
+
+export async function removeDeviceFromEvent(eventId, deviceId) {
+  const response = await api.delete(`/events/${eventId}/devices/${deviceId}`);
+  return response.data;
+}
+
+// --- Usuários / Responsáveis Operacionais (Decisão C) ---
+export async function getUsers() {
+  const response = await api.get("/users");
+  return response.data;
+}
+
+export async function createUser(userData) {
+  const response = await api.post("/users", userData);
+  return response.data;
+}
+
 export default api;

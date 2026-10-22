@@ -49,3 +49,7 @@ class EventDeviceRepository(ABC):
 
         Não faz commit.
         """
+
+    def get_active_by_device(self, device_id: UUID) -> EventDevice | None:
+        """Retorna a associação ativa do dispositivo em qualquer evento."""
+        ...    

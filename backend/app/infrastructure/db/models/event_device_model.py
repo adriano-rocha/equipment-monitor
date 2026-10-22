@@ -1,16 +1,9 @@
-"""Modelo SQLAlchemy da associação histórica entre eventos e equipamentos.
-
-Cada registro representa uma associação de um equipamento a um evento.
-
-A associação ativa possui ``unassigned_at = NULL``.
-Quando o responsável muda, a associação atual é encerrada e uma nova
-associação é criada, preservando o histórico.
-"""
+"""Modelo SQLAlchemy da associação histórica entre eventos e equipamentos."""
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, text
+from sqlalchemy import DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.db.base import Base
@@ -32,6 +25,11 @@ class EventDeviceModel(Base):
     device_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("devices.id", ondelete="CASCADE"),
         nullable=False,
+    )
+
+    location_point: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
     )
 
     assigned_user_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -66,6 +64,7 @@ class EventDeviceModel(Base):
     __table_args__ = (
         Index("ix_event_devices_event_id", "event_id"),
         Index("ix_event_devices_device_id", "device_id"),
+        Index("ix_event_devices_location_point", "location_point"),
         Index("ix_event_devices_assigned_user_id", "assigned_user_id"),
         Index("ix_event_devices_assigned_at", "assigned_at"),
         Index(

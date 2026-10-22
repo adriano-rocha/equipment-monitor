@@ -1,8 +1,8 @@
-"""Rotas HTTP para associações entre eventos e equipamentos da Fase 06."""
+"""Rotas HTTP para associações entre eventos e equipamentos."""
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.application.services.event_device_service import EventDeviceService
@@ -21,13 +21,14 @@ from app.infrastructure.db.repositories.sqlalchemy_user_repository import (
 from app.interface.api.v1.schemas.event_device_schema import (
     EventDeviceCreate,
     EventDeviceResponse,
-    EventDeviceResponsibleUpdate,
+    EventDeviceUpdate,
 )
 from app.interface.deps import get_current_user, get_db_session
 
 router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
+
 
 def _get_event_device_service(session: Session) -> EventDeviceService:
     """Cria o serviço de associações com seus repositórios concretos."""
@@ -45,6 +46,7 @@ def _to_response(event_device) -> EventDeviceResponse:
         id=event_device.id,
         event_id=event_device.event_id,
         device_id=event_device.device_id,
+        location_point=event_device.location_point,
         assigned_user_id=event_device.assigned_user_id,
         assigned_at=event_device.assigned_at,
         unassigned_at=event_device.unassigned_at,
@@ -64,12 +66,13 @@ def add_device_to_event(
     payload: EventDeviceCreate,
     session: Session = Depends(get_db_session),
 ) -> EventDeviceResponse:
-    """Associa um equipamento a um evento."""
+    """Associa um equipamento a um evento com ponto físico e responsável opcional."""
     service = _get_event_device_service(session)
 
     event_device = service.add_device(
         event_id=event_id,
         device_id=payload.device_id,
+        location_point=payload.location_point,
         assigned_user_id=payload.assigned_user_id,
     )
 
@@ -82,12 +85,13 @@ def add_device_to_event(
 )
 def list_event_devices(
     event_id: UUID,
+    active_only: bool = Query(default=False),
     session: Session = Depends(get_db_session),
 ) -> list[EventDeviceResponse]:
-    """Lista o histórico de equipamentos associados ao evento."""
+    """Lista equipamentos associados ao evento (histórico completo ou apenas ativos)."""
     service = _get_event_device_service(session)
 
-    event_devices = service.list_by_event(event_id)
+    event_devices = service.list_by_event(event_id, active_only=active_only)
 
     return [_to_response(item) for item in event_devices]
 
@@ -112,19 +116,21 @@ def list_device_events(
     "/events/{event_id}/devices/{device_id}",
     response_model=EventDeviceResponse,
 )
-def assign_device_responsible(
+def update_device_in_event(
     event_id: UUID,
     device_id: UUID,
-    payload: EventDeviceResponsibleUpdate,
+    payload: EventDeviceUpdate,
     session: Session = Depends(get_db_session),
 ) -> EventDeviceResponse:
-    """Troca o responsável de um equipamento dentro do evento."""
+    """Altera o ponto físico e/ou o responsável no evento mantendo histórico de auditoria."""
     service = _get_event_device_service(session)
 
-    event_device = service.assign_responsible(
+    event_device = service.update_assignment(
         event_id=event_id,
         device_id=device_id,
-        user_id=payload.assigned_user_id,
+        location_point=payload.location_point,
+        assigned_user_id=payload.assigned_user_id,
+        clear_user=payload.clear_user,
     )
 
     return _to_response(event_device)

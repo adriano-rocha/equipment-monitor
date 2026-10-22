@@ -1,12 +1,13 @@
 """Entidade de domínio: EventDevice.
 
 Representa a associação histórica entre um equipamento e um evento,
-incluindo o responsável contextual pela utilização do equipamento.
+incluindo o ponto físico (Decisão D) e o responsável contextual (Decisão C).
 
 A associação permanece ativa enquanto ``unassigned_at`` for None.
 
-Quando o responsável muda, a associação atual deve ser encerrada e uma
-nova associação criada. Dessa forma, o histórico é preservado.
+Quando o responsável ou o ponto físico muda, a associação atual deve ser 
+encerrada e uma nova criada. Dessa forma, o histórico e a rastreabilidade 
+são preservados integralmente.
 """
 
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ class EventDevice:
     id: UUID
     event_id: UUID
     device_id: UUID
+    location_point: str | None = None
     assigned_user_id: UUID | None = None
     assigned_at: datetime | None = None
     unassigned_at: datetime | None = None

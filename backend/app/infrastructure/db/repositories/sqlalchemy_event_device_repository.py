@@ -1,7 +1,6 @@
 """Implementação SQLAlchemy do port EventDeviceRepository."""
 
 from uuid import UUID
-
 from sqlalchemy.orm import Session
 
 from app.application.ports.event_device_repository import EventDeviceRepository
@@ -18,6 +17,7 @@ class SqlAlchemyEventDeviceRepository(EventDeviceRepository):
             id=event_device.id,
             event_id=event_device.event_id,
             device_id=event_device.device_id,
+            location_point=event_device.location_point,
             assigned_user_id=event_device.assigned_user_id,
             assigned_at=event_device.assigned_at,
             unassigned_at=event_device.unassigned_at,
@@ -26,23 +26,11 @@ class SqlAlchemyEventDeviceRepository(EventDeviceRepository):
         )
         self._session.add(model)
 
-    def get_by_id(
-        self,
-        event_device_id: UUID,
-    ) -> EventDevice | None:
+    def get_by_id(self, event_device_id: UUID) -> EventDevice | None:
         model = self._session.get(EventDeviceModel, event_device_id)
+        return self._to_domain(model) if model else None
 
-        if model is None:
-            return None
-
-        return self._to_domain(model)
-
-    def get_active(
-        self,
-        *,
-        event_id: UUID,
-        device_id: UUID,
-    ) -> EventDevice | None:
+    def get_active(self, *, event_id: UUID, device_id: UUID) -> EventDevice | None:
         model = (
             self._session.query(EventDeviceModel)
             .filter(
@@ -52,46 +40,57 @@ class SqlAlchemyEventDeviceRepository(EventDeviceRepository):
             )
             .first()
         )
+        return self._to_domain(model) if model else None
 
-        if model is None:
-            return None
+    def get_active_by_device(self, device_id: UUID) -> EventDevice | None:
+        model = (
+            self._session.query(EventDeviceModel)
+            .filter(
+                EventDeviceModel.device_id == device_id,
+                EventDeviceModel.unassigned_at.is_(None),
+            )
+            .first()
+        )
+        return self._to_domain(model) if model else None
 
-        return self._to_domain(model)
-
-    def list_by_event(
-        self,
-        event_id: UUID,
-    ) -> list[EventDevice]:
+    def list_by_event(self, event_id: UUID) -> list[EventDevice]:
         models = (
             self._session.query(EventDeviceModel)
             .filter(EventDeviceModel.event_id == event_id)
             .order_by(EventDeviceModel.assigned_at.asc())
             .all()
         )
-
         return [self._to_domain(model) for model in models]
 
-    def list_by_device(
-        self,
-        device_id: UUID,
-    ) -> list[EventDevice]:
+    def list_active_by_event(self, event_id: UUID) -> list[EventDevice]:
+        models = (
+            self._session.query(EventDeviceModel)
+            .filter(
+                EventDeviceModel.event_id == event_id,
+                EventDeviceModel.unassigned_at.is_(None),
+            )
+            .order_by(EventDeviceModel.assigned_at.asc())
+            .all()
+        )
+        return [self._to_domain(model) for model in models]
+
+    def list_by_device(self, device_id: UUID) -> list[EventDevice]:
         models = (
             self._session.query(EventDeviceModel)
             .filter(EventDeviceModel.device_id == device_id)
             .order_by(EventDeviceModel.assigned_at.asc())
             .all()
         )
-
         return [self._to_domain(model) for model in models]
 
     def update(self, event_device: EventDevice) -> None:
         model = self._session.get(EventDeviceModel, event_device.id)
-
         if model is None:
             raise ValueError(
                 f"EventDevice {event_device.id} não encontrado para atualização."
             )
 
+        model.location_point = event_device.location_point
         model.assigned_user_id = event_device.assigned_user_id
         model.assigned_at = event_device.assigned_at
         model.unassigned_at = event_device.unassigned_at
@@ -102,6 +101,7 @@ class SqlAlchemyEventDeviceRepository(EventDeviceRepository):
             id=model.id,
             event_id=model.event_id,
             device_id=model.device_id,
+            location_point=model.location_point,
             assigned_user_id=model.assigned_user_id,
             assigned_at=model.assigned_at,
             unassigned_at=model.unassigned_at,

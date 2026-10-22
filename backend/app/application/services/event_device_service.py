@@ -36,6 +36,7 @@ class EventDeviceService:
         *,
         event_id: UUID,
         device_id: UUID,
+        location_point: str | None = None,
         assigned_user_id: UUID | None = None,
     ) -> EventDevice:
         self._ensure_event_exists(event_id)
@@ -44,22 +45,31 @@ class EventDeviceService:
         if assigned_user_id is not None:
             self._ensure_user_exists(assigned_user_id)
 
-        active = self._event_device_repository.get_active(
+        # Se já estiver ativo no mesmo evento
+        active_in_same_event = self._event_device_repository.get_active(
             event_id=event_id,
             device_id=device_id,
         )
-
-        if active is not None:
+        if active_in_same_event is not None:
             raise EventDeviceAlreadyActiveError(
                 f"Device {device_id} já está associado ao Event {event_id}."
             )
 
         now = datetime.now(timezone.utc)
 
+        # Se estiver ativo em outro evento, encerra a associação anterior (movimentação de evento)
+        active_in_any_event = self._event_device_repository.get_active_by_device(
+            device_id=device_id
+        )
+        if active_in_any_event is not None:
+            active_in_any_event.unassign(unassigned_at=now)
+            self._event_device_repository.update(active_in_any_event)
+
         event_device = EventDevice(
             id=uuid4(),
             event_id=event_id,
             device_id=device_id,
+            location_point=location_point.strip() if location_point else None,
             assigned_user_id=assigned_user_id,
             assigned_at=now,
             created_at=now,
@@ -67,27 +77,33 @@ class EventDeviceService:
         )
 
         self._event_device_repository.add(event_device)
-
         return event_device
 
-    def list_by_event(self, event_id: UUID) -> list[EventDevice]:
+    def list_by_event(self, event_id: UUID, active_only: bool = False) -> list[EventDevice]:
         self._ensure_event_exists(event_id)
+        if active_only:
+            return self._event_device_repository.list_active_by_event(event_id)
         return self._event_device_repository.list_by_event(event_id)
 
     def list_by_device(self, device_id: UUID) -> list[EventDevice]:
         self._ensure_device_exists(device_id)
         return self._event_device_repository.list_by_device(device_id)
 
-    def assign_responsible(
+    def update_assignment(
         self,
         *,
         event_id: UUID,
         device_id: UUID,
-        user_id: UUID,
+        location_point: str | None = None,
+        assigned_user_id: UUID | None = None,
+        clear_user: bool = False,
     ) -> EventDevice:
+        """Altera o ponto físico e/ou o responsável mantendo o histórico de auditoria."""
         self._ensure_event_exists(event_id)
         self._ensure_device_exists(device_id)
-        self._ensure_user_exists(user_id)
+
+        if assigned_user_id is not None:
+            self._ensure_user_exists(assigned_user_id)
 
         current = self._event_device_repository.get_active(
             event_id=event_id,
@@ -100,23 +116,46 @@ class EventDeviceService:
             )
 
         now = datetime.now(timezone.utc)
-
         current.unassign(unassigned_at=now)
         self._event_device_repository.update(current)
+
+        # Novo responsável: usa o novo se passado; se clear_user=True, remove; senão mantém o anterior
+        new_user = None if clear_user else (
+            assigned_user_id if assigned_user_id is not None else current.assigned_user_id
+        )
+
+        # Novo ponto físico: se especificado usa o novo, senão preserva o anterior
+        new_point = (
+            location_point.strip() if location_point is not None else current.location_point
+        )
 
         new_assignment = EventDevice(
             id=uuid4(),
             event_id=event_id,
             device_id=device_id,
-            assigned_user_id=user_id,
+            location_point=new_point,
+            assigned_user_id=new_user,
             assigned_at=now,
             created_at=now,
             updated_at=now,
         )
 
         self._event_device_repository.add(new_assignment)
-
         return new_assignment
+
+    def assign_responsible(
+        self,
+        *,
+        event_id: UUID,
+        device_id: UUID,
+        user_id: UUID,
+    ) -> EventDevice:
+        """Compatibilidade: atalho para update_assignment apenas com responsável."""
+        return self.update_assignment(
+            event_id=event_id,
+            device_id=device_id,
+            assigned_user_id=user_id,
+        )
 
     def remove_device(
         self,
@@ -139,7 +178,6 @@ class EventDeviceService:
 
         current.unassign(unassigned_at=datetime.now(timezone.utc))
         self._event_device_repository.update(current)
-
         return current
 
     def _ensure_event_exists(self, event_id: UUID) -> None:
