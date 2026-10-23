@@ -39,3 +39,10 @@ class EventDeviceResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     is_active: bool
+
+class DeviceSwapRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+    current_device_id: str  # Equipamento com problema / bateria baixa
+    new_device_id: str      # Equipamento que vai assumir o posto    

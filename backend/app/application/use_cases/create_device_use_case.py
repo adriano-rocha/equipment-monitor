@@ -65,8 +65,8 @@ class CreateDeviceUseCase:
         )
 
         # 3. Geração aleatória e segura da credencial (secrets)
-        key_id = f"key_{secrets.token_hex(16)}"
-        secret = f"sec_{secrets.token_urlsafe(32)}"
+        key_id = secrets.token_hex(4)
+        secret = secrets.token_hex(4)
         secret_hash = self._hasher.hash(secret)
 
         credential = DeviceCredential(

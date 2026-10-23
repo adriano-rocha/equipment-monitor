@@ -1,25 +1,42 @@
 """Rota POST /api/v1/heartbeats (SPEC-001)."""
 
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
-from app.application.use_cases.register_heartbeat import RegisterHeartbeatCommand, RegisterHeartbeatUseCase
+from app.application.services.alert_service import AlertService
+from app.application.use_cases.register_heartbeat import (
+    RegisterHeartbeatCommand,
+    RegisterHeartbeatUseCase,
+)
 from app.infrastructure.auth.device_auth_service import AuthenticatedDevice
+from app.infrastructure.config import get_settings
 from app.infrastructure.db.repositories.sqlalchemy_device_credential_repository import (
     SqlAlchemyDeviceCredentialRepository,
 )
-from app.infrastructure.db.repositories.sqlalchemy_device_repository import SqlAlchemyDeviceRepository
-from app.infrastructure.db.repositories.sqlalchemy_heartbeat_repository import SqlAlchemyHeartbeatRepository
-from app.interface.api.v1.schemas.heartbeat_schema import HeartbeatRequest, HeartbeatResponse
+from app.infrastructure.db.repositories.sqlalchemy_device_repository import (
+    SqlAlchemyDeviceRepository,
+)
+from app.infrastructure.db.repositories.sqlalchemy_heartbeat_repository import (
+    SqlAlchemyHeartbeatRepository,
+)
+from app.infrastructure.notifications.telegram_service import TelegramService
+from app.interface.api.v1.schemas.heartbeat_schema import (
+    HeartbeatRequest,
+    HeartbeatResponse,
+)
 from app.interface.deps import get_current_device, get_db_session
+from app.interface.realtime.websocket_manager import websocket_manager
 
 router = APIRouter()
 
 
-@router.post("/heartbeats", status_code=status.HTTP_201_CREATED, response_model=HeartbeatResponse)
-def register_heartbeat(
+@router.post(
+    "/heartbeats",
+    status_code=status.HTTP_201_CREATED,
+    response_model=HeartbeatResponse,
+)
+async def register_heartbeat(
     payload: HeartbeatRequest,
     request: Request,
     authenticated: AuthenticatedDevice = Depends(get_current_device),
@@ -44,7 +61,25 @@ def register_heartbeat(
     )
 
     heartbeat = use_case.execute(command)
-
     session.commit()
+
+    # --- REGRA DE BATERIA CRÍTICA (<= 10%) ---
+    if payload.battery_level is not None and payload.battery_level <= 10.0:
+        alert_service = AlertService(
+            websocket_manager=websocket_manager,
+            telegram_service=TelegramService(get_settings()),
+        )
+        await alert_service.trigger_battery_critical(
+            session=session,
+            device_id=authenticated.device.id,
+            asset_number=authenticated.device.asset_number,
+            battery_level=float(payload.battery_level),
+        )
+
+    return HeartbeatResponse(
+        id=heartbeat.id,
+        device_id=heartbeat.device_id,
+        received_at=heartbeat.received_at,
+    )
 
     return HeartbeatResponse(id=heartbeat.id, device_id=heartbeat.device_id, received_at=heartbeat.received_at)

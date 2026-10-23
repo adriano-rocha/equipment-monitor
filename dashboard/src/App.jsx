@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useDevices } from "./hooks/useDevices";
 import Login from "./Login";
@@ -13,6 +13,7 @@ import {
   getEvents,
   getUsers,
   removeDeviceFromEvent,
+  swapEventDevice,
   updateDevice,
   updateEventDevice,
 } from "./services/api";
@@ -89,14 +90,143 @@ function StatusCard({ title, count, className }) {
 }
 
 // ----------------------------------------------------------------------------
+// COMPONENTES DE ALERTA OPERACIONAL (ETAPA 4)
+// ----------------------------------------------------------------------------
+function AlertBanner({ alerts, onDismiss, onAction }) {
+  if (!alerts || alerts.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "1.5rem",
+        right: "1.5rem",
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.75rem",
+        maxWidth: "420px",
+        width: "100%",
+      }}
+      role="alert"
+      aria-live="assertive"
+    >
+      {alerts.map((alert) => (
+        <div
+          key={`${alert.device_id}-${alert.reason}`}
+          style={{
+            background: "#450a0a",
+            border: "2px solid #ef4444",
+            borderRadius: "8px",
+            padding: "1rem",
+            color: "#fecaca",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: "bold",
+                fontSize: "0.85rem",
+                color: "#f87171",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "#ef4444",
+                }}
+              />
+              🔋 BATERIA CRÍTICA (≤10%)
+            </span>
+            <button
+              type="button"
+              onClick={() => onDismiss(alert.device_id)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#9ca3af",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+              }}
+              title="Dispensar alerta"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ fontSize: "0.9rem", color: "#f3f4f6" }}>
+            <div>
+              Equipamento:{" "}
+              <strong style={{ color: "#fff" }}>{alert.asset_number}</strong>
+            </div>
+            {alert.battery_level !== undefined && (
+              <div
+                style={{
+                  color: "#facc15",
+                  fontWeight: "bold",
+                  marginTop: "0.2rem",
+                }}
+              >
+                Nível de Bateria: {alert.battery_level}% — Trocar imediatamente!
+              </div>
+            )}
+            {alert.location_point && (
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#cbd5e1",
+                  marginTop: "0.25rem",
+                }}
+              >
+                📍 Posto: <b>{alert.location_point}</b>{" "}
+                {alert.event_name ? `(${alert.event_name})` : ""}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "0.25rem",
+            }}
+          >
+            <button
+              type="button"
+              className="btn-danger"
+              style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem" }}
+              onClick={() => onAction(alert)}
+            >
+              Substituir no Ponto
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // MODAIS DE EQUIPAMENTOS
 // ----------------------------------------------------------------------------
 function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
   const [assetNumber, setAssetNumber] = useState("");
   const [deviceType, setDeviceType] = useState("");
-  const [manufacturer, setManufacturer] = useState("");
-  const [model, setModel] = useState("");
-  const [serialNumber, setSerialNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -115,9 +245,9 @@ function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
       const payload = {
         asset_number: trimmedAsset,
         device_type: deviceType || null,
-        manufacturer: manufacturer.trim() || null,
-        model: model.trim() || null,
-        serial_number: serialNumber.trim() || null,
+        manufacturer: null,
+        model: null,
+        serial_number: null,
       };
       const result = await createDevice(payload);
       onSuccess(result);
@@ -136,78 +266,65 @@ function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
-        <div className="modal-header">
-          <h3>Cadastrar Novo Equipamento</h3>
+      <div
+        className="modal-card"
+        style={{ maxWidth: "380px", padding: "1.25rem" }}
+      >
+        <div className="modal-header" style={{ marginBottom: "1rem" }}>
+          <h3 style={{ fontSize: "1.1rem" }}>Cadastrar Equipamento</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
         </div>
         {errorMsg && (
-          <div className="modal-error" role="alert">
+          <div
+            className="modal-error"
+            role="alert"
+            style={{ marginBottom: "0.75rem", fontSize: "0.85rem" }}
+          >
             {errorMsg}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="modal-form">
+        <form
+          onSubmit={handleSubmit}
+          className="modal-form"
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        >
           <div className="form-group">
-            <label htmlFor="asset_number">
+            <label htmlFor="device_type" style={{ fontSize: "0.85rem" }}>
+              Tipo de Equipamento
+            </label>
+            <select
+              id="device_type"
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value)}
+              autoFocus
+            >
+              <option value="">Não informado</option>
+              <option value="smartphone">Smartphone</option>
+              <option value="notebook">Notebook</option>
+              <option value="tablet">Tablet</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="asset_number" style={{ fontSize: "0.85rem" }}>
               Patrimônio <span className="required">*</span>
             </label>
             <input
               id="asset_number"
               type="text"
-              placeholder="Ex: NB-DELL-001"
+              placeholder="Ex: CEL-001"
               value={assetNumber}
               onChange={(e) => setAssetNumber(e.target.value)}
               required
-              autoFocus
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="device_type">Tipo de Equipamento</label>
-            <select
-              id="device_type"
-              value={deviceType}
-              onChange={(e) => setDeviceType(e.target.value)}
-            >
-              <option value="">Não informado</option>
-              <option value="notebook">Notebook</option>
-              <option value="tablet">Tablet</option>
-              <option value="smartphone">Smartphone</option>
-            </select>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="manufacturer">Fabricante</label>
-              <input
-                id="manufacturer"
-                type="text"
-                placeholder="Ex: Dell"
-                value={manufacturer}
-                onChange={(e) => setManufacturer(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="model">Modelo</label>
-              <input
-                id="model"
-                type="text"
-                placeholder="Ex: Latitude 3420"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor="serial_number">Número de Série</label>
-            <input
-              id="serial_number"
-              type="text"
-              value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
-            />
-          </div>
-          <div className="modal-actions">
+
+          <div
+            className="modal-actions"
+            style={{ marginTop: "0.75rem", gap: "0.5rem" }}
+          >
             <button
               type="button"
               className="btn-secondary"
@@ -217,7 +334,7 @@ function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
               Cancelar
             </button>
             <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Cadastrando..." : "Cadastrar e Gerar Chave"}
+              {submitting ? "Salvando..." : "Cadastrar"}
             </button>
           </div>
         </form>
@@ -231,13 +348,6 @@ function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
     () => device?.asset_number || "",
   );
   const [deviceType, setDeviceType] = useState(() => device?.device_type || "");
-  const [manufacturer, setManufacturer] = useState(
-    () => device?.manufacturer || "",
-  );
-  const [model, setModel] = useState(() => device?.model || "");
-  const [serialNumber, setSerialNumber] = useState(
-    () => device?.serial_number || "",
-  );
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -256,9 +366,9 @@ function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
       const payload = {
         asset_number: trimmedAsset,
         device_type: deviceType || null,
-        manufacturer: manufacturer.trim() || null,
-        model: model.trim() || null,
-        serial_number: serialNumber.trim() || null,
+        manufacturer: device.manufacturer || null,
+        model: device.model || null,
+        serial_number: device.serial_number || null,
       };
       await updateDevice(device.id, payload);
       onSuccess();
@@ -278,7 +388,10 @@ function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
+      <div
+        className="modal-card"
+        style={{ maxWidth: "380px", padding: "1.25rem" }}
+      >
         <div className="modal-header">
           <h3>Editar Equipamento</h3>
           <button type="button" className="close-btn" onClick={onClose}>
@@ -292,6 +405,19 @@ function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
         )}
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
+            <label htmlFor="edit_device_type">Tipo de Equipamento</label>
+            <select
+              id="edit_device_type"
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value)}
+            >
+              <option value="">Não informado</option>
+              <option value="smartphone">Smartphone</option>
+              <option value="notebook">Notebook</option>
+              <option value="tablet">Tablet</option>
+            </select>
+          </div>
+          <div className="form-group">
             <label htmlFor="edit_asset_number">
               Patrimônio <span className="required">*</span>
             </label>
@@ -301,48 +427,6 @@ function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
               value={assetNumber}
               onChange={(e) => setAssetNumber(e.target.value)}
               required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit_device_type">Tipo de Equipamento</label>
-            <select
-              id="edit_device_type"
-              value={deviceType}
-              onChange={(e) => setDeviceType(e.target.value)}
-            >
-              <option value="">Não informado</option>
-              <option value="notebook">Notebook</option>
-              <option value="tablet">Tablet</option>
-              <option value="smartphone">Smartphone</option>
-            </select>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="edit_manufacturer">Fabricante</label>
-              <input
-                id="edit_manufacturer"
-                type="text"
-                value={manufacturer}
-                onChange={(e) => setManufacturer(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="edit_model">Modelo</label>
-              <input
-                id="edit_model"
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit_serial_number">Número de Série</label>
-            <input
-              id="edit_serial_number"
-              type="text"
-              value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
             />
           </div>
           <div className="modal-actions">
@@ -499,7 +583,7 @@ function CredentialsDisplayModal({ deviceData, onClose }) {
 }
 
 // ----------------------------------------------------------------------------
-// MODAIS DE EVENTOS E PONTOS (ETAPA 3)
+// MODAIS DE EVENTOS E PONTOS (ETAPAS 3 E 4)
 // ----------------------------------------------------------------------------
 function CreateEventModal({ isOpen, onClose, onSuccess }) {
   const [name, setName] = useState("");
@@ -719,13 +803,10 @@ function AddDeviceToEventModal({
               value={locationPoint}
               onChange={(e) => setLocationPoint(e.target.value)}
             />
-            <small style={{ color: "#94a3b8", marginTop: "0.25rem" }}>
-              Identificação do posto ou setor onde o equipamento atuará.
-            </small>
           </div>
 
           <div className="form-group">
-            <label>Responsável Operacional (Decisão C)</label>
+            <label>Responsável Operacional</label>
             <select
               value={assignedUserId}
               onChange={(e) => setAssignedUserId(e.target.value)}
@@ -922,6 +1003,113 @@ function ConfirmUnassignModal({
   );
 }
 
+function SwapDeviceModal({
+  eventId,
+  currentDevice,
+  devices,
+  isOpen,
+  onClose,
+  onSuccess,
+}) {
+  const [newDeviceId, setNewDeviceId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!isOpen || !currentDevice) return null;
+
+  const candidateDevices = devices.filter(
+    (d) => d.id !== currentDevice.device_id,
+  );
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!newDeviceId) {
+      setErrorMsg("Selecione um equipamento substituto.");
+      return;
+    }
+    setSubmitting(true);
+    setErrorMsg("");
+    try {
+      await swapEventDevice(eventId, {
+        event_id: eventId,
+        current_device_id: currentDevice.device_id,
+        new_device_id: newDeviceId,
+        location_point: currentDevice.location_point,
+        assigned_user_id: currentDevice.assigned_user_id,
+      });
+      onSuccess();
+    } catch (err) {
+      setErrorMsg(
+        err.response?.data?.detail || "Erro ao realizar substituição no ponto.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3>🔄 Substituição de Equipamento no Ponto</h3>
+          <button type="button" className="close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {errorMsg && <div className="modal-error">{errorMsg}</div>}
+        <form onSubmit={handleSubmit} className="modal-form">
+          <p style={{ color: "#e2e8f0", fontSize: "0.9rem" }}>
+            Substituir o equipamento atual no ponto:{" "}
+            <strong style={{ color: "#38bdf8" }}>
+              {currentDevice.location_point || "Ponto Atual"}
+            </strong>
+          </p>
+
+          <div className="form-group">
+            <label>
+              Selecione o equipamento que assumirá este posto{" "}
+              <span className="required">*</span>
+            </label>
+            <select
+              value={newDeviceId}
+              onChange={(e) => setNewDeviceId(e.target.value)}
+              required
+              autoFocus
+            >
+              <option value="">Selecione pelo Patrimônio...</option>
+              {candidateDevices.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.asset_number} — {d.device_type ?? "Equipamento"} (
+                  {d.model ?? d.hostname ?? "S/N"})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p style={{ color: "#94a3b8", fontSize: "0.8rem" }}>
+            * O aparelho antigo será desvinculado e o substituto assumirá o mesmo
+            posto mantendo a auditoria.
+          </p>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary" disabled={submitting}>
+              {submitting ? "Substituindo..." : "Confirmar Substituição"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ----------------------------------------------------------------------------
 // SEÇÃO DE EVENTOS
 // ----------------------------------------------------------------------------
@@ -937,25 +1125,22 @@ function EventsView({ allDevices, users }) {
   const [isAddDeviceOpen, setIsAddDeviceOpen] = useState(false);
   const [movingDevice, setMovingDevice] = useState(null);
   const [unassigningDevice, setUnassigningDevice] = useState(null);
+  const [swappingDevice, setSwappingDevice] = useState(null);
 
-  // Carrega lista geral de eventos
   function refreshEvents() {
     getEvents()
       .then((data) => setEvents(data))
       .catch((err) => console.error("Erro ao atualizar eventos:", err));
   }
 
-  // Carrega equipamentos do evento selecionado
   function refreshSelectedEventDevices(eventId) {
     getEventDevices(eventId, true)
       .then((activeDevices) => setEventDevices(activeDevices))
       .catch((err) => console.error("Erro ao atualizar equipamentos:", err));
   }
 
-  // Efeito inicial para listar eventos (sem setState síncrono)
   useEffect(() => {
     let ignore = false;
-
     getEvents()
       .then((data) => {
         if (!ignore) {
@@ -965,24 +1150,17 @@ function EventsView({ allDevices, users }) {
       })
       .catch((err) => {
         console.error("Erro ao carregar eventos:", err);
-        if (!ignore) {
-          setLoading(false);
-        }
+        if (!ignore) setLoading(false);
       });
-
     return () => {
       ignore = true;
     };
   }, []);
 
-  // Efeito ao selecionar um evento (sem setState síncrono)
   useEffect(() => {
-    if (!selectedEvent) {
-      return;
-    }
+    if (!selectedEvent) return;
 
     let ignore = false;
-
     getEventDevices(selectedEvent.id, true)
       .then((activeDevices) => {
         if (!ignore) {
@@ -992,11 +1170,8 @@ function EventsView({ allDevices, users }) {
       })
       .catch((err) => {
         console.error("Erro ao carregar equipamentos do evento:", err);
-        if (!ignore) {
-          setLoadingDevices(false);
-        }
+        if (!ignore) setLoadingDevices(false);
       });
-
     return () => {
       ignore = true;
     };
@@ -1007,7 +1182,6 @@ function EventsView({ allDevices, users }) {
     setSelectedEvent(evt);
   }
 
-  // Mapa de devices para enriquecer o event_device com dados de inventário e status em tempo real
   const deviceMap = useMemo(() => {
     const map = new Map();
     for (const d of allDevices) {
@@ -1024,10 +1198,13 @@ function EventsView({ allDevices, users }) {
     return map;
   }, [users]);
 
-  // Agrupamento dos equipamentos por Ponto Físico (Decisão D)
+  // ✅ FILTRO DE AUDITORIA: Exibe nos cards APENAS equipamentos ativos no momento
   const groupedByPoint = useMemo(() => {
     const groups = {};
     for (const ed of eventDevices) {
+      if (ed.unassigned_at || ed.is_active === false) {
+        continue;
+      }
       const point = ed.location_point || "Ponto Não Definido";
       if (!groups[point]) groups[point] = [];
       groups[point].push(ed);
@@ -1035,9 +1212,12 @@ function EventsView({ allDevices, users }) {
     return groups;
   }, [eventDevices]);
 
-  // Equipamentos disponíveis para vincular (que ainda não estão ativos neste evento)
   const availableDevices = useMemo(() => {
-    const activeIds = new Set(eventDevices.map((ed) => ed.device_id));
+    const activeIds = new Set(
+      eventDevices
+        .filter((ed) => !ed.unassigned_at && ed.is_active !== false)
+        .map((ed) => ed.device_id),
+    );
     return allDevices.filter((d) => !activeIds.has(d.id));
   }, [allDevices, eventDevices]);
 
@@ -1183,6 +1363,19 @@ function EventsView({ allDevices, users }) {
                             >
                               Mover
                             </button>
+                            {/* Botão de Substituição Operacional */}
+                            <button
+                              type="button"
+                              className="btn-action-edit"
+                              style={{
+                                background: "#b45309",
+                                borderColor: "#d97706",
+                              }}
+                              onClick={() => setSwappingDevice(ed)}
+                              title="Trocar por outro aparelho neste ponto"
+                            >
+                              Substituir
+                            </button>
                             <button
                               type="button"
                               className="btn-action-delete"
@@ -1240,6 +1433,20 @@ function EventsView({ allDevices, users }) {
             }}
           />
         )}
+
+        {swappingDevice && (
+          <SwapDeviceModal
+            eventId={selectedEvent.id}
+            currentDevice={swappingDevice}
+            devices={allDevices}
+            isOpen={Boolean(swappingDevice)}
+            onClose={() => setSwappingDevice(null)}
+            onSuccess={() => {
+              setSwappingDevice(null);
+              refreshSelectedEventDevices(selectedEvent.id);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1278,7 +1485,9 @@ function EventsView({ allDevices, users }) {
               background: "#1e293b",
               padding: "1.5rem",
               borderRadius: "8px",
-              border: evt.is_active ? "1px solid #38bdf8" : "1px solid #334155",
+              border: evt.is_active
+                ? "1px solid #38bdf8"
+                : "1px solid #334155",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -1294,7 +1503,11 @@ function EventsView({ allDevices, users }) {
                 }}
               >
                 <h3
-                  style={{ margin: 0, fontSize: "1.15rem", color: "#f8fafc" }}
+                  style={{
+                    margin: 0,
+                    fontSize: "1.15rem",
+                    color: "#f8fafc",
+                  }}
                 >
                   {evt.name}
                 </h3>
@@ -1374,7 +1587,7 @@ function Dashboard({ onLogout }) {
   const { devices, loading, refreshing, error, lastUpdated, refresh } =
     useDevices();
 
-  const [activeTab, setActiveTab] = useState("devices"); // "devices" | "events"
+  const [activeTab, setActiveTab] = useState("devices");
   const [users, setUsers] = useState([]);
 
   // Filtros de Equipamentos
@@ -1387,6 +1600,66 @@ function Dashboard({ onLogout }) {
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [deletingDevice, setDeletingDevice] = useState(null);
+
+  // --------------------------------------------------------------------------
+  // CENTRAL DE ALERTAS RESILIENTE (WEBSOCKET + ESTADO REAL DOS EQUIPAMENTOS)
+  // --------------------------------------------------------------------------
+  const [dismissedAlerts, setDismissedAlerts] = useState(() => new Set());
+  const [wsAlerts, setWsAlerts] = useState([]);
+
+  // Alerta automático: qualquer aparelho com bateria <= 10% ativa o banner
+  const criticalBatteryAlerts = useMemo(() => {
+    return devices
+      .filter(
+        (d) =>
+          typeof d.battery_level === "number" &&
+          d.battery_level <= 10 &&
+          !dismissedAlerts.has(d.id),
+      )
+      .map((d) => ({
+        device_id: d.id,
+        asset_number: d.asset_number,
+        battery_level: d.battery_level,
+        reason: "BATTERY_CRITICAL",
+        location_point: "Posto Operacional",
+      }));
+  }, [devices, dismissedAlerts]);
+
+  // Combina e remove alertas duplicados para o mesmo aparelho
+  const activeAlerts = useMemo(() => {
+    const combined = [...criticalBatteryAlerts, ...wsAlerts];
+    const seen = new Set();
+    return combined.filter((a) => {
+      if (seen.has(a.device_id) || dismissedAlerts.has(a.device_id)) {
+        return false;
+      }
+      seen.add(a.device_id);
+      return true;
+    });
+  }, [criticalBatteryAlerts, wsAlerts, dismissedAlerts]);
+
+  useEffect(() => {
+    function handleWebSocketAlert(e) {
+      const data = e.detail;
+      if (data && data.type === "ALERT_TRIGGERED") {
+        setWsAlerts((prev) => [
+          data,
+          ...prev.filter((a) => a.device_id !== data.device_id),
+        ]);
+      }
+    }
+
+    window.addEventListener(
+      "equipment-monitor:ws-message",
+      handleWebSocketAlert,
+    );
+    return () => {
+      window.removeEventListener(
+        "equipment-monitor:ws-message",
+        handleWebSocketAlert,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -1442,13 +1715,13 @@ function Dashboard({ onLogout }) {
     startIndex,
     startIndex + ITEMS_PER_PAGE,
   );
-  const firstVisibleDevice = filteredDevices.length === 0 ? 0 : startIndex + 1;
+  const firstVisibleDevice =
+    filteredDevices.length === 0 ? 0 : startIndex + 1;
   const lastVisibleDevice = Math.min(
     startIndex + ITEMS_PER_PAGE,
     filteredDevices.length,
   );
 
-  // Usa o `loading` do hook useDevices corretamente:
   if (loading) {
     return (
       <main className="dashboard-loading" aria-live="polite">
@@ -1459,12 +1732,24 @@ function Dashboard({ onLogout }) {
 
   return (
     <main>
+      {/* Banner de Alerta Crítico */}
+      <AlertBanner
+        alerts={activeAlerts}
+        onDismiss={(deviceId) => {
+          setDismissedAlerts((prev) => new Set([...prev, deviceId]));
+          setWsAlerts((prev) => prev.filter((a) => a.device_id !== deviceId));
+        }}
+        onAction={(alert) => {
+          setActiveTab("events");
+          setDismissedAlerts((prev) => new Set([...prev, alert.device_id]));
+        }}
+      />
+
       <header className="dashboard-header">
         <div className="brand">
           <img src="/asaph.png" alt="Logo ASAPH" className="brand-logo" />
         </div>
 
-        {/* Navegação por Abas */}
         <nav
           style={{ display: "flex", gap: "0.75rem" }}
           aria-label="Navegação Principal"
@@ -1480,7 +1765,9 @@ function Dashboard({ onLogout }) {
           </button>
           <button
             type="button"
-            className={activeTab === "events" ? "btn-primary" : "btn-secondary"}
+            className={
+              activeTab === "events" ? "btn-primary" : "btn-secondary"
+            }
             onClick={() => setActiveTab("events")}
           >
             🎪 Eventos & Postos

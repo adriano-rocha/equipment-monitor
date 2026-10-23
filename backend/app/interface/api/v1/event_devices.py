@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.application.services.event_device_service import EventDeviceService
@@ -19,6 +19,7 @@ from app.infrastructure.db.repositories.sqlalchemy_user_repository import (
     SqlAlchemyUserRepository,
 )
 from app.interface.api.v1.schemas.event_device_schema import (
+    DeviceSwapRequest,
     EventDeviceCreate,
     EventDeviceResponse,
     EventDeviceUpdate,
@@ -112,6 +113,59 @@ def list_device_events(
     return [_to_response(item) for item in event_devices]
 
 
+# ============================================================================
+# ROTA DE SUBSTITUIÇÃO (SWAP)
+# ============================================================================
+@router.post(
+    "/events/{event_id}/swap-device",
+    response_model=EventDeviceResponse,
+    status_code=status.HTTP_200_OK,
+)
+def swap_device_in_event(
+    event_id: UUID,
+    payload: DeviceSwapRequest,
+    session: Session = Depends(get_db_session),
+) -> EventDeviceResponse:
+    """
+    Substitui um equipamento no mesmo ponto físico e responsável.
+    Desvincula o equipamento antigo e aloca o substituto no mesmo ponto.
+    """
+    service = _get_event_device_service(session)
+
+    # 1. Localiza os equipamentos ativos do evento
+    active_devices = service.list_by_event(event_id, active_only=True)
+    current_assignment = next(
+        (ad for ad in active_devices if ad.device_id == payload.current_device_id),
+        None,
+    )
+
+    if not current_assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Equipamento de origem não está alocado ativamente neste evento.",
+        )
+
+    # Salva o ponto físico e o responsável para repassar ao novo aparelho
+    saved_point = current_assignment.location_point
+    saved_user = current_assignment.assigned_user_id
+
+    # 2. Desvincula o equipamento antigo
+    service.remove_device(event_id=event_id, device_id=payload.current_device_id)
+
+    # 3. Adiciona o novo equipamento no mesmo ponto físico e responsável
+    new_assignment = service.add_device(
+        event_id=event_id,
+        device_id=payload.new_device_id,
+        location_point=saved_point,
+        assigned_user_id=saved_user,
+    )
+
+    return _to_response(new_assignment)
+
+
+# ============================================================================
+# ROTAS COM PARÂMETRO {device_id}
+# ============================================================================
 @router.patch(
     "/events/{event_id}/devices/{device_id}",
     response_model=EventDeviceResponse,
@@ -152,5 +206,7 @@ def remove_device_from_event(
         event_id=event_id,
         device_id=device_id,
     )
+
+    session.commit()
 
     return _to_response(event_device)

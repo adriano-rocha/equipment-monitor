@@ -8,6 +8,8 @@ from app.application.services.device_status_service import (
 )
 from app.application.services.status_event_service import StatusEventService
 from app.infrastructure.config import Settings
+from app.infrastructure.db.models.event_device_model import EventDeviceModel
+from app.infrastructure.db.models.event_model import EventModel
 from app.infrastructure.db.repositories.sqlalchemy_device_repository import (
     SqlAlchemyDeviceRepository,
 )
@@ -91,7 +93,7 @@ class StatusMonitor:
             repository = SqlAlchemyDeviceRepository(session)
             devices = repository.list_all()
 
-            active_device_ids = {device.id for device in devices}
+            active_device_ids = {device.id for device in devices} | {str(device.id) for device in devices}
 
             self._event_service.remove_missing_devices(
                 active_device_ids
@@ -114,9 +116,45 @@ class StatusMonitor:
 
                 payload = event.to_dict()
 
+                # Quando houver perda de conexão, enriquece o payload com o ponto físico do evento
+                if current_status in ("SEM_COMUNICACAO", "OFFLINE"):
+                    try:
+                        row = (
+                            session.query(
+                                EventDeviceModel.location_point,
+                                EventModel.name,
+                                EventDeviceModel.event_id,
+                            )
+                            .join(EventModel, EventModel.id == EventDeviceModel.event_id)
+                            .filter(
+                                EventDeviceModel.device_id == device.id,
+                                EventDeviceModel.unassigned_at.is_(None),
+                            )
+                            .first()
+                        )
+                        if row:
+                            payload["location_point"] = row[0]
+                            payload["event_name"] = row[1]
+                            payload["event_id"] = str(row[2])
+                    except Exception:
+                        logger.warning(
+                            "Falha ao enriquecer contexto do evento para o device %s",
+                            device.id,
+                            exc_info=True,
+                        )
+
+                # Prioridade 1: Broadcast em tempo real na tela do Dashboard
                 await self._websocket_manager.broadcast(payload)
 
-                await self._telegram_service.send_status_change(event)
+                # Prioridade 2: Notificação Telegram (com fallback transparente)
+                try:
+                    await self._telegram_service.send_status_change(
+                        event,
+                        event_name=payload.get("event_name"),
+                        location_point=payload.get("location_point"),
+                    )
+                except TypeError:
+                    await self._telegram_service.send_status_change(event)
 
         finally:
             session.close()

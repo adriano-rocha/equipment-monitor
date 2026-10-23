@@ -108,20 +108,41 @@ export function useDevices() {
             return;
           }
 
-          if (payload.event !== "device_status_changed") {
+          // ✅ DISPARA O ALERTA GLOBAL PARA O BANNER DO DASHBOARD
+          window.dispatchEvent(
+            new CustomEvent("equipment-monitor:ws-message", {
+              detail: payload,
+            }),
+          );
+
+          // Se for alerta de bateria crítica, atualiza o nível do aparelho na tabela na hora
+          if (payload.type === "ALERT_TRIGGERED" && payload.battery_level !== undefined) {
+            setDevices((currentDevices) =>
+              currentDevices.map((device) =>
+                String(device.id) === String(payload.device_id)
+                  ? {
+                      ...device,
+                      battery_level: payload.battery_level,
+                    }
+                  : device,
+              ),
+            );
             return;
           }
 
-          setDevices((currentDevices) =>
-            currentDevices.map((device) =>
-              String(device.id) === String(payload.device_id)
-                ? {
-                    ...device,
-                    status: payload.status,
-                  }
-                : device,
-            ),
-          );
+          // Se for mudança de status (ONLINE / OFFLINE / SEM COMUNICAÇÃO)
+          if (payload.event === "device_status_changed") {
+            setDevices((currentDevices) =>
+              currentDevices.map((device) =>
+                String(device.id) === String(payload.device_id)
+                  ? {
+                      ...device,
+                      status: payload.status,
+                    }
+                  : device,
+              ),
+            );
+          }
         } catch (err) {
           console.error("Erro ao processar evento WebSocket:", err);
         }

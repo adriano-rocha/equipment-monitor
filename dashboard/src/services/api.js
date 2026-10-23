@@ -156,4 +156,16 @@ export async function createUser(userData) {
   return response.data;
 }
 
+export async function swapEventDevice(eventId, payload) {
+  // 1. Desvincula o aparelho antigo com problema
+  await removeDeviceFromEvent(eventId, payload.current_device_id);
+
+  // 2. Vincula o novo aparelho no mesmo ponto físico e responsável
+  return await addDeviceToEvent(eventId, {
+    device_id: payload.new_device_id,
+    location_point: payload.location_point || null,
+    assigned_user_id: payload.assigned_user_id || null,
+  });
+}
+
 export default api;

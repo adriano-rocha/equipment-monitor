@@ -24,8 +24,9 @@ from app.infrastructure.db.session import SessionLocal
 
 def seed_device(asset_number: str) -> None:
     device_id = uuid.uuid4()
-    key_id = secrets.token_hex(8)
-    secret = secrets.token_urlsafe(24)
+    # ✅ Chaves curtas de apenas 8 caracteres (números e letras a-f, super fácil de digitar no celular):
+    key_id = secrets.token_hex(4)
+    secret = secrets.token_hex(4)
     secret_hash = PasswordHasher().hash(secret)
 
     session = SessionLocal()
@@ -68,3 +69,10 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+    
