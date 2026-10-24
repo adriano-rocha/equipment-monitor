@@ -1761,7 +1761,7 @@ function Dashboard({ onLogout }) {
             }
             onClick={() => setActiveTab("devices")}
           >
-            💻 Equipamentos
+            Equipamentos
           </button>
           <button
             type="button"
@@ -1770,7 +1770,7 @@ function Dashboard({ onLogout }) {
             }
             onClick={() => setActiveTab("events")}
           >
-            🎪 Eventos & Postos
+            Eventos & Postos
           </button>
         </nav>
 
