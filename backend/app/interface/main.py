@@ -71,8 +71,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:5174",
+        "https://asaph-equipment-control.vercel.app",
     ],
-    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
