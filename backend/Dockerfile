@@ -12,4 +12,5 @@ RUN uv sync --frozen
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.interface.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Executa as migrações do banco (Alembic) e logo após inicia a aplicação
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn app.interface.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
