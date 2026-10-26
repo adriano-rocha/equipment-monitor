@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fundo da Tela: Verde ultra escuro, quase preto (#050D0A) -->
+    <color name="bg_page">#050D0A</color>
+    
+    <!-- Caixas e Cards: Grafite escuro neutro (não fica esverdeado) -->
+    <color name="bg_card">#121816</color>
+    <color name="bg_input">#1C2421</color>
+    <color name="border_input">#2D3833</color>
+    
+    <!-- Textos -->
+    <color name="text_primary">#F8FAFC</color>   <!-- Branco limpo -->
+    <color name="text_secondary">#94A3B8</color> <!-- Cinza neutro suave -->
+    <color name="text_hint">#64748B</color>      <!-- Cinza para o placeholder -->
+    
+    <!-- Botões -->
+    <color name="primary">#0284C7</color>        <!-- Azul tech para Salvar -->
+    <color name="primary_pressed">#0369A1</color>
+    
+    <color name="success">#10B981</color>        <!-- Verde para Iniciar -->
+    <color name="success_pressed">#059669</color>
+    
+    <color name="danger">#EF4444</color>         <!-- Vermelho para Parar -->
+    <color name="danger_pressed">#DC2626</color>
+</resources>

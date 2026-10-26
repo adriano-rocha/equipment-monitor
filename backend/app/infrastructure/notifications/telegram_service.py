@@ -1,5 +1,6 @@
 """Integração de notificações com Telegram."""
 
+from datetime import datetime, timedelta, timezone
 import logging
 
 import httpx
@@ -8,6 +9,18 @@ from app.application.services.status_event_service import DeviceStatusChangedEve
 from app.infrastructure.config import Settings
 
 logger = logging.getLogger(__name__)
+
+# Fuso horário oficial de Brasília (UTC-3)
+BRT = timezone(timedelta(hours=-3))
+
+
+def _format_datetime_brt(dt: datetime | None) -> str:
+    """Converte e formata datetime UTC para o horário de Brasília (DD/MM/AAAA HH:MM:SS)."""
+    if not dt:
+        return "-"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BRT).strftime("%d/%m/%Y %H:%M:%S")
 
 
 class TelegramService:
@@ -32,11 +45,14 @@ class TelegramService:
         if not self.enabled:
             return
 
+        horario = _format_datetime_brt(datetime.now(timezone.utc))
+
         lines = [
-            "🔋⚠️ <b>ALERTA: BATERIA CRÍTICA (≤10%)</b> ⚠️🔋",
+            "🔋⚠️ <b>ASAPH-TRACK: ALERTA DE BATERIA CRÍTICA (≤10%)</b> ⚠️🔋",
             "",
             f"📱 <b>Equipamento:</b> {asset_number}",
             f"⚡ <b>Nível Atual:</b> {battery_level:.0f}%",
+            f"⏰ <b>Horário:</b> {horario}",
         ]
 
         if event_name:
@@ -48,7 +64,7 @@ class TelegramService:
 
         lines.extend([
             "",
-            "🚨 <i>Ação recomendada: Substituir o equipamento no ponto pelo Dashboard.</i>"
+            "🚨 <i>Ação recomendada: Substituir o equipamento no ponto pelo Dashboard.</i>",
         ])
 
         message = "\n".join(lines)
@@ -75,12 +91,14 @@ class TelegramService:
             logger.debug("Telegram não configurado; notificação ignorada.")
             return
 
+        horario = _format_datetime_brt(event.timestamp)
+
         message = (
-            "🔔 Equipment Monitor\n\n"
+            "🔔 Asaph-track\n\n"
             f"Patrimônio: {event.asset_number}\n"
             f"Status anterior: {event.previous_status}\n"
             f"Novo status: {event.status}\n"
-            f"Horário: {event.timestamp.isoformat()}"
+            f"Horário: {horario}"
         )
 
         url = f"https://api.telegram.org/bot{self._token}/sendMessage"

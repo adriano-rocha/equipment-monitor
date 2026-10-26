@@ -1,82 +1,191 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/bg_page"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="24dp"
+        android:gravity="center_horizontal">
+
+        <!-- Logo Asaph-track -->
+        <ImageView
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:layout_marginTop="20dp"
+            android:src="@drawable/asaph_track"
+            android:scaleType="fitCenter"
+            android:contentDescription="Asaph-track Logo" />
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Equipment Monitor — Android"
+            android:layout_marginTop="14dp"
+            android:text="Asaph-track"
+            android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Configure o backend e a credencial DeviceKey para iniciar o monitoramento."
-            android:textSize="14sp" />
-
-        <EditText
-            android:id="@+id/backendUrlInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:hint="URL do backend (ex.: http://192.168.0.10:8000)"
-            android:inputType="textUri"
-            android:singleLine="true" />
-
-        <EditText
-            android:id="@+id/keyIdInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="Device key_id"
-            android:inputType="text"
-            android:singleLine="true" />
-
-        <EditText
-            android:id="@+id/secretInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="Device secret"
-            android:inputType="textPassword"
-            android:singleLine="true" />
-
-        <Button
-            android:id="@+id/saveButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Salvar configuração" />
-
-        <Button
-            android:id="@+id/startButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Iniciar monitoramento" />
-
-        <Button
-            android:id="@+id/stopButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Parar monitoramento" />
-
-        <TextView
-            android:id="@+id/statusText"
+        <!-- Card de Status Atual -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Status: parado"
-            android:textSize="16sp" />
+            android:background="@drawable/bg_input"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Status: aguardando configuração"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Card de Formulário de Configuração -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@color/bg_card"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- URL Backend -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="URL do Backend"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/backendUrlInput"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="http://192.168.1.100:8000"
+                android:inputType="textUri"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_hint"
+                android:textSize="14sp" />
+
+            <!-- Key ID -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Device Key ID"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/keyIdInput"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="ex: 6b1038bc"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_hint"
+                android:textSize="14sp" />
+
+            <!-- Secret -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Device Secret"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/secretInput"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="••••••••"
+                android:inputType="textPassword"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_hint"
+                android:textSize="14sp" />
+
+            <!-- Botão Salvar -->
+            <Button
+                android:id="@+id/saveButton"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/btn_primary"
+                android:text="Salvar Configuração"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Ações do Serviço (Iniciar / Parar) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/startButton"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/btn_success"
+                android:text="▶ Iniciar"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/stopButton"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/btn_danger"
+                android:text="⏹ Parar"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:layout_marginBottom="12dp"
+            android:text="Segurança Patrimonial &amp; Monitoramento Ativo"
+            android:textColor="@color/text_hint"
+            android:textSize="11sp" />
+
     </LinearLayout>
 </ScrollView>
