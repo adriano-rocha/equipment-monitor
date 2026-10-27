@@ -128,15 +128,15 @@ Registrar a decisão no README técnico.
 
 Antes de continuar:
 
-* [ ] Serviço instala.
-* [ ] Serviço inicia.
-* [ ] Serviço para.
-* [ ] Serviço reinicia.
-* [ ] Serviço inicia após reboot.
-* [ ] PyInstaller gera executável.
-* [ ] Defender não bloqueia.
-* [ ] Não há problema crítico com `_MEI*`.
-* [ ] Compatibilidade Python definida.
+* [x] Serviço instala.
+* [x] Serviço inicia.
+* [x] Serviço para.
+* [x] Serviço reinicia.
+* [x] Serviço inicia após reboot.
+* [x] PyInstaller gera executável.
+* [x] Defender não bloqueia.
+* [x] Não há problema crítico com `_MEI*`.
+* [x] Compatibilidade Python definida.
 
 **Se algum item crítico falhar:** parar implementação e reportar ao QA.
 
@@ -1178,14 +1178,14 @@ Essa propriedade pertence ao backend/SPEC-001; o Agent não deve implementar mec
 
 Checklist:
 
-* [ ] copiar `.exe`;
-* [ ] criar `agent.toml`;
-* [ ] validar permissões;
-* [ ] instalar serviço;
-* [ ] iniciar serviço;
-* [ ] verificar Event Viewer;
-* [ ] verificar log;
-* [ ] confirmar heartbeat no backend.
+* [x] copiar `.exe`;
+* [x] criar `agent.toml`;
+* [x] validar permissões;
+* [x] instalar serviço;
+* [x] iniciar serviço;
+* [x] verificar Event Viewer;
+* [x] verificar log;
+* [x] confirmar heartbeat no backend.
 
 ---
 
@@ -1286,14 +1286,14 @@ Critério:
 
 Verificar:
 
-* [ ] `service.py` é o único módulo dependente de `win32*`;
-* [ ] domínio não depende de Windows;
-* [ ] Runner não depende de HTTP concreto;
-* [ ] Runner não depende de filesystem;
-* [ ] telemetria possui isolamento;
-* [ ] não existe persistência local;
-* [ ] não existe lógica de status;
-* [ ] não existe lógica de inventário.
+* [x] `service.py` é o único módulo dependente de `win32*`;
+* [x] domínio não depende de Windows;
+* [x] Runner não depende de HTTP concreto;
+* [x] Runner não depende de filesystem;
+* [x] telemetria possui isolamento;
+* [x] não existe persistência local;
+* [x] não existe lógica de status;
+* [x] não existe lógica de inventário.
 
 ---
 
@@ -1301,16 +1301,16 @@ Verificar:
 
 Verificar:
 
-* [ ] nenhum secret hardcoded;
-* [ ] nenhum secret em log;
-* [ ] nenhum secret em URL;
-* [ ] nenhum secret em argv;
-* [ ] nenhuma configuração real no Git;
-* [ ] HTTPS padrão;
-* [ ] redirect não seguido;
-* [ ] timeout configurado;
-* [ ] ACL documentada;
-* [ ] `.exe` não contém credenciais.
+* [x] nenhum secret hardcoded;
+* [x] nenhum secret em log;
+* [x] nenhum secret em URL;
+* [x] nenhum secret em argv;
+* [x] nenhuma configuração real no Git;
+* [x] HTTPS padrão;
+* [x] redirect não seguido;
+* [x] timeout configurado;
+* [x] ACL documentada;
+* [x] `.exe` não contém credenciais.
 
 ---
 
@@ -1426,30 +1426,30 @@ feat(windows-agent): implement device heartbeat agent
 
 A Fase 03 somente pode ser considerada concluída quando:
 
-* [ ] Windows Agent executa como serviço.
-* [ ] Serviço inicia automaticamente.
-* [ ] Configuração é externa ao `.exe`.
-* [ ] Heartbeat é enviado conforme SPEC-001.
-* [ ] Autenticação usa `DeviceKey`.
-* [ ] Telemetria contém somente campos permitidos.
-* [ ] `communication_status` não existe no Agent.
-* [ ] Retry transitório possui exponential backoff + jitter.
-* [ ] 401/422/4xx/3xx não utilizam backoff.
-* [ ] Recuperação retorna ao intervalo normal.
-* [ ] Não existe store-and-forward.
-* [ ] Secret nunca aparece nos logs.
-* [ ] Logs possuem rotação.
-* [ ] Falha do logging não derruba o Agent.
-* [ ] Serviço possui recovery policy.
-* [ ] Build reproduzível foi validado.
-* [ ] `.exe` não contém credenciais.
-* [ ] E2E contra backend foi aprovado.
-* [ ] Testes automatizados estão verdes.
-* [ ] Teste manual Windows foi aprovado.
-* [ ] AC-01 a AC-13 possuem evidência.
-* [ ] README atualizado.
-* [ ] QA final aprovado.
-* [ ] Commit realizado.
+* [x] Windows Agent executa como serviço.
+* [x] Serviço inicia automaticamente.
+* [x] Configuração é externa ao `.exe`.
+* [x] Heartbeat é enviado conforme SPEC-001.
+* [x] Autenticação usa `DeviceKey`.
+* [x] Telemetria contém somente campos permitidos.
+* [x] `communication_status` não existe no Agent.
+* [x] Retry transitório possui exponential backoff + jitter.
+* [x] 401/422/4xx/3xx não utilizam backoff.
+* [x] Recuperação retorna ao intervalo normal.
+* [x] Não existe store-and-forward.
+* [x] Secret nunca aparece nos logs.
+* [x] Logs possuem rotação.
+* [x] Falha do logging não derruba o Agent.
+* [x] Serviço possui recovery policy.
+* [x] Build reproduzível foi validado.
+* [x] `.exe` não contém credenciais.
+* [x] E2E contra backend foi aprovado.
+* [x] Testes automatizados estão verdes.
+* [x] Teste manual Windows foi aprovado.
+* [x] AC-01 a AC-13 possuem evidência.
+* [x] README atualizado.
+* [x] QA final aprovado.
+* [x] Commit realizado.
 
 ---
 

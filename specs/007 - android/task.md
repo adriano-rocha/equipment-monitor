@@ -350,23 +350,29 @@ feat(android): implement Android device monitoring
 
 # Definition of Done
 
+# Definition of Done
+
 A Fase 07 estará concluída quando:
 
-* [ ] T001 concluída
-* [ ] T002 concluída
-* [ ] T003 concluída
-* [ ] T004 concluída
-* [ ] T005 concluída
-* [ ] T006 concluída
-* [ ] T007 concluída
-* [ ] T008 concluída
-* [ ] T009 concluída
-* [ ] T010 concluída
-* [ ] T011 concluída
-* [ ] T012 concluída
-* [ ] T013 concluída
-* [ ] T014 concluída
-* [ ] T015 concluída
+* [x] T001 concluída — Projeto Android configurado e compilável
+* [x] T002 concluída — Configuração de backend_url, key_id e secret com persistência
+* [x] T003 concluída — Autenticação DeviceKey implementada via header HTTP
+* [x] T004 concluída — Cliente HTTP comunicando com POST /api/v1/heartbeats
+* [x] T005 concluída — Coleta de bateria real, IP, hostname e metadata nativa
+* [x] T006 concluída — Heartbeat periódico configurável em execução
+* [x] T007 concluída — Foreground Service mantendo o agente ativo em segundo plano
+* [x] T008 concluída — Tolerância e resiliência a oscilações de conectividade
+* [x] T009 concluída — Integração ponta a ponta com Render, PostgreSQL e Vercel
+* [x] T010 concluída — Status e ciclo de vida (ONLINE / OFFLINE) validados no backend
+* [x] T011 concluída — Recuperação automática de transmissão após perda de sinal
+* [x] T012 concluída — Regressão do Windows Agent homologada com sucesso (HTTP 201)
+* [x] T013 concluída — Validação no Samsung físico homologada em produção
+* [x] T014 concluída — Revisão de código e dependências limpa
+* [x] T015 concluída — Commit e versionamento da fase
+
+E, principalmente:
+
+> Um Samsung Android real deverá enviar heartbeats autenticados ao backend existente e ser monitorado pelo mesmo fluxo de status utilizado pelos demais dispositivos. (HOMOLOGADO EM PRODUÇÃO NA NUVEM)
 
 E, principalmente:
 
