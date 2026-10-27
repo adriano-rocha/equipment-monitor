@@ -12,20 +12,20 @@
         android:padding="24dp"
         android:gravity="center_horizontal">
 
-        <!-- Logo Asaph-track -->
+        <!-- Logo Asaph-Track -->
         <ImageView
             android:layout_width="88dp"
             android:layout_height="88dp"
             android:layout_marginTop="20dp"
             android:src="@drawable/asaph_track"
             android:scaleType="fitCenter"
-            android:contentDescription="Asaph-track Logo" />
+            android:contentDescription="Asaph-Track Logo" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="Asaph-track"
+            android:text="Asaph-Track"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
