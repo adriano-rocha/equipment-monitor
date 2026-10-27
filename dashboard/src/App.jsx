@@ -1822,7 +1822,7 @@ function Dashboard({ onLogout }) {
             }
             onClick={() => setActiveTab("events")}
           >
-            Eventos & Postos
+            Eventos / Postos
           </button>
         </nav>
 
