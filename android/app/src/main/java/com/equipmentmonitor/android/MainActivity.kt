@@ -4,12 +4,17 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import org.json.JSONObject
 
 class MainActivity : Activity() {
     private lateinit var config: AppConfig
@@ -32,6 +37,52 @@ class MainActivity : Activity() {
         keyId.setText(config.keyId)
 
         requestNotificationPermission()
+
+        // --- CLIQUE NO BOTÃO DE ESCANEAR QR CODE ---
+        findViewById<Button>(R.id.scanButton).setOnClickListener {
+            val options = GmsBarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .enableAutoZoom()
+                .build()
+
+            val scanner = GmsBarcodeScanning.getClient(this, options)
+
+            scanner.startScan()
+                .addOnSuccessListener { barcode ->
+                    val rawValue = barcode.rawValue ?: return@addOnSuccessListener
+                    try {
+                        // 1. Tenta ler se o QR Code estiver em formato JSON
+                        if (rawValue.trim().startsWith("{")) {
+                            val json = JSONObject(rawValue)
+                            val url = json.optString("server_url", json.optString("url", ""))
+                            val key = json.optString("key_id", json.optString("key", ""))
+                            val sec = json.optString("secret", "")
+
+                            if (url.isNotBlank()) backendUrl.setText(url)
+                            if (key.isNotBlank()) keyId.setText(key)
+                            if (sec.isNotBlank()) secret.setText(sec)
+                        }
+                        // 2. Tenta ler se o QR Code for link URI (asaph:// ou http)
+                        else if (rawValue.contains("://")) {
+                            val uri = Uri.parse(rawValue)
+                            val url = uri.getQueryParameter("url")
+                            val key = uri.getQueryParameter("key")
+                            val sec = uri.getQueryParameter("secret")
+
+                            if (!url.isNullOrBlank()) backendUrl.setText(url)
+                            if (!key.isNullOrBlank()) keyId.setText(key)
+                            if (!sec.isNullOrBlank()) secret.setText(sec)
+                        }
+
+                        Toast.makeText(this, "Campos preenchidos pelo QR Code!", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Erro ao processar dados do QR Code.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(this, "Leitura cancelada ou não reconhecida.", Toast.LENGTH_SHORT).show()
+                }
+        }
 
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val url = backendUrl.text.toString().trim()

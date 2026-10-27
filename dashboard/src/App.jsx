@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 
 import { useDevices } from "./hooks/useDevices";
 import Login from "./Login";
@@ -512,13 +513,32 @@ function ConfirmDeleteModal({ device, isOpen, onClose, onSuccess }) {
   );
 }
 
+// Modal de Exibição Única da Credencial com QR Code (Mobile) e Cópia (Notebook)
 function CredentialsDisplayModal({ deviceData, onClose }) {
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
 
   if (!deviceData) return null;
-  const { credentials, asset_number } = deviceData;
+
+  const { credentials, asset_number, id } = deviceData;
+
+  // Pega a URL da API e limpa para enviar a URL base correta para o celular
+  const rawApiUrl =
+    import.meta.env.VITE_API_BASE_URL ||
+    `http://${window.location.hostname}:8000`;
+
+  // Garante que não tenha "/api/v1" ou barras extras no final
+  const serverUrl = rawApiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/+$/, "");
+
+  // Payload completo com server_url, key_id e secret (preenche os 3 campos do Asaph-track)
+  const qrPayload = JSON.stringify({
+    server_url: serverUrl,
+    key_id: credentials.key_id,
+    secret: credentials.secret,
+    asset_number,
+    device_id: id || deviceData.id,
+  });
 
   function copyToClipboard(text, setter) {
     navigator.clipboard.writeText(text);
@@ -539,10 +559,42 @@ function CredentialsDisplayModal({ deviceData, onClose }) {
         <div className="modal-header">
           <h3>Credencial do Equipamento: {asset_number}</h3>
         </div>
+
         <div className="warning-banner">
-          <strong>Atenção:</strong> Esta é a <u>única vez</u> que o segredo será
-          exibido. Copie e configure o agente agora.
+          <strong>Atenção:</strong> Esta é a <u>única vez</u> que o segredo (secret) será exibido.
         </div>
+
+        {/* QR Code para Tablet / Smartphone (Samsung) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            background: "#ffffff",
+            padding: "1rem",
+            borderRadius: "8px",
+            margin: "1rem 0",
+          }}
+        >
+          <QRCodeSVG
+            value={qrPayload}
+            size={180}
+            level="M"
+            includeMargin={true}
+          />
+          <span
+            style={{
+              color: "#0f172a",
+              fontSize: "0.82rem",
+              fontWeight: "600",
+              marginTop: "0.4rem",
+            }}
+          >
+            📱 Escaneie pelo botão do app Asaph-track
+          </span>
+        </div>
+
+        {/* Chaves manuais para o Notebook (Copiar e Colar) */}
         <div className="credential-field">
           <label>Identificador Público (key_id):</label>
           <div className="copy-row">
@@ -555,23 +607,23 @@ function CredentialsDisplayModal({ deviceData, onClose }) {
             </button>
           </div>
         </div>
+
         <div className="credential-field">
           <label>Segredo (secret):</label>
           <div className="copy-row">
             <code className="secret-code">{credentials.secret}</code>
             <button
               type="button"
-              onClick={() =>
-                copyToClipboard(credentials.secret, setCopiedSecret)
-              }
+              onClick={() => copyToClipboard(credentials.secret, setCopiedSecret)}
             >
               {copiedSecret ? "Copiado!" : "Copiar"}
             </button>
           </div>
         </div>
+
         <div className="modal-actions space-between">
           <button type="button" className="btn-secondary" onClick={copyBoth}>
-            {copiedAll ? "Copiado Tudo!" : "Copiar Ambas as Chaves"}
+            {copiedAll ? "Copiado Tudo!" : "Copiar Ambas as Chaves (Notebook)"}
           </button>
           <button type="button" className="btn-primary" onClick={onClose}>
             Concluir e Fechar

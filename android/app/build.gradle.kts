@@ -38,3 +38,8 @@ android {
         jvmTarget = "17"
     }
 }
+
+dependencies {
+    // Leitor oficial do Google sem precisar de tela ou permissão de câmera
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+}

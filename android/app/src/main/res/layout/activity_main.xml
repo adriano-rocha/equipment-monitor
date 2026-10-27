@@ -50,11 +50,24 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- Botão Escanear QR Code do Painel -->
+        <Button
+            android:id="@+id/scanButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/btn_primary"
+            android:text="📷 Escanear QR Code do Painel"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
         <!-- Card de Formulário de Configuração -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="16dp"
             android:background="@color/bg_card"
             android:orientation="vertical"
             android:padding="20dp">
