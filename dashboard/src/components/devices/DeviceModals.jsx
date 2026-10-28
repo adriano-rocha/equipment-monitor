@@ -375,7 +375,7 @@ export function CredentialsDisplayModal({ deviceData, onClose }) {
               marginTop: "0.4rem",
             }}
           >
-            📱 Escaneie pelo botão do app Asaph-track
+            📱 Escaneie pelo botão do app Asaph-Track
           </span>
         </div>
 

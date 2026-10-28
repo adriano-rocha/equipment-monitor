@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Asaph-track</string>
-    <string name="channel_name">Asaph-track Monitoramento</string>
+    <string name="app_name">Asaph-Track</string>
+    <string name="channel_name">Asaph-Track Monitoramento</string>
     <string name="channel_description">Canal de notificação do monitoramento ativo em segundo plano</string>
 </resources>

@@ -40,8 +40,21 @@ class Config:
 
 
 def load_config() -> Config:
-    default_path = Path(__file__).with_name("agent.toml")
-    path = Path(os.environ.get("EQUIPMENT_MONITOR_AGENT_CONFIG", default_path))
+    # 1. Se estiver empacotado como .exe (PyInstaller), usa o diretório do executável;
+    #    senão, usa o diretório do próprio arquivo .py
+    if getattr(sys, "frozen", False):
+        base_dir = Path(sys.executable).resolve().parent
+    else:
+        base_dir = Path(__file__).resolve().parent
+
+    default_path = base_dir / "agent.toml"
+    env_override = os.environ.get("EQUIPMENT_MONITOR_AGENT_CONFIG")
+    path = Path(env_override) if env_override else default_path
+
+    # 2. Fallback: se não achar na pasta do executável/script, tenta na pasta atual do terminal
+    if not path.is_file() and (Path.cwd() / "agent.toml").is_file():
+        path = Path.cwd() / "agent.toml"
+
     try:
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
@@ -155,10 +168,31 @@ def send_heartbeat(cfg: Config, payload: dict[str, str | int]) -> bool:
 
 
 def main() -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    cfg = load_config()
+    # 1. Determina a pasta base do executável
+    if getattr(sys, "frozen", False):
+        base_dir = Path(sys.executable).resolve().parent
+    else:
+        base_dir = Path(__file__).resolve().parent
+
+    log_file = base_dir / "agent.log"
+
+    # 2. Configura logging em arquivo (evita erro quando não há console)
+    logging.basicConfig(
+        filename=str(log_file),
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        encoding="utf-8",
+    )
+
+    try:
+        cfg = load_config()
+    except Exception as exc:
+        logging.error("Erro ao carregar configuracao: %s", exc)
+        return 1
+
     once = "--once" in sys.argv
     log.info("Agent iniciado; destino=%s intervalo=%ss", cfg.url, cfg.interval_seconds)
+
     try:
         while True:
             ok = False

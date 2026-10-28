@@ -94,7 +94,7 @@ class TelegramService:
         horario = _format_datetime_brt(event.timestamp)
 
         message = (
-            "🔔 Asaph-track\n\n"
+            "🔔 Asaph-Track\n\n"
             f"Patrimônio: {event.asset_number}\n"
             f"Status anterior: {event.previous_status}\n"
             f"Novo status: {event.status}\n"
