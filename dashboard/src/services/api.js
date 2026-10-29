@@ -168,4 +168,8 @@ export async function swapEventDevice(eventId, payload) {
   });
 }
 
+export async function deleteEvent(eventId) {
+  await api.delete(`/events/${eventId}`);
+}
+
 export default api;

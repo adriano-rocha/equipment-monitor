@@ -3,7 +3,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.application.exceptions import EventNotFoundError
@@ -136,3 +137,12 @@ def update_event(
         created_at=event.created_at,
         updated_at=event.updated_at,
     )
+
+@router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(
+    event_id: UUID,
+    session: Session = Depends(get_db_session),
+) -> None:
+    service = _get_event_service(session)
+    service.delete(event_id)
+    session.commit()

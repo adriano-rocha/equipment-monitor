@@ -81,4 +81,5 @@ class EventService:
 
         self._event_repository.update(updated_event)
 
-        return updated_event
+    def delete(self, event_id: UUID) -> None:
+        self._event_repository.delete(event_id)

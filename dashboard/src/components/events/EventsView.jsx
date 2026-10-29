@@ -4,6 +4,7 @@ import { StatusBadge } from "../common/StatusBadge";
 import {
   addDeviceToEvent,
   createEvent,
+  deleteEvent,
   getEventDevices,
   getEvents,
   removeDeviceFromEvent,
@@ -12,14 +13,11 @@ import {
 } from "../../services/api";
 
 // ----------------------------------------------------------------------------
-// MODAIS DE EVENTOS E PONTOS
+// MODAL: CRIAR NOVO EVENTO (NOME E LOCAL)
 // ----------------------------------------------------------------------------
 function CreateEventModal({ isOpen, onClose, onSuccess }) {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [isActive, setIsActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -28,24 +26,30 @@ function CreateEventModal({ isOpen, onClose, onSuccess }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setErrorMsg("");
-    if (!name.trim() || !location.trim() || !startsAt || !endsAt) {
-      setErrorMsg("Preencha todos os campos obrigatórios.");
-      return;
-    }
-    if (new Date(endsAt) <= new Date(startsAt)) {
-      setErrorMsg("A data de término deve ser posterior à data de início.");
+
+    const trimmedName = name.trim();
+    const trimmedLocation = location.trim();
+
+    if (!trimmedName || !trimmedLocation) {
+      setErrorMsg("Preencha o Nome do Evento e o Local.");
       return;
     }
 
     setSubmitting(true);
     try {
+      const now = new Date();
+      const oneYearLater = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
       await createEvent({
-        name: name.trim(),
-        location: location.trim(),
-        starts_at: new Date(startsAt).toISOString(),
-        ends_at: new Date(endsAt).toISOString(),
-        is_active: isActive,
+        name: trimmedName,
+        location: trimmedLocation,
+        starts_at: now.toISOString(),
+        ends_at: oneYearLater.toISOString(),
+        is_active: true,
       });
+
+      setName("");
+      setLocation("");
       onSuccess();
     } catch (err) {
       setErrorMsg(err.response?.data?.detail || "Erro ao cadastrar evento.");
@@ -56,7 +60,7 @@ function CreateEventModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
+      <div className="modal-card" style={{ maxWidth: "400px" }}>
         <div className="modal-header">
           <h3>Novo Evento</h3>
           <button type="button" className="close-btn" onClick={onClose}>
@@ -71,7 +75,7 @@ function CreateEventModal({ isOpen, onClose, onSuccess }) {
             </label>
             <input
               type="text"
-              placeholder="Ex: Expo Tecnologia 2026"
+              placeholder="Ex: AWS Summit, Convenção 2026..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -84,58 +88,14 @@ function CreateEventModal({ isOpen, onClose, onSuccess }) {
             </label>
             <input
               type="text"
-              placeholder="Ex: Centro de Convenções - SP"
+              placeholder="Ex: Expo SP, Pavilhão Azul, Anhembi..."
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               required
             />
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>
-                Início <span className="required">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>
-                Término <span className="required">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <div
-            className="form-group"
-            style={{
-              flexDirection: "row",
-              gap: "0.5rem",
-              alignItems: "center",
-            }}
-          >
-            <input
-              type="checkbox"
-              id="is_active"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-            />
-            <label
-              htmlFor="is_active"
-              style={{ marginBottom: 0, cursor: "pointer" }}
-            >
-              Evento ativo no momento
-            </label>
-          </div>
-          <div className="modal-actions">
+
+          <div className="modal-actions" style={{ marginTop: "1rem" }}>
             <button
               type="button"
               className="btn-secondary"
@@ -154,17 +114,12 @@ function CreateEventModal({ isOpen, onClose, onSuccess }) {
   );
 }
 
-function AddDeviceToEventModal({
-  event,
-  devices,
-  users,
-  isOpen,
-  onClose,
-  onSuccess,
-}) {
+// ----------------------------------------------------------------------------
+// MODAL: VINCULAR EQUIPAMENTO AO PONTO (SEM DROPDOWN DE EMAIL E SEM S/N)
+// ----------------------------------------------------------------------------
+function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSuccess }) {
   const [deviceId, setDeviceId] = useState("");
   const [locationPoint, setLocationPoint] = useState("");
-  const [assignedUserId, setAssignedUserId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -182,8 +137,10 @@ function AddDeviceToEventModal({
       await addDeviceToEvent(event.id, {
         device_id: deviceId,
         location_point: locationPoint.trim() || null,
-        assigned_user_id: assignedUserId || null,
+        assigned_user_id: null,
       });
+      setDeviceId("");
+      setLocationPoint("");
       onSuccess();
     } catch (err) {
       setErrorMsg(
@@ -198,7 +155,7 @@ function AddDeviceToEventModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-header">
-          <h3>Vincular Equipamento ao Evento</h3>
+          <h3>Vincular Equipamento ao Posto</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
@@ -217,36 +174,21 @@ function AddDeviceToEventModal({
               <option value="">Selecione um equipamento...</option>
               {devices.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.asset_number} — {d.device_type ?? "Equipamento"} (
-                  {d.model ?? d.hostname ?? "S/N"})
+                  {d.device_type ?? "Equipamento"} — {d.asset_number}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="form-group">
-            <label>Ponto Físico (Localização no Evento)</label>
+            <label>Ponto Físico / Posto Operacional</label>
             <input
               type="text"
               placeholder="Ex: Entrada VIP, Docas, Palco Principal, Credenciamento..."
               value={locationPoint}
               onChange={(e) => setLocationPoint(e.target.value)}
+              autoFocus
             />
-          </div>
-
-          <div className="form-group">
-            <label>Responsável Operacional</label>
-            <select
-              value={assignedUserId}
-              onChange={(e) => setAssignedUserId(e.target.value)}
-            >
-              <option value="">Nenhum responsável atribuído</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.email})
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="modal-actions">
@@ -259,7 +201,7 @@ function AddDeviceToEventModal({
               Cancelar
             </button>
             <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Vinculando..." : "Vincular Equipamento"}
+              {submitting ? "Vinculando..." : "Vincular ao Posto"}
             </button>
           </div>
         </form>
@@ -268,19 +210,12 @@ function AddDeviceToEventModal({
   );
 }
 
-function MoveDeviceModal({
-  eventId,
-  eventDevice,
-  users,
-  isOpen,
-  onClose,
-  onSuccess,
-}) {
+// ----------------------------------------------------------------------------
+// MODAL: MOVER PONTO FÍSICO
+// ----------------------------------------------------------------------------
+function MoveDeviceModal({ eventId, eventDevice, isOpen, onClose, onSuccess }) {
   const [locationPoint, setLocationPoint] = useState(
     () => eventDevice?.location_point || "",
-  );
-  const [assignedUserId, setAssignedUserId] = useState(
-    () => eventDevice?.assigned_user_id || "",
   );
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -294,8 +229,8 @@ function MoveDeviceModal({
     try {
       await updateEventDevice(eventId, eventDevice.device_id, {
         location_point: locationPoint.trim() || null,
-        assigned_user_id: assignedUserId || null,
-        clear_user: assignedUserId === "",
+        assigned_user_id: null,
+        clear_user: true,
       });
       onSuccess();
     } catch (err) {
@@ -309,7 +244,7 @@ function MoveDeviceModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-header">
-          <h3>Mover Ponto / Alterar Responsável</h3>
+          <h3>Mover Ponto Físico</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
@@ -320,25 +255,11 @@ function MoveDeviceModal({
             <label>Novo Ponto Físico</label>
             <input
               type="text"
-              placeholder="Ex: Sala de Controle, Docas..."
+              placeholder="Ex: Sala de Controle, Docas, Entrada..."
               value={locationPoint}
               onChange={(e) => setLocationPoint(e.target.value)}
+              autoFocus
             />
-          </div>
-
-          <div className="form-group">
-            <label>Responsável Operacional</label>
-            <select
-              value={assignedUserId}
-              onChange={(e) => setAssignedUserId(e.target.value)}
-            >
-              <option value="">Nenhum responsável atribuído</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.email})
-                </option>
-              ))}
-            </select>
           </div>
 
           <p
@@ -348,8 +269,8 @@ function MoveDeviceModal({
               marginTop: "0.5rem",
             }}
           >
-            * Esta ação encerra a associação anterior e registra a nova,
-            garantindo histórico de auditoria.
+            * Esta ação atualiza a localização do aparelho mantendo o histórico
+            de auditoria do evento.
           </p>
 
           <div className="modal-actions">
@@ -371,6 +292,9 @@ function MoveDeviceModal({
   );
 }
 
+// ----------------------------------------------------------------------------
+// MODAL: DESVINCULAR EQUIPAMENTO
+// ----------------------------------------------------------------------------
 function ConfirmUnassignModal({
   eventId,
   eventDevice,
@@ -432,6 +356,9 @@ function ConfirmUnassignModal({
   );
 }
 
+// ----------------------------------------------------------------------------
+// MODAL: SUBSTITUIÇÃO NO PONTO (SWAP)
+// ----------------------------------------------------------------------------
 function SwapDeviceModal({
   eventId,
   currentDevice,
@@ -464,7 +391,7 @@ function SwapDeviceModal({
         current_device_id: currentDevice.device_id,
         new_device_id: newDeviceId,
         location_point: currentDevice.location_point,
-        assigned_user_id: currentDevice.assigned_user_id,
+        assigned_user_id: null,
       });
       onSuccess();
     } catch (err) {
@@ -508,16 +435,15 @@ function SwapDeviceModal({
               <option value="">Selecione pelo Patrimônio...</option>
               {candidateDevices.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.asset_number} — {d.device_type ?? "Equipamento"} (
-                  {d.model ?? d.hostname ?? "S/N"})
+                  {d.asset_number} — {d.device_type ?? "Equipamento"}
                 </option>
               ))}
             </select>
           </div>
 
           <p style={{ color: "#94a3b8", fontSize: "0.8rem" }}>
-            * O aparelho antigo será desvinculado e o substituto assumirá o mesmo
-            posto mantendo a auditoria.
+            * O aparelho antigo será desvinculado e o substituto assumirá o
+            mesmo posto mantendo a auditoria.
           </p>
 
           <div className="modal-actions">
@@ -540,14 +466,84 @@ function SwapDeviceModal({
 }
 
 // ----------------------------------------------------------------------------
+// MODAL: CONFIRMAR EXCLUSÃO DE EVENTO
+// ----------------------------------------------------------------------------
+function ConfirmDeleteEventModal({ event, isOpen, onClose, onSuccess }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!isOpen || !event) return null;
+
+  async function handleConfirm() {
+    setSubmitting(true);
+    setErrorMsg("");
+    try {
+      await deleteEvent(event.id);
+      onSuccess();
+    } catch {
+      setErrorMsg("Erro ao excluir o evento. Tente novamente.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3>Confirmar Exclusão de Evento</h3>
+          <button type="button" className="close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {errorMsg && (
+          <div className="modal-error" role="alert">
+            {errorMsg}
+          </div>
+        )}
+        <p style={{ color: "#e2e8f0", fontSize: "0.95rem", lineHeight: 1.5 }}>
+          Tem certeza que deseja excluir o evento{" "}
+          <strong style={{ color: "#38bdf8" }}>{event.name}</strong>?
+        </p>
+        <div className="warning-banner" style={{ marginTop: "1rem" }}>
+          <strong>Atenção:</strong> O evento será removido e todas as
+          associações de postos e equipamentos deste evento serão desfeitas.
+        </div>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={handleConfirm}
+            disabled={submitting}
+          >
+            {submitting ? "Excluindo..." : "Sim, Excluir Evento"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // SEÇÃO PRINCIPAL DE EVENTOS
 // ----------------------------------------------------------------------------
-export function EventsView({ allDevices, users }) {
+export function EventsView({ allDevices }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventDevices, setEventDevices] = useState([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(null);
+
+  // Busca rápida dentro do evento
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Modais de Evento
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -607,6 +603,7 @@ export function EventsView({ allDevices, users }) {
   }, [selectedEvent]);
 
   function handleSelectEvent(evt) {
+    setSearchTerm("");
     setLoadingDevices(true);
     setSelectedEvent(evt);
   }
@@ -619,27 +616,57 @@ export function EventsView({ allDevices, users }) {
     return map;
   }, [allDevices]);
 
-  const userMap = useMemo(() => {
-    const map = new Map();
-    for (const u of users) {
-      map.set(u.id, u.name);
-    }
-    return map;
-  }, [users]);
+  // Total de aparelhos ativos vinculados ao evento
+  const activeEventDevicesCount = useMemo(() => {
+    return eventDevices.filter(
+      (ed) => !ed.unassigned_at && ed.is_active !== false,
+    ).length;
+  }, [eventDevices]);
 
-  // ✅ FILTRO DE AUDITORIA: Exibe nos cards APENAS equipamentos ativos no momento
+  // Agrupa os equipamentos ativos por ponto físico aplicando o filtro de busca em tempo real
   const groupedByPoint = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
     const groups = {};
+
     for (const ed of eventDevices) {
       if (ed.unassigned_at || ed.is_active === false) {
         continue;
       }
+
       const point = ed.location_point || "Ponto Não Definido";
+      const dev = deviceMap.get(ed.device_id);
+
+      // Se houver busca digitada, filtra por patrimônio, ponto, tipo ou modelo
+      if (term) {
+        const matchesPoint = point.toLowerCase().includes(term);
+        const matchesAsset = String(dev?.asset_number ?? "")
+          .toLowerCase()
+          .includes(term);
+        const matchesType = String(dev?.device_type ?? "")
+          .toLowerCase()
+          .includes(term);
+        const matchesModel = String(dev?.model ?? "")
+          .toLowerCase()
+          .includes(term);
+
+        if (!matchesPoint && !matchesAsset && !matchesType && !matchesModel) {
+          continue;
+        }
+      }
+
       if (!groups[point]) groups[point] = [];
       groups[point].push(ed);
     }
     return groups;
-  }, [eventDevices]);
+  }, [eventDevices, deviceMap, searchTerm]);
+
+  // Total de aparelhos visíveis após o filtro
+  const totalFilteredDevices = useMemo(() => {
+    return Object.values(groupedByPoint).reduce(
+      (acc, curr) => acc + curr.length,
+      0,
+    );
+  }, [groupedByPoint]);
 
   const availableDevices = useMemo(() => {
     const activeIds = new Set(
@@ -662,24 +689,36 @@ export function EventsView({ allDevices, users }) {
   if (selectedEvent) {
     return (
       <div className="event-detail-container">
-        <div className="section-header" style={{ marginBottom: "1.5rem" }}>
+        <div className="section-header" style={{ marginBottom: "1.25rem" }}>
           <div>
             <button
               type="button"
               className="btn-secondary"
               style={{ marginBottom: "0.5rem" }}
-              onClick={() => setSelectedEvent(null)}
+              onClick={() => {
+                setSelectedEvent(null);
+                setSearchTerm("");
+              }}
             >
               ← Voltar aos Eventos
             </button>
             <h2>{selectedEvent.name}</h2>
             <span style={{ color: "#94a3b8" }}>
-              📍 {selectedEvent.location} | Período:{" "}
-              {formatBrasiliaDateTime(selectedEvent.starts_at)} até{" "}
-              {formatBrasiliaDateTime(selectedEvent.ends_at)}
+              📍 {selectedEvent.location}
             </span>
           </div>
-          <div className="header-actions">
+          <div
+            className="header-actions"
+            style={{ display: "flex", gap: "0.5rem" }}
+          >
+            <button
+              type="button"
+              className="btn-action-delete"
+              style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}
+              onClick={() => setDeletingEvent(selectedEvent)}
+            >
+              Excluir Evento
+            </button>
             <button
               type="button"
               className="btn-create-device"
@@ -690,9 +729,83 @@ export function EventsView({ allDevices, users }) {
           </div>
         </div>
 
+        {/* BARRA DE PESQUISA RÁPIDA DENTRO DO EVENTO */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <div
+            style={{
+              position: "relative",
+              maxWidth: "520px",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                left: "0.85rem",
+                color: "#64748b",
+                fontSize: "0.95rem",
+                pointerEvents: "none",
+              }}
+            >
+              🔍
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por patrimônio, tipo ou ponto (ex: 2098, Docas, Smartphone)..."
+              style={{
+                width: "100%",
+                padding: "0.65rem 2.2rem 0.65rem 2.4rem",
+                background: "#0f172a",
+                border: "1px solid #334155",
+                borderRadius: "6px",
+                color: "#f8fafc",
+                fontSize: "0.875rem",
+                outline: "none",
+              }}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                style={{
+                  position: "absolute",
+                  right: "0.6rem",
+                  background: "transparent",
+                  border: "none",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  padding: "0.2rem 0.4rem",
+                  fontSize: "0.85rem",
+                }}
+                title="Limpar pesquisa"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {searchTerm && (
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "#94a3b8",
+                marginTop: "0.5rem",
+                marginBottom: 0,
+              }}
+            >
+              Mostrando {totalFilteredDevices} de {activeEventDevicesCount}{" "}
+              aparelhos encontrados para "
+              <strong style={{ color: "#38bdf8" }}>{searchTerm}</strong>".
+            </p>
+          )}
+        </div>
+
         {loadingDevices ? (
           <p>Carregando postos e equipamentos...</p>
-        ) : Object.keys(groupedByPoint).length === 0 ? (
+        ) : activeEventDevicesCount === 0 ? (
           <div
             className="empty-state"
             style={{
@@ -710,6 +823,29 @@ export function EventsView({ allDevices, users }) {
               onClick={() => setIsAddDeviceOpen(true)}
             >
               + Adicionar primeiro equipamento
+            </button>
+          </div>
+        ) : Object.keys(groupedByPoint).length === 0 ? (
+          <div
+            className="empty-state"
+            style={{
+              padding: "2.5rem",
+              textAlign: "center",
+              background: "#1e293b",
+              borderRadius: "8px",
+              border: "1px dashed #334155",
+            }}
+          >
+            <p style={{ color: "#e2e8f0", margin: 0, fontWeight: 500 }}>
+              Nenhum posto ou equipamento encontrado para "{searchTerm}".
+            </p>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ marginTop: "1rem", fontSize: "0.85rem" }}
+              onClick={() => setSearchTerm("")}
+            >
+              Limpar busca
             </button>
           </div>
         ) : (
@@ -758,7 +894,6 @@ export function EventsView({ allDevices, users }) {
                     <tr>
                       <th>Patrimônio</th>
                       <th>Tipo</th>
-                      <th>Responsável</th>
                       <th>Status de Comunicação</th>
                       <th>Último Contato</th>
                       <th>Ações</th>
@@ -767,16 +902,12 @@ export function EventsView({ allDevices, users }) {
                   <tbody>
                     {list.map((ed) => {
                       const dev = deviceMap.get(ed.device_id);
-                      const respName = ed.assigned_user_id
-                        ? userMap.get(ed.assigned_user_id) || "Atribuído"
-                        : "-";
                       return (
                         <tr key={ed.id}>
                           <td className="asset-number">
-                            {dev?.asset_number ?? "N/A"}
+                            {dev?.asset_number ?? "Equipamento"}
                           </td>
                           <td>{dev?.device_type ?? "-"}</td>
-                          <td>{respName}</td>
                           <td>
                             <StatusBadge
                               status={dev?.status ?? STATUS.OFFLINE}
@@ -788,7 +919,7 @@ export function EventsView({ allDevices, users }) {
                               type="button"
                               className="btn-action-edit"
                               onClick={() => setMovingDevice(ed)}
-                              title="Alterar ponto ou responsável"
+                              title="Alterar ponto físico"
                             >
                               Mover
                             </button>
@@ -800,7 +931,7 @@ export function EventsView({ allDevices, users }) {
                                 borderColor: "#d97706",
                               }}
                               onClick={() => setSwappingDevice(ed)}
-                              title="Trocar por outro aparelho neste ponto"
+                              title="Substituir por outro aparelho neste ponto"
                             >
                               Substituir
                             </button>
@@ -826,7 +957,6 @@ export function EventsView({ allDevices, users }) {
         <AddDeviceToEventModal
           event={selectedEvent}
           devices={availableDevices}
-          users={users}
           isOpen={isAddDeviceOpen}
           onClose={() => setIsAddDeviceOpen(false)}
           onSuccess={() => {
@@ -839,7 +969,6 @@ export function EventsView({ allDevices, users }) {
           <MoveDeviceModal
             eventId={selectedEvent.id}
             eventDevice={movingDevice}
-            users={users}
             isOpen={Boolean(movingDevice)}
             onClose={() => setMovingDevice(null)}
             onSuccess={() => {
@@ -875,6 +1004,17 @@ export function EventsView({ allDevices, users }) {
             }}
           />
         )}
+
+        <ConfirmDeleteEventModal
+          event={deletingEvent}
+          isOpen={Boolean(deletingEvent)}
+          onClose={() => setDeletingEvent(null)}
+          onSuccess={() => {
+            setDeletingEvent(null);
+            setSelectedEvent(null);
+            refreshEvents();
+          }}
+        />
       </div>
     );
   }
@@ -913,9 +1053,7 @@ export function EventsView({ allDevices, users }) {
               background: "#1e293b",
               padding: "1.5rem",
               borderRadius: "8px",
-              border: evt.is_active
-                ? "1px solid #38bdf8"
-                : "1px solid #334155",
+              border: evt.is_active ? "1px solid #38bdf8" : "1px solid #334155",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -948,36 +1086,35 @@ export function EventsView({ allDevices, users }) {
               <p
                 style={{
                   color: "#94a3b8",
-                  fontSize: "0.9rem",
+                  fontSize: "0.95rem",
                   margin: "0.25rem 0",
                 }}
               >
                 📍 {evt.location}
               </p>
-              <p
-                style={{
-                  color: "#64748b",
-                  fontSize: "0.85rem",
-                  margin: "0.25rem 0",
-                }}
-              >
-                {formatBrasiliaDateTime(evt.starts_at)} —{" "}
-                {formatBrasiliaDateTime(evt.ends_at)}
-              </p>
             </div>
 
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{
-                marginTop: "1.25rem",
-                width: "100%",
-                textAlign: "center",
-              }}
-              onClick={() => handleSelectEvent(evt)}
+            <div
+              style={{ display: "flex", gap: "0.5rem", marginTop: "1.25rem" }}
             >
-              Ver Equipamentos e Postos →
-            </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ flex: 1, textAlign: "center" }}
+                onClick={() => handleSelectEvent(evt)}
+              >
+                Ver Equipamentos e Postos →
+              </button>
+              <button
+                type="button"
+                className="btn-action-delete"
+                style={{ padding: "0 0.8rem" }}
+                onClick={() => setDeletingEvent(evt)}
+                title="Excluir este evento"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         ))}
 
@@ -1001,6 +1138,17 @@ export function EventsView({ allDevices, users }) {
         onClose={() => setIsCreateOpen(false)}
         onSuccess={() => {
           setIsCreateOpen(false);
+          refreshEvents();
+        }}
+      />
+
+      <ConfirmDeleteEventModal
+        event={deletingEvent}
+        isOpen={Boolean(deletingEvent)}
+        onClose={() => setDeletingEvent(null)}
+        onSuccess={() => {
+          setDeletingEvent(null);
+          setSelectedEvent(null);
           refreshEvents();
         }}
       />

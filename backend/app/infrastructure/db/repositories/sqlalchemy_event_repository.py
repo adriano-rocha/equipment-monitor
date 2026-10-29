@@ -9,6 +9,7 @@ from app.application.exceptions import EventNotFoundError
 from app.application.ports.event_repository import EventRepository
 from app.domain.event import Event
 from app.infrastructure.db.models.event_model import EventModel
+from app.infrastructure.db.models.event_device_model import EventDeviceModel
 
 
 class SqlAlchemyEventRepository(EventRepository):
@@ -92,3 +93,17 @@ class SqlAlchemyEventRepository(EventRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
+
+    def delete(self, event_id: UUID) -> None:
+        model = self._session.get(EventModel, event_id)
+
+        if model is None:
+            raise EventNotFoundError()
+
+        # Remove as associações em event_devices para não violar a chave estrangeira
+        self._session.query(EventDeviceModel).filter(
+            EventDeviceModel.event_id == event_id
+        ).delete(synchronize_session=False)
+
+        self._session.delete(model)
+        self._session.flush()

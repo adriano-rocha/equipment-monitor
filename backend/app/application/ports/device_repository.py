@@ -36,4 +36,6 @@ class DeviceRepository(ABC):
 
     @abstractmethod
     def get_by_asset_number(self, asset_number: str) -> Device | None:
-        """Busca um Device pelo patrimônio exato."""    
+        """Busca um Device pelo patrimônio exato."""  
+
+      
