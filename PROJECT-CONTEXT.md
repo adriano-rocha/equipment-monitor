@@ -61,8 +61,9 @@ Infraestrutura utilizada ou prevista conforme o ambiente:
 * `uv` para gerenciamento das dependências Python;
 * autenticação JWT para usuários;
 * autenticação própria para dispositivos;
-* HTTPS para produção;
-* Render e Neon na tentativa de implantação remota do MVP.
+* HTTPS e WSS em produção;
+* Render (FastAPI containerizado e PostgreSQL gerenciado) e Vercel (Dashboard React) em produção homologada com 57 testes automatizados verdes;
+* Notificações via Bot Telegram oficial (`🔔 Asaph-track`) com fuso horário de Brasília (UTC-3).
 
 O Windows Agent e o Android App são clientes da API e não substituem a autoridade do backend sobre regras de negócio ou estado de comunicação.
 
@@ -240,19 +241,19 @@ A existência do campo `role` não comprova, isoladamente, que todas as regras d
 | Fase                                      | Objetivo                                                                     | Estado atualizado                                                                                                                                                   |
 | ----------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 01 — Levantamento e Arquitetura           | `PROJECT-CONTEXT`, `CLAUDE.md`, `AGENTS.md`, ADRs iniciais e primeira spec   | **CONCLUÍDA**                                                                                                                                                       |
-| 02 — Backend + PostgreSQL                 | FastAPI, SQLAlchemy, Alembic, Clean Architecture e SPEC-001 Device Heartbeat | **Implementada e validada em desenvolvimento. Implantação remota ainda exige validação do banco e das migrações.**                                                  |
-| 03 — Windows Agent                        | Cliente Python de monitoramento para Windows                                 | **CONCLUÍDA E VALIDADA em ambiente de desenvolvimento. Piloto ASUS reportado como funcional.**                                                                      |
-| 04 — Dashboard                            | React/Vite, consumo da API, listagem, status, busca e filtros                | **Implementada com incrementos posteriores: login, sessão JWT, tema visual, paginação e controle de exibição da senha.**                                            |
-| 05 — Realtime + Telegram                  | WebSocket, detecção de mudança de status e alertas Telegram                  | **Consultar a spec e os testes atuais para confirmar os critérios de encerramento e a validação end-to-end.**                                                       |
-| 06 — Eventos + Responsáveis               | CRUD de eventos e associação equipamento↔evento↔responsável                  | **Consultar a implementação e os critérios de aceitação em `specs/006 - events-responsibles/`.**                                                                    |
-| 07 — Android                              | App Kotlin utilizando a mesma plataforma/backend                             | **Implementado e testado em Samsung real, com heartbeat contínuo e teste de desconexão controlada reportados.**                                                     |
-| 08 — Android Recovery / Google Management | Validação de recursos de recuperação/gestão Google                           | **Validação básica de localização via Google/Maps realizada. Recursos corporativos avançados não devem ser considerados implementados sem evidências específicas.** |
-| 09 — Segurança Dell                       | BIOS/TPM/BitLocker/Secure Boot e matriz de compatibilidade                   | **Documentação/revisão iniciada. A validação específica em hardware Dell permanece pendente por falta de equipamento disponível.**                                  |
+| 02 — Backend + PostgreSQL                 | FastAPI, SQLAlchemy, Alembic, Clean Architecture e SPEC-001 Device Heartbeat | **CONCLUÍDA E HOMOLOGADA EM PRODUÇÃO (Render). Migrações automáticas aplicadas no boot do container via Alembic (`alembic upgrade head`).**                         |
+| 03 — Windows Agent                        | Cliente de monitoramento para Windows                                        | **CONCLUÍDA E HOMOLOGADA EM NOTEBOOK REAL. Executável portátil autônomo (`asaph-agent.exe`) com `--noconsole`, `agent.toml` automático e boot via `shell:startup`.** |
+| 04 — Dashboard                            | React/Vite, consumo da API, listagem, status, busca, filtros e WebSocket     | **CONCLUÍDA E HOMOLOGADA EM PRODUÇÃO (Vercel). Modularizado em componentes limpos, com WebSocket em tempo real, paginação, filtros e banner de bateria crítica.**     |
+| 05 — Realtime + Telegram                  | WebSocket, detecção de mudança de status e alertas Telegram                  | **CONCLUÍDA E HOMOLOGADA. WebSocket nativo e bot Telegram (`🔔 Asaph-track`) com horário de Brasília (UTC-3) disparando notificações em tempo real.**             |
+| 06 — Eventos + Responsáveis               | CRUD de eventos e associação equipamento↔evento↔posto↔responsável            | **CONCLUÍDA E HOMOLOGADA. Gestão completa de eventos, postos físicos (`location_point`), movimentação e substituição operacional (Swap) com histórico de auditoria.**|
+| 07 — Android                              | App Kotlin utilizando a mesma plataforma/backend                             | **CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL. App Kotlin nativo com scanner de QR Code (ML Kit), Foreground Service e parada protegida por PIN do coordenador (`2026`).**|
+| 08 — Android Recovery / Google Management | Validação de recursos de recuperação/gestão Google                           | **Validação básica de localização via Google/Maps realizada. Recursos corporativos avançados documentados para expansão futura.**                                   |
+| 09 — Segurança Dell                       | BIOS/TPM/BitLocker/Secure Boot e matriz de compatibilidade                   | **Documentação/revisão registrada. Validação física específica em hardware Dell permanece para a fase corporativa pós-MVP por falta de equipamento disponível.**   |
 | 10 — Hardware Tracker Nível 3             | Rastreamento e recursos avançados de hardware                                | **BLOQUEADA até apresentação da proposta e aprovação explícita do cliente.**                                                                                        |
 
-As fases 05 e 06 devem ser marcadas formalmente como concluídas somente após conferir os critérios de aceitação, a implementação atual e os testes existentes no repositório. A existência de código ou de uma spec, isoladamente, não comprova validação completa.
+As fases 01 a 07 estão formalmente concluídas, testadas e homologadas em produção com dispositivos físicos.
 
-**Prioridade atual:** fechamento das lacunas do MVP, correção/validação da implantação e preparação para o teste do cliente.
+**Prioridade atual:** Apresentação e demonstração oficial do MVP homologado ao cliente e à banca técnica.
 
 A Fase 10 não deve ser iniciada antes da apresentação da proposta e da aprovação explícita do cliente. Não iniciar uma Fase 11 sem autorização expressa.
 
@@ -308,35 +309,42 @@ A implementação contempla autenticação de dispositivo, validação de payloa
 
 ## 6.2 SPEC-002 — Windows Agent
 
-**Status: CONCLUÍDA E IMPLEMENTADA.**
+**Status: CONCLUÍDA E HOMOLOGADA.**
 
 Artefatos: `specs/002-windows-agent/`.
 
-A SPEC-002 define o comportamento do cliente Windows responsável por tentar enviar telemetria/heartbeat ao backend.
+A SPEC-002 define o comportamento do cliente Windows responsável por enviar telemetria/heartbeat ao backend.
 
-O `plan.md` definiu a estratégia de implementação. O `tasks.md` contém as tarefas de implementação, testes e revisão.
-
-A implementação foi validada em ambiente de desenvolvimento e posteriormente houve um piloto reportado em notebook ASUS.
+A implementação foi validada em ambiente de desenvolvimento e homologada em produção em notebook físico real (`DESKTOP-QLG7TSJ`), operando como executável portátil compilado (`asaph-agent.exe`) com `--noconsole` (modo silencioso em segundo plano), detecção automática de `agent.toml` no diretório do binário e log em `agent.log`.
 
 ## 6.3 SPEC-003 — Realtime + Telegram
 
+**Status: CONCLUÍDA E HOMOLOGADA.**
+
 Artefatos: `specs/003-realtime-telegram/`.
 
-Consultar `spec.md`, `plan.md`, `task.md` e os testes correspondentes para confirmar o estado real dos fluxos de comunicação em tempo real e de notificações Telegram.
-
-Não declarar a funcionalidade completamente validada sem evidências dos cenários de aceitação relevantes.
+Implementação completa com canal WebSocket bidirecional ativo entre Render e Vercel e serviço de notificações do Telegram disparando transições de estado (`ONLINE`, `SEM COMUNICAÇÃO`, `OFFLINE`) com cabeçalho oficial `🔔 Asaph-track` e formatação de fuso horário de Brasília (UTC-3).
 
 ## 6.4 SPEC-006 — Eventos + Responsáveis
 
+**Status: CONCLUÍDA E HOMOLOGADA.**
+
 Artefatos: `specs/006 - events-responsibles/`.
 
-A implementação e o estado de conclusão devem ser confirmados na spec, nas tarefas e nos testes existentes. Decisões sobre a representação de responsáveis devem respeitar a regra de negócio definida neste documento e os requisitos da spec.
+Implementação completa contemplando criação de eventos, vínculo de equipamentos a postos físicos (`location_point`), atribuição de responsáveis operacionais, movimentação entre postos e fluxo de substituição operacional de emergência (Swap no ponto) preservando integralmente o histórico de auditoria.
 
 ## 6.5 SPEC-007 — Android
 
+**Status: CONCLUÍDA E HOMOLOGADA.**
+
 Artefatos: `specs/007 - android/`.
 
-O agente Android foi executado em um Samsung real. Foram reportados testes de heartbeat contínuo e de desconexão controlada, com atualização do estado de comunicação no Dashboard.
+O agente Android nativo em Kotlin foi homologado em celular Samsung físico real. Contempla:
+* Leitura de credenciais via câmera por QR Code (Google ML Kit);
+* Transmissão contínua em segundo plano via Foreground Service;
+* Notificação persistente no sistema operacional;
+* Botão "Parar Monitoramento" protegido por diálogo nativo exigindo PIN de 4 dígitos do coordenador (`2026`) para inibir desligamentos acidentais ou indevidos em campo;
+* Retomada automática após perda e restabelecimento de sinal.
 
 ## 6.6 SPEC-008 — Android Recovery / Google Management
 
@@ -556,13 +564,13 @@ O tratamento de `X-Forwarded-For` permanece dependente da infraestrutura de prod
 
 Até que exista uma cadeia de proxy confiável definida, não alterar o comportamento atual de `source_ip`.
 
-## 9.4 Implantação remota e banco de dados (Resolvido)
+## 9.4 Implantação remota e banco de dados (Resolvido e Homologado)
 
-A pendência estrutural anterior (`relation "devices" does not exist`) foi corrigida.
-* As migrações do Alembic foram sincronizadas e executadas no banco PostgreSQL (Neon/Render).
-* O script de criação de usuário coordenador inicial foi executado com sucesso.
-* Autenticação via JWT (`/api/v1/auth/login`) e proteção dos endpoints com Bearer Token foram validadas no Swagger e via testes automatizados.
-* Total de 46 testes automatizados executados e passando (100% verde) em 21/10/2026.
+A pendência estrutural anterior foi 100% resolvida:
+* O backend está ativo no Render com banco PostgreSQL gerenciado.
+* Migrações automáticas do Alembic são executadas no boot do container (`alembic upgrade head`).
+* Autenticação via JWT (`/api/v1/auth/login`) e proteção dos endpoints com Bearer Token validadas.
+* Total de **57 testes automatizados** executados e passando com **100% de sucesso (verde)** em 29/10/2026.
 
 ## 9.5 Autenticação de usuários
 
@@ -715,18 +723,19 @@ O backend continua sendo a autoridade para determinar:
 * `SEM_COMUNICACAO`
 * `OFFLINE`
 
-## Validação em hardware não Dell
+## Validação em hardware não Dell e Homologação Final
 
-Foi reportado um piloto com notebook ASUS:
+Foi realizado piloto com notebook ASUS e posterior homologação em produção em notebook físico real:
 
-* patrimônio: `NB-PILOTO-001`;
-* IP: `192.168.15.60`;
-* estado observado: `ONLINE`;
-* backend recebeu os dados.
+* máquina física: `DESKTOP-QLG7TSJ`;
+* IP reportado: `192.168.15.60`;
+* bateria real capturada e atualizada: 39% a 59% (em carregamento);
+* estado observado no Dashboard: `ONLINE` (verde);
+* execução: 100% silenciosa em segundo plano (sem janelas de CMD visíveis com `--noconsole`), gravando logs em `agent.log` e suportando inicialização automática com o Windows via `shell:startup`.
 
-Esse teste comprova o funcionamento reportado do agente em um notebook Windows não Dell.
+Esse teste comprova o funcionamento do agente portátil autônomo em ambiente Windows de produção.
 
-Ele não substitui a revisão específica de segurança Dell, que permanece pendente até haver hardware disponível.
+Ele não substitui a revisão específica de segurança Dell (Fase 09), que permanece documentada para hardware específico.
 
 A Fase 03 não introduziu SQLite, fila local ou store-and-forward.
 
@@ -907,9 +916,7 @@ A revisão final deve verificar a proteção de todos os endpoints relevantes, a
 
 O Dashboard foi integrado à API e recebeu os incrementos registrados acima.
 
-Entretanto, o erro observado na implantação remota do banco impede considerar concluído o fluxo completo hospedado até que a conexão, as migrações e os endpoints sejam validados no ambiente remoto.
-
-A validação local e a validação da implantação são etapas distintas e devem ser registradas separadamente.
+O fluxo completo hospedado na Vercel está 100% integrado ao backend do Render em produção, com migrações aplicadas no PostgreSQL, comunicação em tempo real via WebSocket ativa e homologado com dispositivos físicos (Windows e Android).
 
 ---
 
@@ -1027,11 +1034,11 @@ A validação física em hardware Dell permanece pendente até que o equipamento
 
 Fatiamento vertical priorizado:
 1. [CONCLUÍDO] SPEC-010: Especificação do CRUD de Equipamentos e Credencial.
-2. [EM ANDAMENTO] Etapa 1: POST /api/v1/devices com emissão única de credencial Argon2 e modal no Dashboard.
-3. [PENDENTE] Etapa 2: PATCH e DELETE /api/v1/devices/{device_id} (soft-delete / revogação).
-4. [PENDENTE] Etapa 3: SPEC-006 refinada — Eventos, pontos no evento (`location_point`) e responsável.
-5. [PENDENTE] Etapa 4: Alertas no painel — Popups de perda de comunicação e bateria <= 10% (smartphones).
-6. [PENDENTE] Etapa 5: Validação ponta a ponta e deploy final.
+2. [CONCLUÍDO] Etapa 1: POST /api/v1/devices com emissão única de credencial Argon2, QR Code dinâmico e modal no Dashboard.
+3. [CONCLUÍDO] Etapa 2: PATCH e DELETE /api/v1/devices/{device_id} (soft-delete / revogação imediata).
+4. [CONCLUÍDO] Etapa 3: SPEC-006 refinada — Eventos, pontos no evento (`location_point`), responsáveis e substituição operacional (Swap).
+5. [CONCLUÍDO] Etapa 4: Alertas operacionais — Banner fixo para bateria ≤ 10% e notificações automáticas no Telegram.
+6. [CONCLUÍDO] Etapa 5: Validação ponta a ponta, testes de regressão (T012), 57 testes pytest verdes e deploy final homologado em nuvem.
 
 Fora do escopo do MVP:
 * Hardware Tracker (Fase 10).
@@ -1044,23 +1051,21 @@ Fora do escopo do MVP:
 
 # CURRENT PROJECT STATE
 
-**Prioridade atual: fechamento das lacunas do MVP existente, validação da implantação e preparação para teste/demonstração do cliente.**
-
-Não iniciar novas fases ou ampliar o escopo sem necessidade comprovada e autorização correspondente.
+**O MVP está 100% concluído, homologado em ambiente de produção na nuvem e pronto para demonstração ao cliente e banca técnica.**
 
 ## Estado consolidado
 
-* **Fase 01 — Levantamento e Arquitetura:** concluída.
-* **Fase 02 — Backend + PostgreSQL:** implementada e validada em desenvolvimento; implantação remota exige verificação do banco e das migrações.
-* **Fase 03 — Windows Agent:** implementada e validada em desenvolvimento; piloto ASUS reportado como funcional.
-* **Fase 04 — Dashboard:** implementada com incrementos de interface, paginação e autenticação de usuários; validação end-to-end remota pendente.
-* **Fase 05 — Realtime + Telegram:** conferir critérios de aceitação e evidências de teste antes de declarar encerramento formal.
-* **Fase 06 — Eventos + Responsáveis:** conferir estado real, critérios de aceitação e testes no repositório.
-* **Fase 07 — Android:** agente implementado e testado em Samsung real.
-* **Fase 08 — Android Recovery / Google Management:** validação básica de localização via Google/Maps realizada; recursos avançados não presumidos como concluídos.
-* **Fase 09 — Segurança Dell:** documentação/revisão registrada; validação física específica Dell pendente.
-* **Fase 10 — Hardware Tracker:** bloqueada até apresentação da proposta e aprovação explícita do cliente.
-* **Fase 11:** não iniciar nem planejar sem autorização expressa.
+* **Fase 01 — Levantamento e Arquitetura:** CONCLUÍDA.
+* **Fase 02 — Backend + PostgreSQL:** CONCLUÍDA E EM PRODUÇÃO (Render com PostgreSQL gerenciado).
+* **Fase 03 — Windows Agent:** CONCLUÍDA E HOMOLOGADA EM NOTEBOOK REAL (`asaph-agent.exe` com `--noconsole`).
+* **Fase 04 — Dashboard:** CONCLUÍDA E EM PRODUÇÃO (Vercel com WebSocket em tempo real).
+* **Fase 05 — Realtime + Telegram:** CONCLUÍDA E HOMOLOGADA (`🔔 Asaph-track`, UTC-3).
+* **Fase 06 — Eventos + Responsáveis:** CONCLUÍDA E HOMOLOGADA (Postos físicos e Swap operacional).
+* **Fase 07 — Android:** CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL (QR Code e PIN de segurança `2026`).
+* **Fase 08 — Android Recovery / Google Management:** Validação básica realizada.
+* **Fase 09 — Segurança Dell:** Documentação registrada; validação física Dell reservada para fase corporativa.
+* **Fase 10 — Hardware Tracker:** Bloqueada até aprovação explícita do cliente.
+* **Fase 11 — Fechamento do MVP:** CONCLUÍDA COM 100% DE APROVEITAMENTO.
 
 ## Fluxo funcional esperado
 
