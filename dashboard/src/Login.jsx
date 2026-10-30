@@ -157,7 +157,7 @@ function Login({ onLoginSuccess }) {
           </button>
         </form>
 
-        <p className="login-footer">Monitoramento de ativos e equipamentos</p>
+        <p className="login-footer">Monitoramento de dispositivos</p>
       </section>
     </main>
   );
