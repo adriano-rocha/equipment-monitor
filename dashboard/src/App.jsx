@@ -330,7 +330,9 @@ function Dashboard({ onLogout }) {
                     <td className="asset-number">
                       {device.asset_number ?? "-"}
                     </td>
-                    <td>{device.device_type ?? "-"}</td>
+                    <td style={{ textTransform: "capitalize" }}>
+                      {device.device_type ?? "-"}
+                    </td>
                     <td>{device.hostname ?? "-"}</td>
                     <td>{device.reported_ip ?? "-"}</td>
                     <td>

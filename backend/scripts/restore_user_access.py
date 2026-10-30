@@ -8,7 +8,7 @@ from app.infrastructure.auth.user_auth_service import UserAuthService
 from app.infrastructure.db.models.user_model import UserModel
 
 database_url = os.environ["DATABASE_URL"].strip()
-email = "asaph_eq@asaph.com"
+email = "admin@asaph.com"
 
 name = input("Nome para o Dashboard: ").strip()
 if not name:
