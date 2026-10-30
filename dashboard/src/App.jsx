@@ -3,14 +3,9 @@ import { useDevices } from "./hooks/useDevices";
 import Login from "./Login";
 import { clearAccessToken, getAccessToken, getUsers } from "./services/api";
 
-import {
-  STATUS_FILTERS,
-  SUMMARY_CARDS,
-  formatBrasiliaDateTime,
-} from "./utils/formatters";
+import { STATUS_FILTERS, formatBrasiliaDateTime } from "./utils/formatters";
 
 import { StatusBadge } from "./components/common/StatusBadge";
-import { StatusCard } from "./components/common/StatusCard";
 import { AlertBanner } from "./components/alerts/AlertBanner";
 import {
   ConfirmDeleteModal,
@@ -22,9 +17,22 @@ import { EventsView } from "./components/events/EventsView";
 
 const ITEMS_PER_PAGE = 10;
 
-// ----------------------------------------------------------------------------
-// DASHBOARD OPERACIONAL
-// ----------------------------------------------------------------------------
+// Garante a classe CSS correta mesmo se o valor tiver acento, espaço ou nome diferente
+function getFilterVariant(filter) {
+  const text = `${filter.label} ${filter.value}`.toLowerCase();
+  if (text.includes("online")) return "btn-filter-online";
+  if (
+    text.includes("comunicação") ||
+    text.includes("comunicacao") ||
+    text.includes("warning") ||
+    text.includes("sem")
+  ) {
+    return "btn-filter-warning";
+  }
+  if (text.includes("offline")) return "btn-filter-offline";
+  return "btn-filter-todos";
+}
+
 function Dashboard({ onLogout }) {
   const { devices, loading, refreshing, error, lastUpdated, refresh } =
     useDevices();
@@ -32,20 +40,15 @@ function Dashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("devices");
   const [users, setUsers] = useState([]);
 
-  // Filtros de Equipamentos
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [requestedPage, setRequestedPage] = useState(1);
 
-  // Modais de Equipamentos
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [deletingDevice, setDeletingDevice] = useState(null);
 
-  // --------------------------------------------------------------------------
-  // CENTRAL DE ALERTAS (WEBSOCKET + ESTADO REAL DOS EQUIPAMENTOS)
-  // --------------------------------------------------------------------------
   const [dismissedAlerts, setDismissedAlerts] = useState(() => new Set());
   const [wsAlerts, setWsAlerts] = useState([]);
 
@@ -118,8 +121,9 @@ function Dashboard({ onLogout }) {
     };
   }, []);
 
+  // Contagem dinâmica por status para exibir nas abas de filtro
   const counts = useMemo(() => {
-    const result = {};
+    const result = { TODOS: devices.length };
     for (const device of devices) {
       result[device.status] = (result[device.status] ?? 0) + 1;
     }
@@ -166,14 +170,13 @@ function Dashboard({ onLogout }) {
   if (loading) {
     return (
       <main className="dashboard-loading" aria-live="polite">
-        <p>Carregando equipamentos...</p>
+        <p>Carregando dispositivos...</p>
       </main>
     );
   }
 
   return (
     <main>
-      {/* Banner de Alerta Crítico */}
       <AlertBanner
         alerts={activeAlerts}
         onDismiss={(deviceId) => {
@@ -202,7 +205,7 @@ function Dashboard({ onLogout }) {
             }
             onClick={() => setActiveTab("devices")}
           >
-            Equipamentos
+            Dispositivos
           </button>
           <button
             type="button"
@@ -217,7 +220,7 @@ function Dashboard({ onLogout }) {
           <button type="button" className="logout-button" onClick={onLogout}>
             Sair
           </button>
-          <span>Equipamentos monitorados</span>
+          <span>Dispositivos monitorados</span>
           <strong>{devices.length}</strong>
         </div>
       </header>
@@ -231,28 +234,16 @@ function Dashboard({ onLogout }) {
         </div>
       )}
 
-      {/* Cards de Status Globais */}
-      <section className="status-grid" aria-label="Resumo dos status">
-        {SUMMARY_CARDS.map((card) => (
-          <StatusCard
-            key={card.status}
-            title={card.title}
-            count={counts[card.status] ?? 0}
-            className={card.className}
-          />
-        ))}
-      </section>
-
       {/* Conteúdo da Aba Ativa */}
       {activeTab === "devices" ? (
         <section className="devices-section">
           <div className="section-header">
             <div>
-              <h2>Inventário de Equipamentos</h2>
+              <h2>Inventário de Dispositivos</h2>
               <span>
                 {filteredDevices.length === devices.length
-                  ? `${devices.length} equipamentos cadastrados`
-                  : `${filteredDevices.length} de ${devices.length} equipamentos encontrados`}
+                  ? `${devices.length} dispositivos cadastrados`
+                  : `${filteredDevices.length} de ${devices.length} dispositivos encontrados`}
               </span>
             </div>
 
@@ -262,7 +253,7 @@ function Dashboard({ onLogout }) {
                 className="btn-create-device"
                 onClick={() => setIsCreateOpen(true)}
               >
-                + Cadastrar equipamento
+                + Cadastrar dispositivo
               </button>
 
               <div className="refresh-info">
@@ -287,7 +278,7 @@ function Dashboard({ onLogout }) {
           <div className="filters">
             <input
               type="search"
-              aria-label="Buscar equipamentos"
+              aria-label="Buscar dispositivos"
               placeholder="Buscar patrimônio, tipo, hostname ou IP..."
               value={search}
               onChange={(e) => {
@@ -296,21 +287,26 @@ function Dashboard({ onLogout }) {
               }}
             />
 
+            {/* Abas com contadores diretos e classe infalível */}
             <div className="status-filters" aria-label="Filtrar por status">
-              {STATUS_FILTERS.map((filter) => (
-                <button
-                  type="button"
-                  key={filter.value}
-                  className={statusFilter === filter.value ? "active" : ""}
-                  aria-pressed={statusFilter === filter.value}
-                  onClick={() => {
-                    setStatusFilter(filter.value);
-                    setRequestedPage(1);
-                  }}
-                >
-                  {filter.label}
-                </button>
-              ))}
+              {STATUS_FILTERS.map((filter) => {
+                const count = counts[filter.value] ?? 0;
+                const variantClass = getFilterVariant(filter);
+                return (
+                  <button
+                    type="button"
+                    key={filter.value}
+                    className={`${variantClass} ${statusFilter === filter.value ? "active" : ""}`}
+                    aria-pressed={statusFilter === filter.value}
+                    onClick={() => {
+                      setStatusFilter(filter.value);
+                      setRequestedPage(1);
+                    }}
+                  >
+                    {filter.label} ({count})
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -367,7 +363,7 @@ function Dashboard({ onLogout }) {
                 {paginatedDevices.length === 0 && (
                   <tr>
                     <td colSpan={8} className="empty-state">
-                      Nenhum equipamento corresponde aos filtros.
+                      Nenhum dispositivo corresponde aos filtros.
                     </td>
                   </tr>
                 )}
@@ -379,7 +375,7 @@ function Dashboard({ onLogout }) {
             <div className="pagination-footer">
               <span className="pagination-count">
                 Exibindo {firstVisibleDevice}–{lastVisibleDevice} de{" "}
-                {filteredDevices.length} equipamentos
+                {filteredDevices.length} dispositivos
               </span>
               <nav className="pagination" aria-label="Paginação">
                 <button
@@ -409,7 +405,6 @@ function Dashboard({ onLogout }) {
         <EventsView allDevices={devices} users={users} />
       )}
 
-      {/* Modais de Equipamentos */}
       <CreateDeviceModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
@@ -454,15 +449,12 @@ function Dashboard({ onLogout }) {
 
       <footer className="dashboard-footer">
         <span>ASAPH | Grupo Pleno</span>
-        <span>Monitoramento de ativos</span>
+        <span>Monitoramento de dispositivos</span>
       </footer>
     </main>
   );
 }
 
-// ----------------------------------------------------------------------------
-// COMPONENTE RAIZ (AUTENTICAÇÃO / SESSÃO)
-// ----------------------------------------------------------------------------
 function App() {
   const [authenticated, setAuthenticated] = useState(() =>
     Boolean(getAccessToken()),

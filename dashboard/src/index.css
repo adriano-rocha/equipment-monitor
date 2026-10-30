@@ -1355,9 +1355,37 @@ tbody tr:last-child td {
   cursor: not-allowed;
 }
 
-/* =========================================================
-   RESPONSIVIDADE DA PAGINAÇÃO
-   ========================================================= */
+/* --- HOVER PERSONALIZADO POR STATUS --- */
+
+/* Todos: neutro */
+.btn-filter-todos:not(.active):hover {
+  border-color: #94a3b8 !important;
+  color: #f8fafc !important;
+  background-color: rgba(148, 163, 184, 0.1) !important;
+}
+
+/* Online: verde */
+.btn-filter-online:not(.active):hover {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* Sem comunicação: amarelo */
+.btn-filter-warning:not(.active):hover {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+/* Offline: vermelho */
+.btn-filter-offline:not(.active):hover {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* RESPONSIVIDADE DA PAGINAÇÃO */
 
 @media (max-width: 768px) {
   .pagination-footer {

@@ -12,9 +12,7 @@ import {
   updateEventDevice,
 } from "../../services/api";
 
-// ----------------------------------------------------------------------------
-// MODAL: CRIAR NOVO EVENTO (NOME E LOCAL)
-// ----------------------------------------------------------------------------
+
 function CreateEventModal({ isOpen, onClose, onSuccess }) {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
@@ -114,9 +112,6 @@ function CreateEventModal({ isOpen, onClose, onSuccess }) {
   );
 }
 
-// ----------------------------------------------------------------------------
-// MODAL: VINCULAR EQUIPAMENTO AO PONTO (SEM DROPDOWN DE EMAIL E SEM S/N)
-// ----------------------------------------------------------------------------
 function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSuccess }) {
   const [deviceId, setDeviceId] = useState("");
   const [locationPoint, setLocationPoint] = useState("");
@@ -210,9 +205,6 @@ function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSuccess }) {
   );
 }
 
-// ----------------------------------------------------------------------------
-// MODAL: MOVER PONTO FÍSICO
-// ----------------------------------------------------------------------------
 function MoveDeviceModal({ eventId, eventDevice, isOpen, onClose, onSuccess }) {
   const [locationPoint, setLocationPoint] = useState(
     () => eventDevice?.location_point || "",
@@ -292,9 +284,6 @@ function MoveDeviceModal({ eventId, eventDevice, isOpen, onClose, onSuccess }) {
   );
 }
 
-// ----------------------------------------------------------------------------
-// MODAL: DESVINCULAR EQUIPAMENTO
-// ----------------------------------------------------------------------------
 function ConfirmUnassignModal({
   eventId,
   eventDevice,
@@ -356,9 +345,6 @@ function ConfirmUnassignModal({
   );
 }
 
-// ----------------------------------------------------------------------------
-// MODAL: SUBSTITUIÇÃO NO PONTO (SWAP)
-// ----------------------------------------------------------------------------
 function SwapDeviceModal({
   eventId,
   currentDevice,
@@ -465,9 +451,6 @@ function SwapDeviceModal({
   );
 }
 
-// ----------------------------------------------------------------------------
-// MODAL: CONFIRMAR EXCLUSÃO DE EVENTO
-// ----------------------------------------------------------------------------
 function ConfirmDeleteEventModal({ event, isOpen, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -531,9 +514,6 @@ function ConfirmDeleteEventModal({ event, isOpen, onClose, onSuccess }) {
   );
 }
 
-// ----------------------------------------------------------------------------
-// SEÇÃO PRINCIPAL DE EVENTOS
-// ----------------------------------------------------------------------------
 export function EventsView({ allDevices }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -728,8 +708,7 @@ export function EventsView({ allDevices }) {
             </button>
           </div>
         </div>
-
-        {/* BARRA DE PESQUISA RÁPIDA DENTRO DO EVENTO */}
+        
         <div style={{ marginBottom: "1.5rem" }}>
           <div
             style={{
@@ -1019,7 +998,6 @@ export function EventsView({ allDevices }) {
     );
   }
 
-  // --- Lista Geral de Eventos ---
   return (
     <div className="events-list-section">
       <div className="section-header">
