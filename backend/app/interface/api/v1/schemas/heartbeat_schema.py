@@ -4,10 +4,13 @@ Todo o corpo é opcional (SPEC-001) — um heartbeat vazio {} é válido.
 """
 
 import json
+from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
+
 
 _METADATA_MAX_BYTES = 2048
 
@@ -18,6 +21,9 @@ class HeartbeatRequest(BaseModel):
     battery_level: int | None = Field(default=None, ge=0, le=100)
     metadata: dict | None = None
     device_timestamp: datetime | None = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    speed_kmh: Optional[float] = None
 
     @field_validator("metadata")
     @classmethod

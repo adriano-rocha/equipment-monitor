@@ -17,7 +17,6 @@ import { EventsView } from "./components/events/EventsView";
 
 const ITEMS_PER_PAGE = 10;
 
-// Garante a classe CSS correta mesmo se o valor tiver acento, espaço ou nome diferente
 function getFilterVariant(filter) {
   const text = `${filter.label} ${filter.value}`.toLowerCase();
   if (text.includes("online")) return "btn-filter-online";
@@ -38,7 +37,10 @@ function Dashboard({ onLogout }) {
     useDevices();
 
   const [activeTab, setActiveTab] = useState("devices");
-  const [users, setUsers] = useState([]);
+  const [, setUsers] = useState([]);
+
+  // 👉 Estado que guarda o evento e patrimônio alvo do clique no alerta
+  const [eventFocus, setEventFocus] = useState(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
@@ -75,20 +77,30 @@ function Dashboard({ onLogout }) {
     const combined = [...criticalBatteryAlerts, ...wsAlerts];
     const seen = new Set();
     return combined.filter((a) => {
-      if (seen.has(a.device_id) || dismissedAlerts.has(a.device_id)) {
+      const key = a.device_id || a.asset_number;
+      if (seen.has(key) || dismissedAlerts.has(a.device_id)) {
         return false;
       }
-      seen.add(a.device_id);
+      seen.add(key);
       return true;
     });
   }, [criticalBatteryAlerts, wsAlerts, dismissedAlerts]);
 
+  // Escuta alertas do WebSocket em tempo real e reativa alertas mesmo se já foram dispensados antes
   useEffect(() => {
     function handleWebSocketAlert(e) {
       const data = e.detail;
       if (data && data.type === "ALERT_TRIGGERED") {
+        // 1. Remove este aparelho da lista de dispensados para reativar o banner imediatamente
+        setDismissedAlerts((prev) => {
+          const updated = new Set(prev);
+          updated.delete(data.device_id);
+          return updated;
+        });
+
+        // 2. Adiciona/atualiza o alerta na lista de alertas ativos com timestamp novo
         setWsAlerts((prev) => [
-          data,
+          { ...data, receivedAt: Date.now() },
           ...prev.filter((a) => a.device_id !== data.device_id),
         ]);
       }
@@ -121,7 +133,6 @@ function Dashboard({ onLogout }) {
     };
   }, []);
 
-  // Contagem dinâmica por status para exibir nas abas de filtro
   const counts = useMemo(() => {
     const result = { TODOS: devices.length };
     for (const device of devices) {
@@ -184,8 +195,24 @@ function Dashboard({ onLogout }) {
           setWsAlerts((prev) => prev.filter((a) => a.device_id !== deviceId));
         }}
         onAction={(alert) => {
+          setEventFocus({
+            eventId: alert.event_id || alert.eventId || null,
+            eventName: alert.event_name || alert.eventName || "MindTheSec",
+            assetNumber:
+              alert.asset_number || alert.device_name || "SIM-RASTREIO",
+            deviceId: alert.device_id || alert.deviceId || null,
+            latitude: alert.latitude || null,
+            longitude: alert.longitude || null,
+            speed_kmh: alert.speed_kmh || null,
+            distance_m: alert.distance_m || null,
+            message: alert.message || null,
+            timestamp: Date.now(),
+          });
+
           setActiveTab("events");
-          setDismissedAlerts((prev) => new Set([...prev, alert.device_id]));
+          setWsAlerts((prev) =>
+            prev.filter((a) => a.device_id !== alert.device_id),
+          );
         }}
       />
 
@@ -287,7 +314,6 @@ function Dashboard({ onLogout }) {
               }}
             />
 
-            {/* Abas com contadores diretos e classe infalível */}
             <div className="status-filters" aria-label="Filtrar por status">
               {STATUS_FILTERS.map((filter) => {
                 const count = counts[filter.value] ?? 0;
@@ -404,7 +430,11 @@ function Dashboard({ onLogout }) {
           )}
         </section>
       ) : (
-        <EventsView allDevices={devices} users={users} />
+        <EventsView
+          allDevices={devices}
+          focusTarget={eventFocus}
+          onClearFocus={() => setEventFocus(null)}
+        />
       )}
 
       <CreateDeviceModal

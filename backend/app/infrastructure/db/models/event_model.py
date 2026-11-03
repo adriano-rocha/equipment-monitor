@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Index, String, func
+from sqlalchemy import Boolean, DateTime, Float, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.db.base import Base
@@ -25,6 +25,23 @@ class EventModel(Base):
     location: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    geofence_radius: Mapped[float | None] = mapped_column(
+        Float,
+        default=250.0,
+        server_default="250.0",
+        nullable=True,
+    )
+
+    latitude: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    longitude: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
     )
 
     starts_at: Mapped[datetime] = mapped_column(

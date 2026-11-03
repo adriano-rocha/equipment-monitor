@@ -17,23 +17,24 @@ class SqlAlchemyEventRepository(EventRepository):
         self._session = session
 
     def add(self, event: Event) -> None:
+        # ✅ Adicionados latitude, longitude e geofence_radius
         model = EventModel(
-        id=event.id,
-        name=event.name,
-        location=event.location,
-        starts_at=event.starts_at,
-        ends_at=event.ends_at,
-        is_active=event.is_active,
-    )
+            id=event.id,
+            name=event.name,
+            location=event.location,
+            starts_at=event.starts_at,
+            ends_at=event.ends_at,
+            is_active=event.is_active,
+            latitude=getattr(event, "latitude", None),
+            longitude=getattr(event, "longitude", None),
+            geofence_radius=getattr(event, "geofence_radius", 250.0),
+        )
 
         self._session.add(model)
         self._session.flush()
 
         event.created_at = model.created_at
         event.updated_at = model.updated_at
-
-        # O banco gera created_at/updated_at através de server_default.
-        # O refresh ocorre após o flush/commit da sessão.
 
     def get_by_id(self, event_id: UUID) -> Event | None:
         model = self._session.get(EventModel, event_id)
@@ -58,6 +59,10 @@ class SqlAlchemyEventRepository(EventRepository):
         model.starts_at = event.starts_at
         model.ends_at = event.ends_at
         model.is_active = event.is_active
+        # ✅ Atualizando as coordenadas e o raio também na edição:
+        model.latitude = getattr(event, "latitude", None)
+        model.longitude = getattr(event, "longitude", None)
+        model.geofence_radius = getattr(event, "geofence_radius", 250.0)
 
     def list_by_period(
         self,
@@ -83,6 +88,7 @@ class SqlAlchemyEventRepository(EventRepository):
 
     @staticmethod
     def _to_domain(model: EventModel) -> Event:
+        # ✅ Repassando para a entidade de Domínio
         return Event(
             id=model.id,
             name=model.name,
@@ -90,6 +96,9 @@ class SqlAlchemyEventRepository(EventRepository):
             starts_at=model.starts_at,
             ends_at=model.ends_at,
             is_active=model.is_active,
+            latitude=model.latitude,
+            longitude=model.longitude,
+            geofence_radius=model.geofence_radius,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

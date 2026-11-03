@@ -1,14 +1,14 @@
-"""Rotas de eventos da Fase 06."""
+"""Rotas de eventos da Fase 06 com suporte à Cerca Virtual e Coordenadas."""
 
 from datetime import datetime
 from uuid import UUID
-
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.application.exceptions import EventNotFoundError
 from app.application.services.event_service import EventService
+from app.infrastructure.db.models.event_model import EventModel
 from app.infrastructure.db.repositories.sqlalchemy_event_repository import (
     SqlAlchemyEventRepository,
 )
@@ -37,18 +37,48 @@ def create_event(
 ) -> EventResponse:
     service = _get_event_service(session)
 
-    event = service.create(
-        name=payload.name,
-        location=payload.location,
-        starts_at=payload.starts_at,
-        ends_at=payload.ends_at,
-        is_active=payload.is_active,
-    )
+    # 1. Tenta criar pelo serviço passando as coordenadas
+    try:
+        event = service.create(
+            name=payload.name,
+            location=payload.location,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            is_active=payload.is_active,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            geofence_radius=payload.geofence_radius,
+        )
+    except TypeError:
+        # Se a assinatura do service for legada, cria e atualiza diretamente no modelo
+        event = service.create(
+            name=payload.name,
+            location=payload.location,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            is_active=payload.is_active,
+        )
+
+    # 2. Garante a persistência de latitude, longitude e geofence_radius no banco
+    db_event = session.query(EventModel).filter_by(id=event.id).first()
+    if db_event:
+        if payload.latitude is not None:
+            db_event.latitude = payload.latitude
+        if payload.longitude is not None:
+            db_event.longitude = payload.longitude
+        if payload.geofence_radius is not None:
+            db_event.geofence_radius = payload.geofence_radius
+        session.commit()
+        session.refresh(db_event)
+        event = db_event
 
     return EventResponse(
         id=event.id,
         name=event.name,
         location=event.location,
+        latitude=getattr(event, "latitude", None),
+        longitude=getattr(event, "longitude", None),
+        geofence_radius=getattr(event, "geofence_radius", 250.0) or 250.0,
         starts_at=event.starts_at,
         ends_at=event.ends_at,
         is_active=event.is_active,
@@ -64,6 +94,7 @@ def list_events(
     is_active: bool | None = Query(default=None),
     session: Session = Depends(get_db_session),
 ) -> list[EventResponse]:
+    print("🔥 >>> O LIST_EVENTS DO ARQUIVO CERTO FOI CHAMADO! <<< 🔥")
     service = _get_event_service(session)
 
     events = service.list_by_period(
@@ -77,6 +108,9 @@ def list_events(
             id=event.id,
             name=event.name,
             location=event.location,
+            latitude=getattr(event, "latitude", None),
+            longitude=getattr(event, "longitude", None),
+            geofence_radius=getattr(event, "geofence_radius", 250.0) or 250.0,
             starts_at=event.starts_at,
             ends_at=event.ends_at,
             is_active=event.is_active,
@@ -102,6 +136,9 @@ def get_event(
         id=event.id,
         name=event.name,
         location=event.location,
+        latitude=getattr(event, "latitude", None),
+        longitude=getattr(event, "longitude", None),
+        geofence_radius=getattr(event, "geofence_radius", 250.0) or 250.0,
         starts_at=event.starts_at,
         ends_at=event.ends_at,
         is_active=event.is_active,
@@ -118,25 +155,54 @@ def update_event(
 ) -> EventResponse:
     service = _get_event_service(session)
 
-    event = service.update(
-        event_id=event_id,
-        name=payload.name,
-        location=payload.location,
-        starts_at=payload.starts_at,
-        ends_at=payload.ends_at,
-        is_active=payload.is_active,
-    )
+    try:
+        event = service.update(
+            event_id=event_id,
+            name=payload.name,
+            location=payload.location,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            is_active=payload.is_active,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            geofence_radius=payload.geofence_radius,
+        )
+    except TypeError:
+        event = service.update(
+            event_id=event_id,
+            name=payload.name,
+            location=payload.location,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            is_active=payload.is_active,
+        )
+
+    db_event = session.query(EventModel).filter_by(id=event_id).first()
+    if db_event:
+        if payload.latitude is not None:
+            db_event.latitude = payload.latitude
+        if payload.longitude is not None:
+            db_event.longitude = payload.longitude
+        if payload.geofence_radius is not None:
+            db_event.geofence_radius = payload.geofence_radius
+        session.commit()
+        session.refresh(db_event)
+        event = db_event
 
     return EventResponse(
         id=event.id,
         name=event.name,
         location=event.location,
+        latitude=getattr(event, "latitude", None),
+        longitude=getattr(event, "longitude", None),
+        geofence_radius=getattr(event, "geofence_radius", 250.0) or 250.0,
         starts_at=event.starts_at,
         ends_at=event.ends_at,
         is_active=event.is_active,
         created_at=event.created_at,
         updated_at=event.updated_at,
     )
+
 
 @router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_event(

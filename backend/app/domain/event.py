@@ -17,6 +17,10 @@ class Event:
     starts_at: datetime
     ends_at: datetime
     is_active: bool = False
+    # 👉 Adicionando os atributos de Cerca Virtual e Coordenadas
+    latitude: float | None = None
+    longitude: float | None = None
+    geofence_radius: float | None = 250.0
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
