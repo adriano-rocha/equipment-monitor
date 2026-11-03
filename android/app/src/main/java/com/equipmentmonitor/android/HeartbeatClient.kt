@@ -14,10 +14,22 @@ class HeartbeatClient {
         if (baseUrl.isBlank()) return Result.failure(IllegalArgumentException("Backend URL não configurada"))
 
         val url = URL("$baseUrl/api/v1/heartbeats")
+
+        // 👉 Lê o GPS atual
+        val location = provider.lastLocation()
+
         val payload = JSONObject().apply {
             put("hostname", provider.hostname())
             provider.reportedIp()?.let { put("reported_ip", it) }
             provider.batteryLevel()?.let { put("battery_level", it) }
+
+            // 👉 Envia as coordenadas para a Cerca Virtual
+            location?.let {
+                put("latitude", it.latitude)
+                put("longitude", it.longitude)
+                it.speedKmh?.let { speed -> put("speed_kmh", speed) }
+            }
+
             put("metadata", JSONObject(provider.metadata()))
             put("device_timestamp", provider.deviceTimestamp())
         }.toString()

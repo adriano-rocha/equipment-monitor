@@ -53,6 +53,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
   const [realtimeLocations, setRealtimeLocations] = useState({});
 
   const [searchTerm, setSearchTerm] = useState("");
+  // 'all', 'online', 'warning', 'offline', 'alert', 'low_battery'
   const [statusFilter, setStatusFilter] = useState("all");
   const alertedRowRef = useRef(null);
 
@@ -209,6 +210,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
         location_point: ed.location_point,
         latitude: dev?.latitude,
         longitude: dev?.longitude,
+        battery_level: dev?.battery_level,
       };
     });
   }, [eventDevices, deviceMap]);
@@ -263,11 +265,13 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
     [focusTarget]
   );
 
+  // Contadores dinâmicos de status incluindo Bateria Baixa/Crítica
   const statusCounts = useMemo(() => {
     let online = 0;
     let warning = 0;
     let offline = 0;
     let alertCount = 0;
+    let lowBatteryCount = 0;
 
     for (const ed of eventDevices) {
       if (ed.unassigned_at || ed.is_active === false) continue;
@@ -279,6 +283,10 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
       if (st === "online") online++;
       else if (st === "offline") offline++;
       else warning++;
+
+      if (typeof dev?.battery_level === "number" && dev.battery_level <= 20) {
+        lowBatteryCount++;
+      }
     }
 
     return {
@@ -287,6 +295,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
       warning,
       offline,
       alert: alertCount,
+      lowBattery: lowBatteryCount,
     };
   }, [eventDevices, deviceMap, activeEventDevicesCount, checkIsAlerted]);
 
@@ -304,11 +313,19 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
       const isAlerted = checkIsAlerted(ed, dev);
       const st = String(dev?.status || "online").toLowerCase();
 
+      // Filtros de Status
       if (statusFilter === "online" && st !== "online") continue;
       if (statusFilter === "offline" && st !== "offline") continue;
       if (statusFilter === "warning" && (st === "online" || st === "offline")) continue;
       if (statusFilter === "alert" && !isAlerted) continue;
+      if (
+        statusFilter === "low_battery" &&
+        !(typeof dev?.battery_level === "number" && dev.battery_level <= 20)
+      ) {
+        continue;
+      }
 
+      // Filtro por Texto de Busca
       if (term) {
         const matchesPoint = point.toLowerCase().includes(term);
         const matchesAsset = String(dev?.asset_number ?? "").toLowerCase().includes(term);
@@ -528,6 +545,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                   gap: "0.75rem",
                 }}
               >
+                {/* Campo de Busca */}
                 <div
                   style={{
                     position: "relative",
@@ -588,6 +606,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                   )}
                 </div>
 
+                {/* Botões de Filtro por Status (Com Bateria Baixa) */}
                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                   <button
                     type="button"
@@ -661,6 +680,27 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                     Offline ({statusCounts.offline})
                   </button>
 
+                  {/* NOVO FILTRO DE BATERIA */}
+                  {statusCounts.lowBattery > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter("low_battery")}
+                      style={{
+                        padding: "0.45rem 0.85rem",
+                        borderRadius: "6px",
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        border: statusFilter === "low_battery" ? "1px solid #f97316" : "1px solid #334155",
+                        background: statusFilter === "low_battery" ? "rgba(249, 115, 22, 0.2)" : "#0f172a",
+                        color: statusFilter === "low_battery" ? "#f97316" : "#cbd5e1",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      🪫 Bateria Baixa ({statusCounts.lowBattery})
+                    </button>
+                  )}
+
                   {statusCounts.alert > 0 && (
                     <button
                       type="button"
@@ -687,7 +727,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginTop: "0.5rem" }}>
                   <p style={{ fontSize: "0.82rem", color: "#94a3b8", margin: 0 }}>
                     Mostrando {totalFilteredDevices} de {activeEventDevicesCount} aparelhos
-                    {statusFilter !== "all" && <span> com filtro de status ativo</span>}
+                    {statusFilter !== "all" && <span> com filtro ativo</span>}
                     {searchTerm && <span> para "<strong style={{ color: "#38bdf8" }}>{searchTerm}</strong>"</span>}.
                   </p>
                   <button
@@ -808,6 +848,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                         <tr>
                           <th>Patrimônio</th>
                           <th>Tipo</th>
+                          <th>Bateria</th>
                           <th>Status de Comunicação</th>
                           <th>Último Contato</th>
                           <th>Ações</th>
@@ -874,6 +915,33 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                               <td style={{ textTransform: "capitalize" }}>
                                 {dev?.device_type ?? "Smartphone"}
                               </td>
+
+                              {/* COLUNA DE BATERIA */}
+                              <td>
+                                {typeof dev?.battery_level === "number" ? (
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "0.3rem",
+                                      color:
+                                        dev.battery_level <= 15
+                                          ? "#ef4444"
+                                          : dev.battery_level <= 30
+                                          ? "#f59e0b"
+                                          : "#34d399",
+                                      fontWeight:
+                                        dev.battery_level <= 20 ? 700 : 500,
+                                    }}
+                                  >
+                                    {dev.battery_level <= 15 ? "🪫" : "🔋"}
+                                    {dev.battery_level}%
+                                  </span>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+
                               <td>
                                 <StatusBadge
                                   status={dev?.status ?? STATUS.ONLINE}
