@@ -5,12 +5,15 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Obrigatório para Android 14+ em qualquer fabricante -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- 👉 PERMISSÕES DE GPS E LOCALIZAÇÃO ADICIONADAS -->
+    <!-- Permissões de GPS e Fundo Universais -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:allowBackup="false"
@@ -21,7 +24,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- Módulo de scanner do Google Play Services -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="barcode_ui" />
@@ -35,11 +37,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Serviço com suporte duplo (dados + localização) -->
         <service
             android:name=".HeartbeatService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync|location" />
 
         <receiver
             android:name=".BootReceiver"

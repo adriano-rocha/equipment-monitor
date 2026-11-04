@@ -35,7 +35,10 @@ class DeviceRepository(ABC):
         """Adiciona um novo Device. Executa flush sem commit."""
 
     @abstractmethod
-    def get_by_asset_number(self, asset_number: str) -> Device | None:
-        """Busca um Device pelo patrimônio exato."""  
+    def get_by_asset_number(
+        self, asset_number: str, include_deleted: bool = False
+    ) -> Device | None:
+        """Busca um dispositivo pelo número de patrimônio."""
+        ...
 
       

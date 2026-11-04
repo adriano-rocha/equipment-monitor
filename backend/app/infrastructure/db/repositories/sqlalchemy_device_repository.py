@@ -94,15 +94,16 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
             ) from exc
         return device
 
-    def get_by_asset_number(self, asset_number: str) -> Device | None:
-     model = (
-         self._session.query(DeviceModel)
-         .filter(
-             DeviceModel.asset_number == asset_number,
-             DeviceModel.deleted_at.is_(None),
-         )
-         .first()
-     )
-     if model is None:
-         return None
-     return self._to_domain(model)
+    def get_by_asset_number(
+        self, asset_number: str, include_deleted: bool = False
+    ) -> Device | None:
+        query = self._session.query(DeviceModel).filter(
+            DeviceModel.asset_number == asset_number
+        )
+        if not include_deleted:
+            query = query.filter(DeviceModel.deleted_at.is_(None))
+
+        model = query.first()
+        if model is None:
+            return None
+        return self._to_domain(model)

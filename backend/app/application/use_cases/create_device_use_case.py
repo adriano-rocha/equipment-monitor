@@ -1,8 +1,8 @@
 """Caso de uso: CreateDeviceUseCase.
 
-Cadastra um novo equipamento e gera atômica e simultaneamente sua
-credencial DeviceKey (ADR-006). O secret é retornado em claro apenas no
-output deste use case. O banco guarda exclusivamente o hash Argon2.
+Cadastra um novo equipamento ou reativa inteligentemente um patrimônio excluído,
+gerando atômica e simultaneamente sua credencial DeviceKey (ADR-006). O secret é
+retornado em claro apenas no output deste use case. O banco guarda exclusivamente o hash Argon2.
 """
 
 from dataclasses import dataclass
@@ -46,14 +46,47 @@ class CreateDeviceUseCase:
         self._hasher = password_hasher or PasswordHasher()
 
     def execute(self, input_data: CreateDeviceInput) -> CreateDeviceOutput:
-        # 1. Validação prévia de duplicidade de patrimônio
-        existing = self._device_repo.get_by_asset_number(input_data.asset_number)
-        if existing is not None:
+        # 1. Busca por patrimônio existente (inclusive os soft-deleted)
+        existing = self._device_repo.get_by_asset_number(
+            input_data.asset_number, include_deleted=True
+        )
+
+        # Se já existe e está ATIVO no inventário -> Conflito 409 legítimo
+        if existing is not None and existing.deleted_at is None:
             raise DeviceAlreadyExistsError(
                 f"Equipamento com patrimônio '{input_data.asset_number}' já cadastrado."
             )
 
-        # 2. Criação da entidade de domínio Device
+        # Se já existia mas estava EXCLUÍDO -> Reativação Inteligente (Undelete)
+        if existing is not None and existing.deleted_at is not None:
+            existing.deleted_at = None
+            existing.device_type = input_data.device_type
+            existing.manufacturer = input_data.manufacturer
+            existing.model = input_data.model
+            existing.serial_number = input_data.serial_number
+            self._device_repo.update(existing)
+
+            # Gera nova credencial ativa para o aparelho reativado
+            key_id = f"key_{secrets.token_hex(4)}"
+            secret = f"sec_{secrets.token_hex(8)}"
+            secret_hash = self._hasher.hash(secret)
+
+            credential = DeviceCredential(
+                id=uuid.uuid4(),
+                device_id=existing.id,
+                key_id=key_id,
+                secret_hash=secret_hash,
+                status=DeviceCredentialStatus.ACTIVE,
+            )
+            self._credential_repo.add(credential)
+
+            return CreateDeviceOutput(
+                device=existing,
+                key_id=key_id,
+                secret=secret,
+            )
+
+        # 2. Se o patrimônio é inédito -> Criação convencional do zero
         device_id = uuid.uuid4()
         device = Device(
             id=device_id,
@@ -64,7 +97,6 @@ class CreateDeviceUseCase:
             serial_number=input_data.serial_number,
         )
 
-        # 3. Geração aleatória e segura da credencial (secrets)
         key_id = f"key_{secrets.token_hex(4)}"
         secret = f"sec_{secrets.token_hex(8)}"
         secret_hash = self._hasher.hash(secret)
@@ -77,7 +109,6 @@ class CreateDeviceUseCase:
             status=DeviceCredentialStatus.ACTIVE,
         )
 
-        # 4. Persistência atômica via flush
         self._device_repo.add(device)
         self._credential_repo.add(credential)
 

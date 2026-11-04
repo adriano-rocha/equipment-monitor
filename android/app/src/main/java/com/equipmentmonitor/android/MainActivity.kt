@@ -40,9 +40,9 @@ class MainActivity : Activity() {
         backendUrl.setText(config.backendUrl)
         keyId.setText(config.keyId)
 
-        requestNotificationPermission()
+        // 👉 Solicita Notificação + Localização Universal
+        requestUniversalPermissions()
 
-        // --- CLIQUE NO BOTÃO DE ESCANEAR QR CODE ---
         findViewById<Button>(R.id.scanButton).setOnClickListener {
             val options = GmsBarcodeScannerOptions.Builder()
                 .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
@@ -55,7 +55,6 @@ class MainActivity : Activity() {
                 .addOnSuccessListener { barcode ->
                     val rawValue = barcode.rawValue ?: return@addOnSuccessListener
                     try {
-                        // 1. Tenta ler se o QR Code estiver em formato JSON
                         if (rawValue.trim().startsWith("{")) {
                             val json = JSONObject(rawValue)
                             val url = json.optString("server_url", json.optString("url", ""))
@@ -65,9 +64,7 @@ class MainActivity : Activity() {
                             if (url.isNotBlank()) backendUrl.setText(url)
                             if (key.isNotBlank()) keyId.setText(key)
                             if (sec.isNotBlank()) secret.setText(sec)
-                        }
-                        // 2. Tenta ler se o QR Code for link URI (asaph:// ou http)
-                        else if (rawValue.contains("://")) {
+                        } else if (rawValue.contains("://")) {
                             val uri = Uri.parse(rawValue)
                             val url = uri.getQueryParameter("url")
                             val key = uri.getQueryParameter("key")
@@ -121,7 +118,6 @@ class MainActivity : Activity() {
             updateStatusDisplay("Monitoramento ativo")
         }
 
-        // --- BOTÃO PARAR PROTEGIDO POR PIN DO COORDENADOR ---
         findViewById<Button>(R.id.stopButton).setOnClickListener {
             showCoordinatorPinDialog()
         }
@@ -146,17 +142,26 @@ class MainActivity : Activity() {
         statusText.text = "Status: $status"
     }
 
-    private fun requestNotificationPermission() {
+    // Solicita todas as permissões necessárias para qualquer fabricante de smartphone
+    private fun requestUniversalPermissions() {
+        val permissions = mutableListOf<String>()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+
+        if (permissions.isNotEmpty()) {
+            requestPermissions(permissions.toTypedArray(), 101)
         }
     }
 
-    /**
-     * Exibe o diálogo protegido por PIN para impedir desligamento indevido ou acidental em campo.
-     */
     private fun showCoordinatorPinDialog() {
         val pinInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD

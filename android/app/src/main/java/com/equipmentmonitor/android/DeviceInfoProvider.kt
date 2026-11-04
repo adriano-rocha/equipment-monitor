@@ -21,6 +21,10 @@ data class GpsData(
 )
 
 class DeviceInfoProvider(private val context: Context) {
+    // Guarda a coordenada mais recente recebida pelo listener do serviço
+    @Volatile
+    var cachedRealLocation: Location? = null
+
     fun hostname(): String {
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
         val suffix = androidId?.takeLast(8)?.ifBlank { "unknown" } ?: "unknown"
@@ -43,7 +47,7 @@ class DeviceInfoProvider(private val context: Context) {
         return level.takeIf { it in 0..100 }
     }
 
-    // 👉 Leitura nativa da antena GPS e rede celular
+    // Leitura universal para qualquer fabricante (Samsung, Motorola, Xiaomi...)
     fun lastLocation(): GpsData? {
         val hasFine = ContextCompat.checkSelfPermission(
             context,
@@ -56,30 +60,34 @@ class DeviceInfoProvider(private val context: Context) {
 
         if (!hasFine && !hasCoarse) return null
 
-        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-            ?: return null
+        // 1. Se o serviço já capturou uma coordenada ao vivo, usa ela com prioridade
+        var bestLocation = cachedRealLocation
 
-        val providers = listOf(
-            LocationManager.GPS_PROVIDER,
-            LocationManager.NETWORK_PROVIDER,
-            LocationManager.PASSIVE_PROVIDER
-        )
+        // 2. Se ainda não capturou, busca nos provedores do hardware
+        if (bestLocation == null) {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            if (locationManager != null) {
+                val providers = listOf(
+                    LocationManager.GPS_PROVIDER,
+                    LocationManager.NETWORK_PROVIDER,
+                    LocationManager.PASSIVE_PROVIDER
+                )
 
-        var bestLocation: Location? = null
-        for (provider in providers) {
-            try {
-                if (!locationManager.isProviderEnabled(provider)) continue
-                val loc = locationManager.getLastKnownLocation(provider) ?: continue
-                if (bestLocation == null || loc.time > bestLocation.time) {
-                    bestLocation = loc
+                for (provider in providers) {
+                    try {
+                        if (!locationManager.isProviderEnabled(provider)) continue
+                        val loc = locationManager.getLastKnownLocation(provider) ?: continue
+                        if (bestLocation == null || loc.time > bestLocation.time) {
+                            bestLocation = loc
+                        }
+                    } catch (_: SecurityException) {
+                    }
                 }
-            } catch (_: SecurityException) {
             }
         }
 
         return bestLocation?.let {
             val speed = if (it.hasSpeed() && it.speed > 0) {
-                // Converte m/s para km/h
                 it.speed * 3.6
             } else null
 
