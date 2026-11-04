@@ -27,57 +27,59 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return Math.round(R * c);
 }
 
-// Ícone: Base / QG Central do Evento
+// 1. Ícone: Base / QG Central do Evento
 const baseIcon = L.divIcon({
   className: "custom-base-pin",
   html: `
     <div style="
       background: #0284c7;
       color: white;
-      width: 34px;
-      height: 34px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      font-size: 15px;
       border: 2px solid #ffffff;
-      box-shadow: 0 0 12px rgba(2, 132, 199, 0.9);
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.8);
       cursor: pointer;
     ">🏢</div>
   `,
-  iconSize: [34, 34],
-  iconAnchor: [17, 17],
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
 });
 
-// Ícone: Normal (Dentro do Perímetro Autorizado)
-const normalDeviceIcon = (label) =>
+// 2. Ícone Tático Compacto (Dentro do Perímetro / Normal)
+// Círculo discreto de 22px para evitar poluição visual em pavilhões com 40-50 aparelhos
+const normalTacticalIcon = () =>
   L.divIcon({
-    className: "custom-device-pin",
+    className: "custom-tactical-pin",
     html: `
       <div style="
         background: #059669;
-        color: white;
-        padding: 4px 9px;
-        border-radius: 14px;
-        font-weight: 700;
-        font-size: 11px;
+        color: #ffffff;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
-        gap: 5px;
+        justify-content: center;
+        font-size: 11px;
         border: 2px solid #ffffff;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
         cursor: pointer;
-      ">
-        📱 ${label}
+        transition: transform 0.15s ease-in-out;
+      " onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'">
+        📱
       </div>
     `,
-    iconSize: [85, 26],
-    iconAnchor: [42, 13],
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
   });
 
-// Ícone: Em Alerta (Fora da Cerca ou Evasão Rápida)
+// 3. Ícone de Alerta Máximo (Rompimento de Cerca ou Fuga em Andamento)
+// Pílula expandida vermelha pulsante com máxima visibilidade
 const alertDeviceIcon = (label) =>
   L.divIcon({
     className: "custom-alert-pin",
@@ -85,24 +87,24 @@ const alertDeviceIcon = (label) =>
       <div style="
         background: #dc2626;
         color: white;
-        padding: 5px 10px;
-        border-radius: 14px;
+        padding: 5px 11px;
+        border-radius: 16px;
         font-weight: 800;
         font-size: 11px;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
         border: 2px solid #fecaca;
-        box-shadow: 0 0 16px rgba(239, 68, 68, 1);
-        animation: pulse 1s infinite alternate;
+        box-shadow: 0 0 18px rgba(239, 68, 68, 1);
         white-space: nowrap;
         cursor: pointer;
+        animation: pulseDanger 1s infinite alternate;
       ">
         🚨 ${label}
       </div>
     `,
-    iconSize: [95, 26],
-    iconAnchor: [47, 13],
+    iconSize: [95, 28],
+    iconAnchor: [47, 14],
   });
 
 export function GeofenceMap({
@@ -175,8 +177,12 @@ export function GeofenceMap({
       </div>
     `);
 
-    // 2. Base Central do Evento
-    const baseMarker = L.marker([baseLat, baseLng], { icon: baseIcon }).addTo(layers);
+    // 2. Base Central do Evento (QG com zIndexOffset intermediário)
+    const baseMarker = L.marker([baseLat, baseLng], {
+      icon: baseIcon,
+      zIndexOffset: 500,
+    }).addTo(layers);
+
     baseMarker.bindPopup(`
       <div style="color: #0f172a; font-family: sans-serif; padding: 4px;">
         <strong style="color: #0284c7; font-size: 13px;">🏢 Base Operacional</strong><br/>
@@ -188,7 +194,7 @@ export function GeofenceMap({
     const bounds = L.latLngBounds([[baseLat, baseLng]]);
     bounds.extend(geofenceCircle.getBounds());
 
-    // 3. Pinos dos Dispositivos com Detecção de Posição Real
+    // 3. Pinos dos Dispositivos com Detecção de Posição Real e Priorização de z-Index
     devices.forEach((dev) => {
       const live = realtimeLocations[dev.id] || realtimeLocations[dev.device_id] || {};
 
@@ -199,44 +205,37 @@ export function GeofenceMap({
       const isAlert = Boolean(live.isAlert || isTarget);
       const label = dev.asset_number || "SIM-RASTREIO";
 
-      // Resolução inteligente da Latitude e Longitude
+      // Resolução de Coordenadas
       let lat = live.lat || dev.latitude;
       let lng = live.lng || dev.longitude;
 
-      // Se for alvo de alerta e não tiver coordenada local, busca do focusTarget
       if ((!lat || !lng) && isTarget && focusTarget) {
         lat = focusTarget.latitude;
         lng = focusTarget.longitude;
       }
 
-      // Se ainda não tiver coordenada e for alerta de teste, usa coordenada fora da cerca
       if ((!lat || !lng) && isAlert) {
         lat = -23.6560;
         lng = -46.6340;
       }
 
-      // Fallback final: centro da base
       lat = lat || baseLat;
       lng = lng || baseLng;
 
-      // Cálculo de Distância da Base
+      // Distância da Base
       let distance = live.distance || live.distance_m;
       if (!distance || distance === 0) {
         distance = getDistanceMeters(baseLat, baseLng, lat, lng);
       }
 
-      // Se ainda der 0 mas for alerta com texto explicativo
       if ((!distance || distance === 0) && isAlert) {
-        const distMatch = focusTarget?.message?.match(/([\d.]+)\s*m/i) ||
-                          window.__lastAlertMessage?.match(/([\d.]+)\s*m/i);
-        if (distMatch) {
-          distance = Math.round(parseFloat(distMatch[1]));
-        } else {
-          distance = 1044;
-        }
+        const distMatch =
+          focusTarget?.message?.match(/([\d.]+)\s*m/i) ||
+          window.__lastAlertMessage?.match(/([\d.]+)\s*m/i);
+        distance = distMatch ? Math.round(parseFloat(distMatch[1])) : 1044;
       }
 
-      // Resolução da Velocidade
+      // Velocidade
       let speed = live.speed || live.speed_kmh || focusTarget?.speed_kmh;
       if (!speed && focusTarget?.message) {
         const speedMatch = focusTarget.message.match(/([\d.]+)\s*km\/h/i);
@@ -246,12 +245,24 @@ export function GeofenceMap({
         speed = isAlert ? "68.0" : "3.0";
       }
 
-      const icon = isAlert ? alertDeviceIcon(label) : normalDeviceIcon(label);
-      const marker = L.marker([lat, lng], { icon }).addTo(layers);
+      // Seleção de Ícone e Prioridade de Camada (z-index)
+      // Dispositivos em alerta recebem zIndexOffset: 9999 (sempre no topo da visão)
+      const icon = isAlert ? alertDeviceIcon(label) : normalTacticalIcon();
+      const marker = L.marker([lat, lng], {
+        icon,
+        zIndexOffset: isAlert ? 9999 : 100,
+      }).addTo(layers);
 
       bounds.extend([lat, lng]);
 
-      // Traça linha pontilhada vermelha da base até a posição externa
+      // Tooltip flutuante rápido no hover (útil para inspeção rápida de múltiplos aparelhos)
+      marker.bindTooltip(`📱 <b>${label}</b> (${dev.location_point || 'Posto'})`, {
+        direction: "top",
+        offset: [0, -10],
+        opacity: 0.9,
+      });
+
+      // Traça linha pontilhada vermelha da base até a posição externa de fuga
       if (isAlert && (lat !== baseLat || lng !== baseLng)) {
         L.polyline([[baseLat, baseLng], [lat, lng]], {
           color: "#ef4444",
@@ -260,16 +271,16 @@ export function GeofenceMap({
         }).addTo(layers);
       }
 
-      // Conteúdo Completo do Popup
+      // Popup Completo de Auditoria Tática
       marker.bindPopup(`
         <div style="color: #0f172a; font-family: sans-serif; min-width: 190px; padding: 4px;">
           <div style="font-size: 13px; font-weight: 800; color: ${isAlert ? '#dc2626' : '#059669'}; margin-bottom: 6px;">
-            ${isAlert ? '🚨 ALERTA: ROMPIMENTO' : '📱 ' + label}
+            ${isAlert ? '🚨 ALERTA: ROMPIMENTO DE CERCA' : '📱 ' + label}
           </div>
           <div style="font-size: 12px; line-height: 1.5;">
             <b>Patrimônio:</b> ${label}<br/>
             <b>Tipo:</b> ${dev.device_type || 'Smartphone'}<br/>
-            <b>Posto:</b> ${dev.location_point || 'Entrada'}<br/>
+            <b>Posto:</b> ${dev.location_point || 'Não atribuído'}<br/>
             <b>Distância da Base:</b> <span style="color: ${distance > radius ? '#dc2626' : '#059669'}; font-weight: bold;">${distance}m</span><br/>
             <b>Velocidade:</b> <b>${speed} km/h</b><br/>
             <b>Status:</b> ${isAlert ? '<span style="color: #dc2626; font-weight: bold;">FORA DO PERÍMETRO</span>' : '<span style="color: #059669; font-weight: bold;">SEGURO</span>'}
@@ -287,16 +298,26 @@ export function GeofenceMap({
 
   return (
     <div style={{ position: "relative", width: "100%", height: "420px", borderRadius: "8px", overflow: "hidden", border: "1px solid #334155" }}>
-      {/* Filtro Dark Mode para OpenStreetMap */}
+      {/* Estilos dinâmicos para tiles escuros e animação de pulso do alerta */}
       <style>{`
         .asaph-dark-tiles {
           filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.25) brightness(0.7) !important;
+        }
+        @keyframes pulseDanger {
+          0% {
+            transform: scale(0.96);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+          }
+          100% {
+            transform: scale(1.06);
+            box-shadow: 0 0 22px rgba(239, 68, 68, 1);
+          }
         }
       `}</style>
 
       <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
-      {/* Legenda Operacional */}
+      {/* Legenda Operacional Compacta */}
       <div style={{
         position: "absolute",
         bottom: "12px",
@@ -317,7 +338,10 @@ export function GeofenceMap({
           <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#10b981" }}></span> Cerca Ativa ({radius}m)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444" }}></span> Rompimento / Fuga
+          <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#059669", border: "1px solid #ffffff" }}></span> Pinos Táticos (Seguros)
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444" }}></span> Rompimento / Fuga (Prioridade)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#0284c7" }}></span> Base do Evento
