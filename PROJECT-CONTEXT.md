@@ -245,7 +245,7 @@ A existência do campo `role` não comprova, isoladamente, que todas as regras d
 | 03 — Windows Agent                        | Cliente de monitoramento para Windows                                        | **CONCLUÍDA E HOMOLOGADA EM NOTEBOOK REAL. Executável portátil autônomo (`asaph-agent.exe`) com `--noconsole`, `agent.toml` automático e boot via `shell:startup`.** |
 | 04 — Dashboard                            | React/Vite, consumo da API, listagem, status, busca, filtros e WebSocket     | **CONCLUÍDA E HOMOLOGADA EM PRODUÇÃO (Vercel). Modularizado em componentes limpos, com WebSocket em tempo real, paginação, filtros e banner de bateria crítica.**     |
 | 05 — Realtime + Telegram                  | WebSocket, detecção de mudança de status e alertas Telegram                  | **CONCLUÍDA E HOMOLOGADA. WebSocket nativo e bot Telegram (`🔔 Asaph-track`) com horário de Brasília (UTC-3) disparando notificações em tempo real.**             |
-| 06 — Eventos + Responsáveis               | CRUD de eventos e associação equipamento↔evento↔posto↔responsável            | **CONCLUÍDA E HOMOLOGADA. Gestão completa de eventos, postos físicos (`location_point`), movimentação e substituição operacional (Swap) com histórico de auditoria.**|
+| 06 — Eventos + Responsáveis               | CRUD de eventos e associação equipamento↔evento↔posto↔responsável            | **CONCLUÍDA E HOMOLOGADA. Gestão de eventos, postos físicos (`location_point`), Swap de emergência, Cerca Eletrônica (Geofence Haversine 250m) e visualização de pinos táticos com prioridade de z-index.**|
 | 07 — Android                              | App Kotlin utilizando a mesma plataforma/backend                             | **CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL. App Kotlin nativo com scanner de QR Code (ML Kit), Foreground Service e parada protegida por PIN do coordenador (`2026`).**|
 | 08 — Android Recovery / Google Management | Validação de recursos de recuperação/gestão Google                           | **Validação básica de localização via Google/Maps realizada. Recursos corporativos avançados documentados para expansão futura.**                                   |
 | 09 — Segurança Dell                       | BIOS/TPM/BitLocker/Secure Boot e matriz de compatibilidade                   | **Documentação/revisão registrada. Validação física específica em hardware Dell permanece para a fase corporativa pós-MVP por falta de equipamento disponível.**   |
@@ -786,6 +786,10 @@ O Dashboard possui implementação para:
 * envio do token Bearer nas requisições autenticadas;
 * tratamento de sessão expirada;
 * logout no Dashboard.
+* mapa interativo Leaflet com Cerca Virtual (fórmula Haversine com raio padrão de 250m);
+* pinos táticos compactos (22px) anti-sobreposição para alta densidade e destaque de alerta com zIndexOffset 9999;
+* modularização desacoplada de modais e componentes em EventsView;
+* coluna e filtro visual de bateria baixa por posto operacional.
 
 A implementação dessas funcionalidades não significa que a implantação remota esteja validada.
 
@@ -1036,9 +1040,9 @@ Fatiamento vertical priorizado:
 1. [CONCLUÍDO] SPEC-010: Especificação do CRUD de Equipamentos e Credencial.
 2. [CONCLUÍDO] Etapa 1: POST /api/v1/devices com emissão única de credencial Argon2, QR Code dinâmico e modal no Dashboard.
 3. [CONCLUÍDO] Etapa 2: PATCH e DELETE /api/v1/devices/{device_id} (soft-delete / revogação imediata).
-4. [CONCLUÍDO] Etapa 3: SPEC-006 refinada — Eventos, pontos no evento (`location_point`), responsáveis e substituição operacional (Swap).
-5. [CONCLUÍDO] Etapa 4: Alertas operacionais — Banner fixo para bateria ≤ 10% e notificações automáticas no Telegram.
-6. [CONCLUÍDO] Etapa 5: Validação ponta a ponta, testes de regressão (T012), 57 testes pytest verdes e deploy final homologado em nuvem.
+4. [CONCLUÍDO] Etapa 3: SPEC-006 refinada — Eventos, postos (`location_point`), responsáveis e Swap operacional.
+5. [CONCLUÍDO] Etapa 4: Cerca eletrônica Geofence (Haversine 250m), pinos táticos z-index e alertas Telegram/Dashboard.
+6. [CONCLUÍDO] Etapa 5: Validação ponta a ponta, 57 testes pytest aprovados e build de produção Vite verificado.
 
 Fora do escopo do MVP:
 * Hardware Tracker (Fase 10).
@@ -1060,12 +1064,12 @@ Fora do escopo do MVP:
 * **Fase 03 — Windows Agent:** CONCLUÍDA E HOMOLOGADA EM NOTEBOOK REAL (`asaph-agent.exe` com `--noconsole`).
 * **Fase 04 — Dashboard:** CONCLUÍDA E EM PRODUÇÃO (Vercel com WebSocket em tempo real).
 * **Fase 05 — Realtime + Telegram:** CONCLUÍDA E HOMOLOGADA (`🔔 Asaph-track`, UTC-3).
-* **Fase 06 — Eventos + Responsáveis:** CONCLUÍDA E HOMOLOGADA (Postos físicos e Swap operacional).
+* **Fase 06 — Eventos + Responsáveis:** CONCLUÍDA E HOMOLOGADA (Postos físicos, Swap operacional, Cerca Haversine e Pinos Táticos).
 * **Fase 07 — Android:** CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL (QR Code e PIN de segurança `2026`).
 * **Fase 08 — Android Recovery / Google Management:** Validação básica realizada.
 * **Fase 09 — Segurança Dell:** Documentação registrada; validação física Dell reservada para fase corporativa.
 * **Fase 10 — Hardware Tracker:** Bloqueada até aprovação explícita do cliente.
-* **Fase 11 — Fechamento do MVP:** CONCLUÍDA COM 100% DE APROVEITAMENTO.
+* **Fase 11 — Fechamento do MVP:** CONCLUÍDA COM 100% DE APROVEITAMENTO (57 testes verdes, deploy em nuvem e build de produção verificado).
 
 ## Fluxo funcional esperado
 
