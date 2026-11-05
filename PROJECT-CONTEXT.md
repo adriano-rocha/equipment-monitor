@@ -1065,7 +1065,7 @@ Fora do escopo do MVP:
 * **Fase 04 — Dashboard:** CONCLUÍDA E EM PRODUÇÃO (Vercel com WebSocket em tempo real).
 * **Fase 05 — Realtime + Telegram:** CONCLUÍDA E HOMOLOGADA (`🔔 Asaph-track`, UTC-3).
 * **Fase 06 — Eventos + Responsáveis:** CONCLUÍDA E HOMOLOGADA (Postos físicos, Swap operacional, Cerca Haversine e Pinos Táticos).
-* **Fase 07 — Android:** CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL (QR Code e PIN de segurança `2026`).
+* **Fase 07 — Android:** CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL (QR Code e PIN de segurança `******`).
 * **Fase 08 — Android Recovery / Google Management:** Validação básica realizada.
 * **Fase 09 — Segurança Dell:** Documentação registrada; validação física Dell reservada para fase corporativa.
 * **Fase 10 — Hardware Tracker:** Bloqueada até aprovação explícita do cliente.
