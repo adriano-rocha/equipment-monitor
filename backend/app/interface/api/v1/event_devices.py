@@ -6,6 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.application.services.event_device_service import EventDeviceService
+from app.application.use_cases.swap_event_device_use_case import (
+    SwapEventDeviceInput,
+    SwapEventDeviceUseCase,
+)
 from app.infrastructure.db.repositories.sqlalchemy_device_repository import (
     SqlAlchemyDeviceRepository,
 )
@@ -42,7 +46,13 @@ def _get_event_device_service(session: Session) -> EventDeviceService:
 
 
 def _to_response(event_device) -> EventDeviceResponse:
-    """Converte a entidade de domínio para o schema HTTP."""
+    """Converte a entidade de domínio ou modelo ORM para o schema HTTP."""
+    is_active = (
+        getattr(event_device, "is_active", None)
+        if getattr(event_device, "is_active", None) is not None
+        else (event_device.unassigned_at is None)
+    )
+
     return EventDeviceResponse(
         id=event_device.id,
         event_id=event_device.event_id,
@@ -51,9 +61,9 @@ def _to_response(event_device) -> EventDeviceResponse:
         assigned_user_id=event_device.assigned_user_id,
         assigned_at=event_device.assigned_at,
         unassigned_at=event_device.unassigned_at,
-        created_at=event_device.created_at,
-        updated_at=event_device.updated_at,
-        is_active=event_device.is_active,
+        created_at=getattr(event_device, "created_at", None),
+        updated_at=getattr(event_device, "updated_at", None),
+        is_active=is_active,
     )
 
 
@@ -77,6 +87,7 @@ def add_device_to_event(
         assigned_user_id=payload.assigned_user_id,
     )
 
+    session.commit()
     return _to_response(event_device)
 
 
@@ -114,7 +125,7 @@ def list_device_events(
 
 
 # ============================================================================
-# ROTA DE SUBSTITUIÇÃO (SWAP)
+# ROTA DE SUBSTITUIÇÃO (SWAP ATÔMICO VIA CASO DE USO DEDICADO)
 # ============================================================================
 @router.post(
     "/events/{event_id}/swap-device",
@@ -127,38 +138,32 @@ def swap_device_in_event(
     session: Session = Depends(get_db_session),
 ) -> EventDeviceResponse:
     """
-    Substitui um equipamento no mesmo ponto físico e responsável.
-    Desvincula o equipamento antigo e aloca o substituto no mesmo ponto.
+    Substitui um equipamento no mesmo posto de forma 100% atômica.
+    Desvincula o equipamento antigo, desassocia o novo de vínculos prévios
+    e aloca o substituto herdando o ponto e responsável em transação única.
     """
-    service = _get_event_device_service(session)
-
-    # 1. Localiza os equipamentos ativos do evento
-    active_devices = service.list_by_event(event_id, active_only=True)
-    current_assignment = next(
-        (ad for ad in active_devices if ad.device_id == payload.current_device_id),
-        None,
-    )
-
-    if not current_assignment:
+    use_case = SwapEventDeviceUseCase(session)
+    try:
+        new_assignment = use_case.execute(
+            SwapEventDeviceInput(
+                event_id=event_id,
+                current_device_id=payload.current_device_id,
+                new_device_id=payload.new_device_id,
+            )
+        )
+        session.commit()
+    except ValueError as exc:
+        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Equipamento de origem não está alocado ativamente neste evento.",
-        )
-
-    # Salva o ponto físico e o responsável para repassar ao novo aparelho
-    saved_point = current_assignment.location_point
-    saved_user = current_assignment.assigned_user_id
-
-    # 2. Desvincula o equipamento antigo
-    service.remove_device(event_id=event_id, device_id=payload.current_device_id)
-
-    # 3. Adiciona o novo equipamento no mesmo ponto físico e responsável
-    new_assignment = service.add_device(
-        event_id=event_id,
-        device_id=payload.new_device_id,
-        location_point=saved_point,
-        assigned_user_id=saved_user,
-    )
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erro ao realizar a substituição no ponto: {str(exc)}",
+        ) from exc
 
     return _to_response(new_assignment)
 
@@ -187,6 +192,7 @@ def update_device_in_event(
         clear_user=payload.clear_user,
     )
 
+    session.commit()
     return _to_response(event_device)
 
 
@@ -208,5 +214,4 @@ def remove_device_from_event(
     )
 
     session.commit()
-
     return _to_response(event_device)

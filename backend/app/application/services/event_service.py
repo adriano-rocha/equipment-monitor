@@ -20,6 +20,9 @@ class EventService:
         starts_at: datetime,
         ends_at: datetime,
         is_active: bool = False,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        geofence_radius: float | None = 250.0,
     ) -> Event:
         event = Event(
             id=uuid4(),
@@ -28,10 +31,12 @@ class EventService:
             starts_at=starts_at,
             ends_at=ends_at,
             is_active=is_active,
+            latitude=latitude,
+            longitude=longitude,
+            geofence_radius=geofence_radius,
         )
 
         self._event_repository.add(event)
-
         return event
 
     def get_by_id(self, event_id: UUID) -> Event | None:
@@ -62,6 +67,9 @@ class EventService:
         starts_at: datetime,
         ends_at: datetime,
         is_active: bool,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        geofence_radius: float | None = 250.0,
     ) -> Event:
         event = self._event_repository.get_by_id(event_id)
 
@@ -75,11 +83,15 @@ class EventService:
             starts_at=starts_at,
             ends_at=ends_at,
             is_active=is_active,
+            latitude=latitude,
+            longitude=longitude,
+            geofence_radius=geofence_radius,
             created_at=event.created_at,
             updated_at=event.updated_at,
         )
 
         self._event_repository.update(updated_event)
+        return updated_event
 
     def delete(self, event_id: UUID) -> None:
         self._event_repository.delete(event_id)

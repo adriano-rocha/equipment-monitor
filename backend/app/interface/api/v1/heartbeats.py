@@ -1,6 +1,9 @@
-"""Rota POST /api/v1/heartbeats (SPEC-001) com Cerca Virtual Dinâmica."""
+"""Rota POST /api/v1/heartbeats com Cerca Virtual Dinâmica e Conformidade LGPD."""
 
 from datetime import datetime, timezone
+import logging
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
@@ -31,7 +34,25 @@ from app.interface.api.v1.schemas.heartbeat_schema import (
 from app.interface.deps import get_current_device, get_db_session
 from app.interface.realtime.websocket_manager import websocket_manager
 
+logger = logging.getLogger("equipment_monitor.heartbeats")
 router = APIRouter()
+
+# Constantes de Negócio
+CRITICAL_BATTERY_THRESHOLD = 10.0
+HIGH_SPEED_THRESHOLD_KMH = 25.0
+
+# Controle em memória de estado para disparo por transição (Edge-Triggered)
+# Evita spam contínuo a cada 30s enquanto o aparelho permanecer na mesma condição
+_active_breaches: set[UUID] = set()
+_active_battery_alerts: set[UUID] = set()
+
+
+async def _safe_broadcast(message: dict) -> None:
+    """Envia mensagem WebSocket com captura de erro para não impactar o retorno HTTP."""
+    try:
+        await websocket_manager.broadcast(message)
+    except Exception as exc:
+        logger.warning("Falha no broadcast WebSocket: %s", exc)
 
 
 @router.post(
@@ -45,12 +66,16 @@ async def register_heartbeat(
     authenticated: AuthenticatedDevice = Depends(get_current_device),
     session: Session = Depends(get_db_session),
 ) -> HeartbeatResponse:
-    print(
-        f"\n🚨 [ROTA ACIONADA] Aparelho: {authenticated.device.asset_number} | "
-        f"Lat: {payload.latitude} | Lon: {payload.longitude} | Speed: {payload.speed_kmh} km/h",
-        flush=True,
+    device_id = authenticated.device.id
+
+    # 1. Registro em log estritamente anônimo e sem dados pessoais de geolocalização (LGPD)
+    logger.info(
+        "Heartbeat recebido para dispositivo: %s (IP: %s)",
+        device_id,
+        request.client.host if request.client else "unknown",
     )
 
+    # 2. Persistência da telemetria através do caso de uso
     use_case = RegisterHeartbeatUseCase(
         device_repository=SqlAlchemyDeviceRepository(session),
         credential_repository=SqlAlchemyDeviceCredentialRepository(session),
@@ -72,37 +97,39 @@ async def register_heartbeat(
     heartbeat = use_case.execute(command)
     session.commit()
 
-    # --- 1. REGRA DE BATERIA CRÍTICA (<= 10%) ---
-    if payload.battery_level is not None and payload.battery_level <= 10.0:
-        alert_service = AlertService(
-            websocket_manager=websocket_manager,
-            telegram_service=TelegramService(get_settings()),
-        )
-        await alert_service.trigger_battery_critical(
-            session=session,
-            device_id=authenticated.device.id,
-            asset_number=authenticated.device.asset_number,
-            battery_level=float(payload.battery_level),
-        )
+    # 3. Regra de Bateria Crítica com Deduplicação (Disparo único por transição)
+    if payload.battery_level is not None:
+        battery_val = float(payload.battery_level)
+        if battery_val <= CRITICAL_BATTERY_THRESHOLD:
+            if device_id not in _active_battery_alerts:
+                _active_battery_alerts.add(device_id)
+                alert_service = AlertService(
+                    websocket_manager=websocket_manager,
+                    telegram_service=TelegramService(get_settings()),
+                )
+                await alert_service.trigger_battery_critical(
+                    session=session,
+                    device_id=device_id,
+                    asset_number=authenticated.device.asset_number,
+                    battery_level=battery_val,
+                )
+        else:
+            # Bateria recuperada/recarregada acima do limite
+            _active_battery_alerts.discard(device_id)
 
-    # --- 2. REGRA DE CERCA VIRTUAL DINÂMICA VIA BANCO ---
+    # 4. Avaliação de Cerca Virtual Dinâmica com Deduplicação
     if payload.latitude is not None and payload.longitude is not None:
-        # Busca se o aparelho possui alocação ativa em algum evento
+        # Busca alocação ativa do dispositivo em eventos
         active_assignment = (
             session.query(EventDeviceModel)
             .filter(
-                EventDeviceModel.device_id == authenticated.device.id,
+                EventDeviceModel.device_id == device_id,
                 EventDeviceModel.unassigned_at.is_(None),
             )
             .first()
         )
 
-        if not active_assignment:
-            print(
-                f"ℹ️ [CERCA DINÂMICA] Dispositivo {authenticated.device.asset_number} não está alocado a nenhum evento ativo.",
-                flush=True,
-            )
-        else:
+        if active_assignment:
             event = (
                 session.query(EventModel)
                 .filter(
@@ -112,12 +139,7 @@ async def register_heartbeat(
                 .first()
             )
 
-            if not event or event.latitude is None or event.longitude is None:
-                print(
-                    f"⚠️ [CERCA DINÂMICA] Evento {active_assignment.event_id} não possui coordenadas configuradas.",
-                    flush=True,
-                )
-            else:
+            if event and event.latitude is not None and event.longitude is not None:
                 event_center = (event.latitude, event.longitude)
                 event_radius = float(event.geofence_radius or 250.0)
 
@@ -127,62 +149,63 @@ async def register_heartbeat(
                     raio_maximo_metros=event_radius,
                 )
 
-                print(
-                    f"📡 [CERCA DINÂMICA] Evento: {event.name} | Posto: {active_assignment.location_point} | "
-                    f"Raio: {event_radius}m | Distância: {distancia}m | Dentro: {dentro}",
-                    flush=True,
-                )
-
                 speed = float(payload.speed_kmh or 0.0)
-                is_high_speed = speed > 25.0
+                is_high_speed = speed > HIGH_SPEED_THRESHOLD_KMH
 
-                # CENÁRIO DE ALERTA: ROMPIMENTO OU EVASÃO RÁPIDA
+                # Transição: DISPOSITIVO FORA DA CERCA
                 if not dentro:
-                    # Se rompeu a cerca correndo/veículo -> HIGH_SPEED_EVASION
-                    # Se rompeu a cerca caminhando -> PERIMETER_BREACH
-                    if is_high_speed:
-                        reason = "HIGH_SPEED_EVASION"
-                        msg = (
-                            f"🚨 ALERTA CRÍTICO: Dispositivo {authenticated.device.asset_number} "
-                            f"em evasão rápida ({speed:.1f} km/h a {distancia:.1f}m da base)!"
-                        )
-                    else:
-                        reason = "PERIMETER_BREACH"
-                        msg = (
-                            f"🚨 O dispositivo {authenticated.device.asset_number} rompeu o perímetro "
-                            f"do evento {event.name}! ({distancia:.1f}m de distância)"
-                        )
+                    is_new_breach = device_id not in _active_breaches
+                    _active_breaches.add(device_id)
 
-                    print(f"🚨 [DISPARO WEBSOCKET] {reason} | Distância: {distancia}m | Vel: {speed} km/h", flush=True)
+                    reason = (
+                        "HIGH_SPEED_EVASION" if is_high_speed else "PERIMETER_BREACH"
+                    )
+                    msg = (
+                        f"🚨 ALERTA CRÍTICO: Dispositivo {authenticated.device.asset_number} "
+                        f"em evasão rápida ({speed:.1f} km/h a {distancia:.1f}m da base)!"
+                        if is_high_speed
+                        else f"🚨 O dispositivo {authenticated.device.asset_number} rompeu o perímetro "
+                        f"do evento {event.name}! ({distancia:.1f}m de distância)"
+                    )
 
-                    await websocket_manager.broadcast({
-                        "type": "ALERT_TRIGGERED",
-                        "event": "alert_triggered",
-                        "device_id": str(authenticated.device.id),
+                    # Se for uma nova violação, emite o alerta sonoro e visual
+                    # Se já estava em violação, apenas atualiza a posição no mapa sem spamar o alarme
+                    alert_payload = {
+                        "type": "ALERT_TRIGGERED" if is_new_breach else "DEVICE_POSITION_UPDATED",
+                        "event": "alert_triggered" if is_new_breach else "position_updated",
+                        "device_id": str(device_id),
                         "asset_number": authenticated.device.asset_number,
                         "event_name": event.name,
                         "event_id": str(event.id),
                         "location_point": active_assignment.location_point or "Posto Operacional",
                         "reason": reason,
                         "message": msg,
-                        # 👉 DADOS DE GEOLOCALIZAÇÃO COMPLETOS PARA O MAPA
                         "latitude": float(payload.latitude),
                         "longitude": float(payload.longitude),
                         "speed_kmh": speed,
                         "distance_m": float(distancia),
-                    })
+                        "is_breached": True,
+                    }
 
+                    await _safe_broadcast(alert_payload)
+
+                # Transição: DISPOSITIVO DENTRO DA CERCA (NORMAL)
                 else:
-                    # CENÁRIO NORMAL: Atualiza a posição em tempo real dentro da cerca
-                    await websocket_manager.broadcast({
-                        "type": "DEVICE_POSITION_UPDATED",
-                        "device_id": str(authenticated.device.id),
+                    was_breached = device_id in _active_breaches
+                    _active_breaches.discard(device_id)
+
+                    normal_payload = {
+                        "type": "DEVICE_RETURNED_TO_FENCE" if was_breached else "DEVICE_POSITION_UPDATED",
+                        "device_id": str(device_id),
                         "asset_number": authenticated.device.asset_number,
                         "latitude": float(payload.latitude),
                         "longitude": float(payload.longitude),
                         "speed_kmh": speed,
                         "distance_m": float(distancia),
-                    })
+                        "is_breached": False,
+                    }
+
+                    await _safe_broadcast(normal_payload)
 
     return HeartbeatResponse(
         id=heartbeat.id,
