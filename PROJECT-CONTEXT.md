@@ -246,7 +246,7 @@ A existência do campo `role` não comprova, isoladamente, que todas as regras d
 | 04 — Dashboard                            | React/Vite, consumo da API, listagem, status, busca, filtros e WebSocket     | **CONCLUÍDA E HOMOLOGADA EM PRODUÇÃO (Vercel). Modularizado em componentes limpos, com WebSocket em tempo real, paginação, filtros e banner de bateria crítica.**     |
 | 05 — Realtime + Telegram                  | WebSocket, detecção de mudança de status e alertas Telegram                  | **CONCLUÍDA E HOMOLOGADA. WebSocket nativo e bot Telegram (`🔔 Asaph-track`) com horário de Brasília (UTC-3) disparando notificações em tempo real.**             |
 | 06 — Eventos + Responsáveis               | CRUD de eventos e associação equipamento↔evento↔posto↔responsável            | **CONCLUÍDA E HOMOLOGADA. Gestão de eventos, postos físicos (`location_point`), Swap de emergência, Cerca Eletrônica (Geofence Haversine 250m) e visualização de pinos táticos com prioridade de z-index.**|
-| 07 — Android                              | App Kotlin utilizando a mesma plataforma/backend                             | **CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL. App Kotlin nativo com scanner de QR Code (ML Kit), Foreground Service e parada protegida por PIN do coordenador (`2026`).**|
+| 07 — Android                              | App Kotlin utilizando a mesma plataforma/backend                             | **CONCLUÍDA E HOMOLOGADA EM SAMSUNG REAL. App Kotlin nativo com scanner de QR Code (ML Kit), Foreground Service e parada protegida por PIN do coordenador (`******`).**|
 | 08 — Android Recovery / Google Management | Validação de recursos de recuperação/gestão Google                           | **Validação básica de localização via Google/Maps realizada. Recursos corporativos avançados documentados para expansão futura.**                                   |
 | 09 — Segurança Dell                       | BIOS/TPM/BitLocker/Secure Boot e matriz de compatibilidade                   | **Documentação/revisão registrada. Validação física específica em hardware Dell permanece para a fase corporativa pós-MVP por falta de equipamento disponível.**   |
 | 10 — Hardware Tracker Nível 3             | Rastreamento e recursos avançados de hardware                                | **BLOQUEADA até apresentação da proposta e aprovação explícita do cliente.**                                                                                        |
@@ -343,7 +343,7 @@ O agente Android nativo em Kotlin foi homologado em celular Samsung físico real
 * Leitura de credenciais via câmera por QR Code (Google ML Kit);
 * Transmissão contínua em segundo plano via Foreground Service;
 * Notificação persistente no sistema operacional;
-* Botão "Parar Monitoramento" protegido por diálogo nativo exigindo PIN de 4 dígitos do coordenador (`2026`) para inibir desligamentos acidentais ou indevidos em campo;
+* Botão "Parar Monitoramento" protegido por diálogo nativo exigindo PIN de 4 dígitos do coordenador (`******`) para inibir desligamentos acidentais ou indevidos em campo;
 * Retomada automática após perda e restabelecimento de sinal.
 
 ## 6.6 SPEC-008 — Android Recovery / Google Management

@@ -60,7 +60,7 @@ Cada equipamento possui um identificador próprio e uma credencial única gerada
 2. Um **QR Code de ativação única** será exibido na tela.
 3. No smartphone da operação, abra o app **Equipment Monitor**.
 4. Aponte a câmera para o QR Code no painel. O aplicativo carrega as credenciais e inicia imediatamente a transmissão em segundo plano.
-5. **Proteção contra desligamento não autorizado:** O app exibe notificação persistente. Para pausar ou fechar o monitoramento, o operador é obrigado a digitar o **PIN de Segurança do Coordenador (`2026`)**.
+5. **Proteção contra desligamento não autorizado:** O app exibe notificação persistente. Para pausar ou fechar o monitoramento, o operador é obrigado a digitar o **PIN de Segurança do Coordenador (`*******`)**.
 
 ### 5.2 Ativação de Notebooks (Windows)
 1. Baixe o executável portátil oficial (`asaph-agent.exe`).
@@ -118,7 +118,7 @@ O sistema conta com integração nativa ao bot oficial **`🔔 Asaph-track`**:
 | **Aparelho ficou "Sem Comunicação"** | Perda momentânea de sinal de rede no pavilhão. | Aguardar 60 segundos; o sistema retoma automaticamente assim que o sinal restabelecer. |
 | **Aparelho ficou "Offline"** | Bateria esgotada ou aparelho desligado pelo operador. | Checar no banner se a bateria estava baixa. Enviar supervisor ao posto físico para verificação. |
 | **Alerta de Fuga Disparado no Mapa** | Aparelho transportado para fora do complexo. | Verificar no mapa a distância informada. Acionar rádio/segurança com base no nome do responsável e posto. |
-| **Operador não consegue fechar o App** | Mecanismo de defesa ativo. | Digitar o PIN mestre do coordenador (`2026`) no diálogo de confirmação. |
+| **Operador não consegue fechar o App** | Mecanismo de defesa ativo. | Digitar o PIN mestre do coordenador (`******`) no diálogo de confirmação. |
 
 ---
 
