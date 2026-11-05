@@ -66,4 +66,3 @@ def get_settings() -> Settings:
     """Ponto único de acesso às configurações (cacheado)."""
     return Settings()
 
-@field_validator
