@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+
 from app.infrastructure.auth.user_auth_service import (
     InvalidUserCredentialsError,
     UserAuthService,
@@ -13,15 +14,17 @@ from app.interface.api.v1.schemas.auth_schema import (
     LoginResponse,
 )
 from app.interface.deps import get_db_session
+from argon2 import PasswordHasher
+
+# Hash descartável, calculado uma vez na importação do módulo.
+# Serve só para igualar o tempo de resposta quando o usuário não existe.
+_DUMMY_HASH = PasswordHasher().hash("dummy-password")
 
 router = APIRouter()
 
 
 @router.post("/auth/login", response_model=LoginResponse)
-def login(
-    payload: LoginRequest,
-    session: Session = Depends(get_db_session),
-) -> LoginResponse:
+def login(payload: LoginRequest, session: Session = Depends(get_db_session)) -> LoginResponse:
     user = (
         session.query(UserModel)
         .filter(UserModel.email == str(payload.email))
@@ -30,16 +33,10 @@ def login(
 
     auth_service = UserAuthService()
 
-    # A resposta é igual para usuário inexistente, senha incorreta
-    # ou conta sem senha configurada.
-    if (
-        user is None
-        or user.password_hash is None
-        or not auth_service.verify_password(
-            user.password_hash,
-            payload.password,
-        )
-    ):
+    hash_to_check = user.password_hash if user and user.password_hash else _DUMMY_HASH
+    password_ok = auth_service.verify_password(hash_to_check, payload.password)
+
+    if user is None or user.password_hash is None or not password_ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-mail ou senha inválidos.",

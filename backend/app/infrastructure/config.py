@@ -15,9 +15,12 @@ do docker-compose), e o pydantic-settings usa essas diretamente.
 
 from functools import lru_cache
 from pathlib import Path
+from pydantic import field_validator
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_MIN_JWT_SECRET_LENGTH = 32
+_FORBIDDEN_JWT_SECRETS = {"changeme", "secret", "test-secret"}
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -46,8 +49,21 @@ class Settings(BaseSettings):
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
 
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def validate_jwt_secret_strength(cls, value: str) -> str:
+        if value.strip().lower() in _FORBIDDEN_JWT_SECRETS:
+            raise ValueError("JWT_SECRET_KEY usa um valor padrão inseguro.")
+        if len(value) < _MIN_JWT_SECRET_LENGTH:
+            raise ValueError(
+                f"JWT_SECRET_KEY deve ter pelo menos {_MIN_JWT_SECRET_LENGTH} caracteres."
+            )
+        return value
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Ponto único de acesso às configurações (cacheado)."""
     return Settings()
+
+@field_validator

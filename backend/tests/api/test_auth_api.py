@@ -110,6 +110,24 @@ def test_login_rejects_invalid_credentials(client):
     assert response.status_code == 401
     assert response.json()["detail"] == "E-mail ou senha inválidos."
 
+def test_login_unknown_user_still_runs_password_verification(client, monkeypatch):
+    calls = []
+    original = UserAuthService.verify_password
+
+    def spy(self, password_hash, password):
+        calls.append(password_hash)
+        return original(self, password_hash, password)
+
+    monkeypatch.setattr(UserAuthService, "verify_password", spy)
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "nao-existe@x.com", "password": "qualquer"},
+    )
+
+    assert response.status_code == 401
+    assert len(calls) == 1  # o Argon2 rodou mesmo sem usuário    
+
 
 def test_login_accepts_valid_credentials(
     client,
