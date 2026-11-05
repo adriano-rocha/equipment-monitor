@@ -67,7 +67,7 @@ Acesse [https://asaph-track.vercel.app/](https://asaph-track.vercel.app/), reali
 2. Abra o app **Asaph-track** e toque em **Escanear QR Code**.
 3. Aponte a câmera para a tela do Dashboard para preencher automaticamente as credenciais criptográficas.
 4. Toque em **Iniciar Monitoramento** e conceda as permissões de notificação e localização em segundo plano.
-   *(Para interromper o monitoramento em campo, digite o PIN do coordenador: `3011`).*
+   *(Para interromper o monitoramento em campo, digite o PIN do coordenador: `******`).*
 
 ### 3. Notebooks e PCs Windows
 1. Copie a pasta contendo `asaph-agent.exe` e `agent.toml` para o computador alvo.
