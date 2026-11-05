@@ -101,6 +101,7 @@ async def register_heartbeat(
     if payload.battery_level is not None:
         battery_val = float(payload.battery_level)
         if battery_val <= CRITICAL_BATTERY_THRESHOLD:
+            # Check + Add imediato antes de qualquer await (anti race condition)
             if device_id not in _active_battery_alerts:
                 _active_battery_alerts.add(device_id)
                 alert_service = AlertService(
@@ -114,7 +115,6 @@ async def register_heartbeat(
                     battery_level=battery_val,
                 )
         else:
-            # Bateria recuperada/recarregada acima do limite
             _active_battery_alerts.discard(device_id)
 
     # 4. Avaliação de Cerca Virtual Dinâmica com Deduplicação
@@ -154,6 +154,7 @@ async def register_heartbeat(
 
                 # Transição: DISPOSITIVO FORA DA CERCA
                 if not dentro:
+                    # Check + Add imediato antes do await
                     is_new_breach = device_id not in _active_breaches
                     _active_breaches.add(device_id)
 
@@ -168,8 +169,6 @@ async def register_heartbeat(
                         f"do evento {event.name}! ({distancia:.1f}m de distância)"
                     )
 
-                    # Se for uma nova violação, emite o alerta sonoro e visual
-                    # Se já estava em violação, apenas atualiza a posição no mapa sem spamar o alarme
                     alert_payload = {
                         "type": "ALERT_TRIGGERED" if is_new_breach else "DEVICE_POSITION_UPDATED",
                         "event": "alert_triggered" if is_new_breach else "position_updated",

@@ -137,11 +137,13 @@ def swap_device_in_event(
     payload: DeviceSwapRequest,
     session: Session = Depends(get_db_session),
 ) -> EventDeviceResponse:
-    """
-    Substitui um equipamento no mesmo posto de forma 100% atômica.
-    Desvincula o equipamento antigo, desassocia o novo de vínculos prévios
-    e aloca o substituto herdando o ponto e responsável em transação única.
-    """
+    """Substitui um equipamento no mesmo posto de forma 100% atômica."""
+    if payload.current_device_id == payload.new_device_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="O equipamento substituto não pode ser igual ao atual.",
+        )
+
     use_case = SwapEventDeviceUseCase(session)
     try:
         new_assignment = use_case.execute(
@@ -157,12 +159,6 @@ def swap_device_in_event(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
-        ) from exc
-    except Exception as exc:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Erro ao realizar a substituição no ponto: {str(exc)}",
         ) from exc
 
     return _to_response(new_assignment)
