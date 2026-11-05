@@ -78,6 +78,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+@app.get("/health", status_code=200, tags=["Health"])
+def health_check():
+    return {"status": "healthy"}
+
 app.include_router(
     heartbeats_router,
     prefix="/api/v1",
