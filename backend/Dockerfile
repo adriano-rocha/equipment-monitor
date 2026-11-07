@@ -1,16 +1,27 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# Instala dependências antes de copiar o código: camada cacheada enquanto
-# pyproject.toml/uv.lock não mudarem.
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+# 1. Atualiza pacotes da base Debian para corrigir CVEs e instala ferramentas de compilação
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
+# 2. Instala o binário seguro do uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# 3. Instala as dependências do projeto
+COPY pyproject.toml .
+RUN uv pip install --system -r pyproject.toml
+
+# 4. Remove o compilador para fechar a superfície de ataque e limpar a imagem
+RUN apt-get purge -y gcc && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# 5. Copia o código da aplicação
 COPY . .
-RUN uv sync --frozen
 
 EXPOSE 8000
 
-# Executa as migrações do banco (Alembic) e logo após inicia a aplicação
-CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn app.interface.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Executa migrações automáticas do banco e sobe a API em 0.0.0.0
+CMD sh -c "alembic upgrade head && uvicorn app.interface.main:app --host 0.0.0.0 --port 8000"
