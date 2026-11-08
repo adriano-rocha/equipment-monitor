@@ -39,7 +39,7 @@ export function ConfirmDeleteEventModal({ event, isOpen, onClose, onSuccess }) {
         </p>
         <div className="warning-banner" style={{ marginTop: "1rem" }}>
           <strong>Atenção:</strong> O evento será removido e todas as
-          associações de postos e equipamentos deste evento serão desfeitas.
+          associações de postos e dispositivos deste evento serão desfeitas.
         </div>
         <div className="modal-actions">
           <button

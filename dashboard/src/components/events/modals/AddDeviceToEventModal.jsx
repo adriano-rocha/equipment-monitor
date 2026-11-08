@@ -12,7 +12,7 @@ export function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSucce
   async function handleSubmit(e) {
     e.preventDefault();
     if (!deviceId) {
-      setErrorMsg("Selecione um equipamento.");
+      setErrorMsg("Selecione um dispositivo.");
       return;
     }
     setSubmitting(true);
@@ -28,7 +28,7 @@ export function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSucce
       onSuccess();
     } catch (err) {
       setErrorMsg(
-        err.response?.data?.detail || "Erro ao vincular equipamento ao evento."
+        err.response?.data?.detail || "Erro ao vincular dispositivo ao evento."
       );
     } finally {
       setSubmitting(false);
@@ -39,7 +39,7 @@ export function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSucce
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-header">
-          <h3>Vincular Equipamento ao Posto</h3>
+          <h3>Vincular Dispositivo ao Posto</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
@@ -48,17 +48,17 @@ export function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSucce
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
             <label>
-              Equipamento <span className="required">*</span>
+              Dispositivo <span className="required">*</span>
             </label>
             <select
               value={deviceId}
               onChange={(e) => setDeviceId(e.target.value)}
               required
             >
-              <option value="">Selecione um equipamento...</option>
+              <option value="">Selecione um dispositivo...</option>
               {devices.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.device_type ?? "Equipamento"} — {d.asset_number}
+                  {d.device_type ?? "Dispositivo"} — {d.asset_number}
                 </option>
               ))}
             </select>

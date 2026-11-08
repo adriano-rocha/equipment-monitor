@@ -20,7 +20,7 @@ export function ConfirmUnassignModal({
       await removeDeviceFromEvent(eventId, eventDevice.device_id);
       onSuccess();
     } catch {
-      setErrorMsg("Erro ao desvincular equipamento.");
+      setErrorMsg("Erro ao desvincular dispositivo.");
       setSubmitting(false);
     }
   }
@@ -29,14 +29,14 @@ export function ConfirmUnassignModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-header">
-          <h3>Desvincular Equipamento</h3>
+          <h3>Desvincular Dispositivo</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
         </div>
         {errorMsg && <div className="modal-error">{errorMsg}</div>}
         <p style={{ color: "#e2e8f0" }}>
-          Deseja desvincular este equipamento do evento? O histórico da
+          Deseja desvincular este dispositivo do evento? O histórico da
           associação será preservado para auditoria.
         </p>
         <div className="modal-actions">

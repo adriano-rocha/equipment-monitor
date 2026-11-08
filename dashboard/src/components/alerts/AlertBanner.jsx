@@ -155,7 +155,7 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
             {/* Conteúdo / Mensagem */}
             <div style={{ fontSize: "0.9rem", color: "#f3f4f6" }}>
               <div>
-                Equipamento:{" "}
+                Dispositivo:{" "}
                 <strong style={{ color: "#fff" }}>{displayName}</strong>
               </div>
 

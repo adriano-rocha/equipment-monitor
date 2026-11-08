@@ -31,10 +31,10 @@ export function useDevices() {
       setError(null);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error("Erro ao carregar equipamentos:", err);
+      console.error("Erro ao carregar dispositivos:", err);
 
       setError(
-        "Não foi possível atualizar os equipamentos. Verifique a conexão com o servidor.",
+        "Não foi possível atualizar os dispositivos. Verifique a conexão com o servidor.",
       );
     } finally {
       setLoading(false);

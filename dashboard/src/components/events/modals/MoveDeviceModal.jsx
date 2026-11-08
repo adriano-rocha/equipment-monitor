@@ -22,7 +22,7 @@ export function MoveDeviceModal({ eventId, eventDevice, isOpen, onClose, onSucce
       });
       onSuccess();
     } catch (err) {
-      setErrorMsg(err.response?.data?.detail || "Erro ao mover equipamento.");
+      setErrorMsg(err.response?.data?.detail || "Erro ao mover dispositivo.");
     } finally {
       setSubmitting(false);
     }

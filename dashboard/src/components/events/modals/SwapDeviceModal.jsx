@@ -22,7 +22,7 @@ export function SwapDeviceModal({
   async function handleSubmit(e) {
     e.preventDefault();
     if (!newDeviceId) {
-      setErrorMsg("Selecione um equipamento substituto.");
+      setErrorMsg("Selecione um dispositivo substituto.");
       return;
     }
     setSubmitting(true);
@@ -49,7 +49,7 @@ export function SwapDeviceModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-header">
-          <h3>🔄 Substituição de Equipamento no Ponto</h3>
+          <h3>🔄 Substituição de Dispositivo no Ponto</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
@@ -57,7 +57,7 @@ export function SwapDeviceModal({
         {errorMsg && <div className="modal-error">{errorMsg}</div>}
         <form onSubmit={handleSubmit} className="modal-form">
           <p style={{ color: "#e2e8f0", fontSize: "0.9rem" }}>
-            Substituir o equipamento atual no ponto:{" "}
+            Substituir o dispositivo atual no ponto:{" "}
             <strong style={{ color: "#38bdf8" }}>
               {currentDevice.location_point || "Ponto Atual"}
             </strong>
@@ -65,7 +65,7 @@ export function SwapDeviceModal({
 
           <div className="form-group">
             <label>
-              Selecione o equipamento que assumirá este posto{" "}
+              Selecione o dispositivo que assumirá este posto{" "}
               <span className="required">*</span>
             </label>
             <select
@@ -77,7 +77,7 @@ export function SwapDeviceModal({
               <option value="">Selecione pelo Patrimônio...</option>
               {candidateDevices.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.device_type ?? "Equipamento"} — {d.asset_number}
+                  {d.device_type ?? "Dispositivo"} — {d.asset_number}
                 </option>
               ))}
             </select>

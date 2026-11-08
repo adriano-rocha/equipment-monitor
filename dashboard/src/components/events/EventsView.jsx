@@ -66,7 +66,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
   function refreshSelectedEventDevices(eventId) {
     getEventDevices(eventId, true)
       .then((activeDevices) => setEventDevices(activeDevices))
-      .catch((err) => console.error("Erro ao atualizar equipamentos:", err));
+      .catch((err) => console.error("Erro ao atualizar dispositivo:", err));
   }
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
         }
       })
       .catch((err) => {
-        console.error("Erro ao carregar equipamentos do evento:", err);
+        console.error("Erro ao carregar dispositivos do evento:", err);
         if (!ignore) setLoadingDevices(false);
       });
 
@@ -205,7 +205,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
       return {
         id: ed.device_id,
         device_id: ed.device_id,
-        asset_number: dev?.asset_number || "Equipamento",
+        asset_number: dev?.asset_number || "Dispositivo",
         device_type: dev?.device_type || "Smartphone",
         location_point: ed.location_point,
         latitude: dev?.latitude,
@@ -517,7 +517,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
               className="btn-create-device"
               onClick={() => setIsAddDeviceOpen(true)}
             >
-              + Vincular Equipamento
+              + Vincular Dispositivo
             </button>
           </div>
         </div>
@@ -754,7 +754,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
             </div>
 
             {loadingDevices ? (
-              <p>Carregando postos e equipamentos...</p>
+              <p>Carregando postos e dispositivos...</p>
             ) : activeEventDevicesCount === 0 ? (
               <div
                 className="empty-state"
@@ -765,14 +765,14 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                   borderRadius: "8px",
                 }}
               >
-                <p>Nenhum equipamento associado a este evento no momento.</p>
+                <p>Nenhum dispositivo associado a este evento no momento.</p>
                 <button
                   type="button"
                   className="btn-primary"
                   style={{ marginTop: "1rem" }}
                   onClick={() => setIsAddDeviceOpen(true)}
                 >
-                  + Adicionar primeiro equipamento
+                  + Adicionar primeiro dispositivo
                 </button>
               </div>
             ) : Object.keys(groupedByPoint).length === 0 ? (
@@ -787,7 +787,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                 }}
               >
                 <p style={{ color: "#e2e8f0", margin: 0, fontWeight: 500 }}>
-                  Nenhum posto ou equipamento encontrado com os filtros atuais.
+                  Nenhum posto ou dispositivo encontrado com os filtros atuais.
                 </p>
                 <button
                   type="button"
@@ -838,7 +838,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                     </h3>
                     <span style={{ fontSize: "0.85rem", color: "#94a3b8" }}>
                       {list.length}{" "}
-                      {list.length === 1 ? "equipamento" : "equipamentos"}
+                      {list.length === 1 ? "dispositivo" : "dispositivos"}
                     </span>
                   </div>
 
@@ -1173,7 +1173,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                 style={{ flex: 1, textAlign: "center" }}
                 onClick={() => handleSelectEvent(evt)}
               >
-                Ver Equipamentos e Postos →
+                Ver Dispositivos e Postos →
               </button>
 
               <button

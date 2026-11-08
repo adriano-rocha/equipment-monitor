@@ -1,6 +1,6 @@
 # Equipment Monitor (Asaph-track)
 
-Plataforma corporativa de monitoramento de saúde operacional, segurança patrimonial e rastreamento perimetral para equipamentos (notebooks Windows, smartphones e tablets Android) utilizados em feiras, convenções e grandes eventos.
+Plataforma corporativa de monitoramento de saúde operacional, segurança patrimonial e rastreamento perimetral para dispositivos (notebooks Windows, smartphones e tablets Android) utilizados em feiras, convenções e grandes eventos.
 
 A plataforma permite que a coordenação acompanhe em tempo real a conectividade, nível de bateria, IP reportado, postos operacionais alocados, violações de cercas virtuais georreferenciadas e histórico completo de auditoria para cada ativo.
 
@@ -25,7 +25,7 @@ Produto comercial validado, auditado e homologado em ambiente de produção na n
 
 * ✅ **Cerca Virtual & Detecção de Evasão:** Definição de raios de cobertura georreferenciados (100m, 250m, 500m) com cálculo esférico via fórmula de Haversine. Detecção instantânea de evasão, cálculo de vetor de fuga, velocidade estimada e distância da base em tempo real.
 * ✅ **Pinos Táticos Anti-Sobreposição:** Renderização cartográfica no Leaflet (paleta dark de alta legibilidade) com micro-pinos táticos de 22px identificando notebooks, tablets e smartphones. Em caso de rompimento de cerca ou evasão, o pino se expande automaticamente para cápsula de alerta vermelha com prioridade visual absoluta (`zIndexOffset: 9999`).
-* ✅ **Monitoramento de Bateria & Telemetria:** Sincronização da telemetria de bateria dos equipamentos na listagem geral e nas tabelas por posto de evento, com filtro instantâneo de **Bateria Baixa/Crítica (≤ 10%)**.
+* ✅ **Monitoramento de Bateria & Telemetria:** Sincronização da telemetria de bateria dos dispositivos na listagem geral e nas tabelas por posto de evento, com filtro instantâneo de **Bateria Baixa/Crítica (≤ 10%)**.
 * ✅ **Reativação Inteligente de Patrimônio (*Undelete*):** Tratamento de exclusão lógica (*soft delete*) com preservação da trilha de auditoria histórica, permitindo recadastramento imediato do mesmo patrimônio com emissão de novas credenciais ativas.
 * ✅ **Arquitetura Limpa e Desacoplada:** Interface modularizada com modais atômicos e isolamento de ciclo de vida do mapa, garantindo zero re-renderizações em cascata e alta performance em telas operacionais.
 * ✅ **Segurança e Criptografia ADR-006:** Handshake de autenticação dos agentes baseado em esquema de chaves (`DeviceKey <key_id>:<secret>`) com hashing unidirecional de alto custo via **Argon2id**. Nem mesmo a equipe de banco de dados tem acesso ao secret após a emissão.
@@ -58,9 +58,9 @@ Produto comercial validado, auditado e homologado em ambiente de produção na n
 
 ### 1. Central de Controle (Dashboard)
 Acesse [https://asaph-track.vercel.app/](https://asaph-track.vercel.app/), realize o login administrativo e:
-* **Cadastre Equipamentos:** Clique em `+ Cadastrar dispositivo` para gerar o QR Code (Mobile) ou as chaves de configuração (Windows).
+* **Cadastre Dispositivos:** Clique em `+ Cadastrar dispositivo` para gerar o QR Code (Mobile) ou as chaves de configuração (Windows).
 * **Crie Eventos e Cercas:** Na aba *Eventos / Postos*, crie o evento marcando a localização central no mapa e definindo o raio de tolerância (100m, 250m ou 500m).
-* **Vincule Equipamentos aos Postos:** Alavanque a auditoria associando cada patrimônio ao seu posto físico (ex: *Portão 1*, *Credenciamento*, *Sala VIP*).
+* **Vincule Dispositivos aos Postos:** Alavanque a auditoria associando cada patrimônio ao seu posto físico (ex: *Portão 1*, *Credenciamento*, *Sala VIP*).
 
 ### 2. Dispositivos Android (Smartphones / Tablets)
 1. Instale o APK oficial no aparelho.

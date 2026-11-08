@@ -38,7 +38,7 @@ export function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
       } else if (err.response?.data?.detail) {
         setErrorMsg(String(err.response.data.detail));
       } else {
-        setErrorMsg("Erro ao cadastrar equipamento. Tente novamente.");
+        setErrorMsg("Erro ao cadastrar dispositivo. Tente novamente.");
       }
     } finally {
       setSubmitting(false);
@@ -52,7 +52,7 @@ export function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
         style={{ maxWidth: "380px", padding: "1.25rem" }}
       >
         <div className="modal-header" style={{ marginBottom: "1rem" }}>
-          <h3 style={{ fontSize: "1.1rem" }}>Cadastrar Equipamento</h3>
+          <h3 style={{ fontSize: "1.1rem" }}>Cadastrar Dispositivo</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
@@ -73,7 +73,7 @@ export function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
         >
           <div className="form-group">
             <label htmlFor="device_type" style={{ fontSize: "0.85rem" }}>
-              Tipo de Equipamento
+              Tipo de Dispositivo
             </label>
             <select
               id="device_type"
@@ -125,7 +125,7 @@ export function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
 }
 
 // ----------------------------------------------------------------------------
-// MODAL: EDITAR EQUIPAMENTO
+// MODAL: EDITAR DISPOSITIVO
 // ----------------------------------------------------------------------------
 export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
   const [assetNumber, setAssetNumber] = useState(
@@ -159,11 +159,11 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
     } catch (err) {
       const errorResponse = err?.response;
       if (errorResponse?.status === 409) {
-        setErrorMsg("Este patrimônio já está cadastrado em outro equipamento.");
+        setErrorMsg("Este patrimônio já está cadastrado em outro dispositivo.");
       } else if (errorResponse?.data?.detail) {
         setErrorMsg(String(errorResponse.data.detail));
       } else {
-        setErrorMsg("Erro ao atualizar equipamento. Tente novamente.");
+        setErrorMsg("Erro ao atualizar dispositivo. Tente novamente.");
       }
     } finally {
       setSubmitting(false);
@@ -177,7 +177,7 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
         style={{ maxWidth: "380px", padding: "1.25rem" }}
       >
         <div className="modal-header">
-          <h3>Editar Equipamento</h3>
+          <h3>Editar Dispositivo</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
@@ -189,7 +189,7 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
         )}
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label htmlFor="edit_device_type">Tipo de Equipamento</label>
+            <label htmlFor="edit_device_type">Tipo de Dispositivo</label>
             <select
               id="edit_device_type"
               value={deviceType}
@@ -248,7 +248,7 @@ export function ConfirmDeleteModal({ device, isOpen, onClose, onSuccess }) {
       await deleteDevice(device.id);
       onSuccess();
     } catch {
-      setErrorMsg("Erro ao desativar equipamento. Tente novamente.");
+      setErrorMsg("Erro ao desativar dispositivo. Tente novamente.");
       setSubmitting(false);
     }
   }
@@ -268,11 +268,11 @@ export function ConfirmDeleteModal({ device, isOpen, onClose, onSuccess }) {
           </div>
         )}
         <p style={{ color: "#e2e8f0", fontSize: "0.95rem", lineHeight: 1.5 }}>
-          Tem certeza que deseja desativar o equipamento{" "}
+          Tem certeza que deseja desativar o dispositivo{" "}
           <strong style={{ color: "#38bdf8" }}>{device.asset_number}</strong>?
         </p>
         <div className="warning-banner" style={{ marginTop: "1rem" }}>
-          <strong>Atenção:</strong> O equipamento será removido da lista
+          <strong>Atenção:</strong> O dispositivo será removido da lista
           operacional e sua credencial será revogada. O histórico anterior será
           preservado.
         </div>
@@ -291,7 +291,7 @@ export function ConfirmDeleteModal({ device, isOpen, onClose, onSuccess }) {
             onClick={handleConfirm}
             disabled={submitting}
           >
-            {submitting ? "Desativando..." : "Sim, Desativar Equipamento"}
+            {submitting ? "Desativando..." : "Sim, Desativar Dispositivo"}
           </button>
         </div>
       </div>
@@ -342,7 +342,7 @@ export function CredentialsDisplayModal({ deviceData, onClose }) {
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card modal-credentials">
         <div className="modal-header">
-          <h3>Credencial do Equipamento: {asset_number}</h3>
+          <h3>Credencial do Dispositivo: {asset_number}</h3>
         </div>
 
         <div className="warning-banner">
