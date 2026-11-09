@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDevices } from "./hooks/useDevices";
 import Login from "./Login";
-import { clearAccessToken, getAccessToken, getUsers } from "./services/api";
+import {
+  clearAccessToken,
+  getAccessToken,
+  getEvents,
+  getEventDevices,
+  getUsers,
+} from "./services/api";
 
 import { STATUS_FILTERS, formatBrasiliaDateTime } from "./utils/formatters";
 
@@ -39,10 +45,11 @@ function Dashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("devices");
   const [, setUsers] = useState([]);
 
-  // 👉 Estado que guarda o evento e patrimônio alvo do clique no alerta
+  // Estado que guarda o evento e patrimônio alvo do clique no alerta
   const [eventFocus, setEventFocus] = useState(null);
 
   const [search, setSearch] = useState("");
+  // 'TODOS', 'ONLINE', 'SEM COMUNICAÇÃO', 'OFFLINE', 'EM_ESTOQUE', 'EM_OPERACAO'
   const [statusFilter, setStatusFilter] = useState("TODOS");
   const [requestedPage, setRequestedPage] = useState(1);
 
@@ -54,13 +61,60 @@ function Dashboard({ onLogout }) {
   const [dismissedAlerts, setDismissedAlerts] = useState(() => new Set());
   const [wsAlerts, setWsAlerts] = useState([]);
 
-  // Alerta automático: bateria <= 10%
+  // Mapeamento de alocação de dispositivos: device_id -> { eventName, locationPoint }
+  const [eventAllocations, setEventAllocations] = useState(new Map());
+
+  // Carregamento tolerante e não-bloqueante das alocações em segundo plano
+  useEffect(() => {
+    let ignore = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const eventsList = await getEvents();
+        if (!eventsList || !Array.isArray(eventsList)) return;
+
+        const activeEvents = eventsList.filter((e) => e.is_active !== false);
+        const map = new Map();
+
+        for (const ev of activeEvents) {
+          try {
+            const activeDevs = await getEventDevices(ev.id, true);
+            if (Array.isArray(activeDevs)) {
+              activeDevs.forEach((ed) => {
+                if (!ed.unassigned_at && ed.is_active !== false) {
+                  map.set(ed.device_id, {
+                    eventName: ev.name,
+                    locationPoint: ed.location_point || "Posto Ativo",
+                  });
+                }
+              });
+            }
+          } catch {
+            // Continua mesmo se um evento falhar
+          }
+        }
+
+        if (!ignore) {
+          setEventAllocations(map);
+        }
+      } catch (err) {
+        console.warn("Alocações carregadas em modo tolerante:", err);
+      }
+    }, 1200);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // Alerta automático: bateria <= 15%
   const criticalBatteryAlerts = useMemo(() => {
     return devices
       .filter(
         (d) =>
           typeof d.battery_level === "number" &&
-          d.battery_level <= 10 &&
+          d.battery_level <= 15 &&
           !dismissedAlerts.has(d.id),
       )
       .map((d) => ({
@@ -86,19 +140,17 @@ function Dashboard({ onLogout }) {
     });
   }, [criticalBatteryAlerts, wsAlerts, dismissedAlerts]);
 
-  // Escuta alertas do WebSocket em tempo real e reativa alertas mesmo se já foram dispensados antes
+  // Escuta alertas do WebSocket em tempo real
   useEffect(() => {
     function handleWebSocketAlert(e) {
       const data = e.detail;
       if (data && data.type === "ALERT_TRIGGERED") {
-        // 1. Remove este aparelho da lista de dispensados para reativar o banner imediatamente
         setDismissedAlerts((prev) => {
           const updated = new Set(prev);
           updated.delete(data.device_id);
           return updated;
         });
 
-        // 2. Adiciona/atualiza o alerta na lista de alertas ativos com timestamp novo
         setWsAlerts((prev) => [
           { ...data, receivedAt: Date.now() },
           ...prev.filter((a) => a.device_id !== data.device_id),
@@ -133,14 +185,28 @@ function Dashboard({ onLogout }) {
     };
   }, []);
 
+  // Contadores dinâmicos incluindo Estoque e Operação
   const counts = useMemo(() => {
     const result = { TODOS: devices.length };
+    let inStock = 0;
+    let inOperation = 0;
+
     for (const device of devices) {
       result[device.status] = (result[device.status] ?? 0) + 1;
+      if (eventAllocations.has(device.id)) {
+        inOperation++;
+      } else {
+        inStock++;
+      }
     }
-    return result;
-  }, [devices]);
 
+    result.EM_ESTOQUE = inStock;
+    result.EM_OPERACAO = inOperation;
+
+    return result;
+  }, [devices, eventAllocations]);
+
+  // Filtro de Dispositivos (com suporte aos novos filtros de Estoque e Operação)
   const filteredDevices = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return devices.filter((device) => {
@@ -156,11 +222,23 @@ function Dashboard({ onLogout }) {
             .toLowerCase()
             .includes(normalizedSearch),
         );
-      const matchesStatus =
-        statusFilter === "TODOS" || device.status === statusFilter;
+
+      const isAllocated = eventAllocations.has(device.id);
+
+      let matchesStatus = true;
+      if (statusFilter === "TODOS") {
+        matchesStatus = true;
+      } else if (statusFilter === "EM_ESTOQUE") {
+        matchesStatus = !isAllocated;
+      } else if (statusFilter === "EM_OPERACAO") {
+        matchesStatus = isAllocated;
+      } else {
+        matchesStatus = device.status === statusFilter;
+      }
+
       return matchesSearch && matchesStatus;
     });
-  }, [devices, search, statusFilter]);
+  }, [devices, search, statusFilter, eventAllocations]);
 
   const totalPages = Math.max(
     1,
@@ -197,7 +275,7 @@ function Dashboard({ onLogout }) {
         onAction={(alert) => {
           setEventFocus({
             eventId: alert.event_id || alert.eventId || null,
-            eventName: alert.event_name || alert.eventName || "MindTheSec",
+            eventName: alert.event_name || alert.eventName || "",
             assetNumber:
               alert.asset_number || alert.device_name || "SIM-RASTREIO",
             deviceId: alert.device_id || alert.deviceId || null,
@@ -206,6 +284,7 @@ function Dashboard({ onLogout }) {
             speed_kmh: alert.speed_kmh || null,
             distance_m: alert.distance_m || null,
             message: alert.message || null,
+            location_point: alert.location_point || null,
             timestamp: Date.now(),
           });
 
@@ -333,6 +412,41 @@ function Dashboard({ onLogout }) {
                   </button>
                 );
               })}
+
+              {/* FEATURE 3: BOTÕES RÁPIDOS DE ESTOQUE E OPERAÇÃO */}
+              <button
+                type="button"
+                className={`btn-filter-todos ${statusFilter === "EM_ESTOQUE" ? "active" : ""}`}
+                style={{
+                  border: statusFilter === "EM_ESTOQUE" ? "1px solid #10b981" : "1px solid #334155",
+                  background: statusFilter === "EM_ESTOQUE" ? "rgba(16, 185, 129, 0.25)" : undefined,
+                  color: statusFilter === "EM_ESTOQUE" ? "#10b981" : undefined,
+                }}
+                onClick={() => {
+                  setStatusFilter("EM_ESTOQUE");
+                  setRequestedPage(1);
+                }}
+                title="Mostrar apenas dispositivos livres na maleta/estoque"
+              >
+                 Em Estoque ({counts.EM_ESTOQUE ?? 0})
+              </button>
+
+              <button
+                type="button"
+                className={`btn-filter-todos ${statusFilter === "EM_OPERACAO" ? "active" : ""}`}
+                style={{
+                  border: statusFilter === "EM_OPERACAO" ? "1px solid #38bdf8" : "1px solid #334155",
+                  background: statusFilter === "EM_OPERACAO" ? "rgba(56, 189, 248, 0.25)" : undefined,
+                  color: statusFilter === "EM_OPERACAO" ? "#38bdf8" : undefined,
+                }}
+                onClick={() => {
+                  setStatusFilter("EM_OPERACAO");
+                  setRequestedPage(1);
+                }}
+                title="Mostrar apenas dispositivos alocados em postos de eventos"
+              >
+                 Em Operação ({counts.EM_OPERACAO ?? 0})
+              </button>
             </div>
           </div>
 
@@ -342,6 +456,8 @@ function Dashboard({ onLogout }) {
                 <tr>
                   <th>Patrimônio</th>
                   <th>Tipo</th>
+                  {/* FEATURE 2: CABEÇALHO DA NOVA COLUNA */}
+                  <th>Alocação / Posto</th>
                   <th>Hostname</th>
                   <th>IP</th>
                   <th>Bateria</th>
@@ -351,46 +467,93 @@ function Dashboard({ onLogout }) {
                 </tr>
               </thead>
               <tbody>
-                {paginatedDevices.map((device) => (
-                  <tr key={device.id}>
-                    <td className="asset-number">
-                      {device.asset_number ?? "-"}
-                    </td>
-                    <td style={{ textTransform: "capitalize" }}>
-                      {device.device_type ?? "-"}
-                    </td>
-                    <td>{device.hostname ?? "-"}</td>
-                    <td>{device.reported_ip ?? "-"}</td>
-                    <td>
-                      {typeof device.battery_level === "number"
-                        ? `${device.battery_level}%`
-                        : "-"}
-                    </td>
-                    <td>
-                      <StatusBadge status={device.status} />
-                    </td>
-                    <td>{formatBrasiliaDateTime(device.last_seen)}</td>
-                    <td className="actions-cell">
-                      <button
-                        type="button"
-                        className="btn-action-edit"
-                        onClick={() => setEditingDevice(device)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-action-delete"
-                        onClick={() => setDeletingDevice(device)}
-                      >
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {paginatedDevices.map((device) => {
+                  const alloc = eventAllocations.get(device.id);
+
+                  return (
+                    <tr key={device.id}>
+                      <td className="asset-number">
+                        {device.asset_number ?? "-"}
+                      </td>
+                      <td style={{ textTransform: "capitalize" }}>
+                        {device.device_type ?? "-"}
+                      </td>
+
+                      {/* FEATURE 2: BADGE DE ALOCAÇÃO NA LINHA */}
+                      <td>
+                        {alloc ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              background: "rgba(56, 189, 248, 0.15)",
+                              color: "#38bdf8",
+                              border: "1px solid rgba(56, 189, 248, 0.3)",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={`Evento: ${alloc.eventName} | Posto: ${alloc.locationPoint}`}
+                          >
+                            📍 {alloc.eventName} ({alloc.locationPoint})
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              background: "rgba(148, 163, 184, 0.12)",
+                              color: "#94a3b8",
+                              border: "1px solid #334155",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                             Em Estoque
+                          </span>
+                        )}
+                      </td>
+
+                      <td>{device.hostname ?? "-"}</td>
+                      <td>{device.reported_ip ?? "-"}</td>
+                      <td>
+                        {typeof device.battery_level === "number"
+                          ? `${device.battery_level}%`
+                          : "-"}
+                      </td>
+                      <td>
+                        <StatusBadge status={device.status} />
+                      </td>
+                      <td>{formatBrasiliaDateTime(device.last_seen)}</td>
+                      <td className="actions-cell">
+                        <button
+                          type="button"
+                          className="btn-action-edit"
+                          onClick={() => setEditingDevice(device)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-action-delete"
+                          onClick={() => setDeletingDevice(device)}
+                        >
+                          Excluir
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {paginatedDevices.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="empty-state">
+                    <td colSpan={9} className="empty-state">
                       Nenhum dispositivo corresponde aos filtros.
                     </td>
                   </tr>
