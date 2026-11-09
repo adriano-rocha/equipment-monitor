@@ -174,7 +174,7 @@ export function AddDeviceToEventModal({
               )}
             </div>
 
-            {/* Menu Suspenso de Resultados */}
+            {/* Menu Suspenso de Resultados com Destaque de Bateria */}
             {isDropdownOpen && (
               <ul
                 style={{
@@ -182,7 +182,7 @@ export function AddDeviceToEventModal({
                   top: "100%",
                   left: 0,
                   right: 0,
-                  maxHeight: "210px",
+                  maxHeight: "220px",
                   overflowY: "auto",
                   background: "#0f172a",
                   border: "1px solid #334155",
@@ -197,6 +197,10 @@ export function AddDeviceToEventModal({
                 {filteredDevices.length > 0 ? (
                   filteredDevices.map((d) => {
                     const isSelected = d.id === deviceId;
+                    const hasBattery = typeof d.battery_level === "number";
+                    const isLow = hasBattery && d.battery_level <= 20;
+                    const isMedium = hasBattery && d.battery_level > 20 && d.battery_level <= 40;
+
                     return (
                       <li
                         key={d.id}
@@ -224,19 +228,48 @@ export function AddDeviceToEventModal({
                             e.currentTarget.style.background = "transparent";
                         }}
                       >
-                        <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                           <strong style={{ color: "#38bdf8" }}>
                             {d.asset_number}
                           </strong>
-                          <span
-                            style={{ color: "#94a3b8", marginLeft: "6px" }}
-                          >
+                          <span style={{ color: "#94a3b8" }}>
                             — {d.device_type || "smartphone"}
                           </span>
+
+                          {/* Badge de Bateria Inteligente */}
+                          {hasBattery && (
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                padding: "2px 7px",
+                                borderRadius: "4px",
+                                fontWeight: 700,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                background: isLow
+                                  ? "rgba(239, 68, 68, 0.18)"
+                                  : isMedium
+                                  ? "rgba(245, 158, 11, 0.18)"
+                                  : "rgba(16, 185, 129, 0.18)",
+                                color: isLow
+                                  ? "#ef4444"
+                                  : isMedium
+                                  ? "#f59e0b"
+                                  : "#10b981",
+                                border: isLow
+                                  ? "1px solid rgba(239, 68, 68, 0.4)"
+                                  : "none",
+                              }}
+                            >
+                              {isLow ? "🪫" : "🔋"} {d.battery_level}%
+                            </span>
+                          )}
                         </div>
+
                         {isSelected && (
                           <span
-                            style={{ color: "#10b981", fontWeight: "bold" }}
+                            style={{ color: "#10b981", fontWeight: "bold", marginLeft: "8px" }}
                           >
                             ✓
                           </span>
