@@ -1,98 +1,4 @@
-import { useState } from "react";
-import { addDeviceToEvent } from "../../../services/api";
-
-export function AddDeviceToEventModal({ event, devices, isOpen, onClose, onSuccess }) {
-  const [deviceId, setDeviceId] = useState("");
-  const [locationPoint, setLocationPoint] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-
-  if (!isOpen || !event) return null;
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!deviceId) {
-      setErrorMsg("Selecione um dispositivo.");
-      return;
-    }
-    setSubmitting(true);
-    setErrorMsg("");
-    try {
-      await addDeviceToEvent(event.id, {
-        device_id: deviceId,
-        location_point: locationPoint.trim() || null,
-        assigned_user_id: null,
-      });
-      setDeviceId("");
-      setLocationPoint("");
-      onSuccess();
-    } catch (err) {
-      setErrorMsg(
-        err.response?.data?.detail || "Erro ao vincular dispositivo ao evento."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
-        <div className="modal-header">
-          <h3>Vincular Dispositivo ao Posto</h3>
-          <button type="button" className="close-btn" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        {errorMsg && <div className="modal-error">{errorMsg}</div>}
-        <form onSubmit={handleSubmit} className="modal-form">
-          <div className="form-group">
-            <label>
-              Dispositivo <span className="required">*</span>
-            </label>
-            <select
-              value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-              required
-            >
-              <option value="">Selecione um dispositivo...</option>
-              {devices.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.device_type ?? "Dispositivo"} — {d.asset_number}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Ponto Físico / Posto Operacional</label>
-            <input
-              type="text"
-              placeholder="Ex: Entrada VIP, Docas, Palco Principal, Credenciamento..."
-              value={locationPoint}
-              onChange={(e) => setLocationPoint(e.target.value)}
-              autoFocus
-            />
-          </div>
-
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={onClose}
-              disabled={submitting}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Vinculando..." : "Vincular ao Posto"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDeviceToEvent } from "../../../services/api";
 
 export function AddDeviceToEventModal({
@@ -111,12 +17,12 @@ export function AddDeviceToEventModal({
 
   const dropdownRef = useRef(null);
 
-  // Fecha o menu flutuante se o usuário clicar fora dele
+  // Fecha o menu suspenso ao clicar fora dele
   useEffect(() => {
     if (!isOpen || !isDropdownOpen) return;
 
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
       }
     }
@@ -129,7 +35,7 @@ export function AddDeviceToEventModal({
   // Filtro preditivo em tempo real por patrimônio ou tipo
   const filteredDevices = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
-    if (!term) return devices.slice(0, 30); // Limite inicial de 30 para fluidez
+    if (!term) return devices.slice(0, 30);
 
     return devices.filter((d) => {
       const asset = String(d.asset_number || "").toLowerCase();
@@ -163,7 +69,7 @@ export function AddDeviceToEventModal({
   function handleInputChange(e) {
     const val = e.target.value;
     setSearchQuery(val);
-    setDeviceId(""); // Limpa o ID até que um item da lista seja selecionado
+    setDeviceId("");
     setIsDropdownOpen(true);
   }
 
@@ -216,12 +122,22 @@ export function AddDeviceToEventModal({
 
         <form onSubmit={handleSubmit} className="modal-form">
           {/* Campo Autocomplete Inteligente */}
-          <div className="form-group" ref={dropdownRef} style={{ position: "relative" }}>
+          <div
+            className="form-group"
+            ref={dropdownRef}
+            style={{ position: "relative" }}
+          >
             <label>
               Dispositivo <span className="required">*</span>
             </label>
 
-            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               <input
                 type="text"
                 placeholder="Digite o patrimônio (ex: 48...)"
@@ -300,22 +216,28 @@ export function AddDeviceToEventModal({
                           transition: "background 0.15s ease",
                         }}
                         onMouseEnter={(e) => {
-                          if (!isSelected) e.currentTarget.style.background = "#1e293b";
+                          if (!isSelected)
+                            e.currentTarget.style.background = "#1e293b";
                         }}
                         onMouseLeave={(e) => {
-                          if (!isSelected) e.currentTarget.style.background = "transparent";
+                          if (!isSelected)
+                            e.currentTarget.style.background = "transparent";
                         }}
                       >
                         <div>
                           <strong style={{ color: "#38bdf8" }}>
                             {d.asset_number}
                           </strong>
-                          <span style={{ color: "#94a3b8", marginLeft: "6px" }}>
+                          <span
+                            style={{ color: "#94a3b8", marginLeft: "6px" }}
+                          >
                             — {d.device_type || "smartphone"}
                           </span>
                         </div>
                         {isSelected && (
-                          <span style={{ color: "#10b981", fontWeight: "bold" }}>
+                          <span
+                            style={{ color: "#10b981", fontWeight: "bold" }}
+                          >
                             ✓
                           </span>
                         )}
