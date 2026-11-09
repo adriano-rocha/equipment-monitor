@@ -16,21 +16,58 @@ import {
 function findTargetEvent(eventsList, target) {
   if (!target || !eventsList || eventsList.length === 0) return null;
 
-  return eventsList.find((e) => {
-    if (target.eventId && String(e.id) === String(target.eventId)) {
-      return true;
-    }
-    if (target.eventName) {
+  // 1. Prioridade Máxima: ID exato do evento
+  if (target.eventId) {
+    const foundById = eventsList.find(
+      (e) => String(e.id) === String(target.eventId)
+    );
+    if (foundById) return foundById;
+  }
+
+  const targetName = String(target.eventName || "").trim().toLowerCase();
+  const targetPoint = String(target.location_point || "").trim().toLowerCase();
+  const targetMsg = String(target.message || "").trim().toLowerCase();
+
+  // 2. Busca por nome com desempate por Posto / Localização
+  if (targetName) {
+    const sameNameEvents = eventsList.filter((e) => {
       const evName = String(e.name || "").trim().toLowerCase();
-      const targetName = String(target.eventName).trim().toLowerCase();
-      return (
-        evName === targetName ||
-        evName.includes(targetName) ||
-        targetName.includes(evName)
-      );
+      return evName === targetName || evName.includes(targetName) || targetName.includes(evName);
+    });
+
+    if (sameNameEvents.length === 1) {
+      return sameNameEvents[0];
     }
-    return false;
-  });
+
+    if (sameNameEvents.length > 1) {
+      const cleanPoint = targetPoint.replace(/\([^)]*\)/g, "").trim();
+
+      const foundByLocation = sameNameEvents.find((e) => {
+        const evLoc = String(e.location || "").trim().toLowerCase();
+        if (!evLoc) return false;
+        return (
+          (cleanPoint && (evLoc.includes(cleanPoint) || cleanPoint.includes(evLoc))) ||
+          (targetPoint && (evLoc.includes(targetPoint) || targetPoint.includes(evLoc))) ||
+          (targetMsg && targetMsg.includes(evLoc))
+        );
+      });
+
+      if (foundByLocation) return foundByLocation;
+      return sameNameEvents[0];
+    }
+  }
+
+  // 3. Fallback: busca direta pela localização
+  if (targetPoint) {
+    const cleanPoint = targetPoint.replace(/\([^)]*\)/g, "").trim();
+    const foundByLoc = eventsList.find((e) => {
+      const evLoc = String(e.location || "").trim().toLowerCase();
+      return evLoc && cleanPoint && (evLoc.includes(cleanPoint) || cleanPoint.includes(evLoc));
+    });
+    if (foundByLoc) return foundByLoc;
+  }
+
+  return null;
 }
 
 export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {

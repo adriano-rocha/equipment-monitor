@@ -45,7 +45,7 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
       const matchMsg = alert.message.match(/evento\s+([^!.]+)/i);
       if (matchMsg) eventName = matchMsg[1].trim();
     }
-    if (!eventName) eventName = "MindTheSec";
+    if (!eventName) eventName = "";
 
     // 2. Extração do Patrimônio / Nome do Aparelho
     let assetNumber = alert.asset_number || alert.device_name || alert.serial_number || "";
