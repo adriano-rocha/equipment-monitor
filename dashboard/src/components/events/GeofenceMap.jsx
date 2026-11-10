@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Correção dos ícones padrão do Leaflet no empacotador Vite
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -10,7 +9,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Fórmula de Haversine para cálculo de distância geográfica real em metros
 function getDistanceMeters(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
   const R = 6371e3;
@@ -27,7 +25,7 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return Math.round(R * c);
 }
 
-// Algoritmo Ray-Casting (Point-in-Polygon)
+// Ray-Casting (Point-in-Polygon)
 function isPointInPolygon(lat, lon, polygon) {
   if (!polygon || polygon.length < 3) return false;
   let inside = false;
@@ -51,7 +49,6 @@ function isPointInPolygon(lat, lon, polygon) {
   return inside;
 }
 
-// Ícone Tático Compacto (Dentro do Pavilhão / Seguro) - 22px
 const normalTacticalIcon = () =>
   L.divIcon({
     className: "custom-tactical-pin",
@@ -78,7 +75,6 @@ const normalTacticalIcon = () =>
     iconAnchor: [11, 11],
   });
 
-// Ícone de Alerta Máximo (Rompimento de Cerca ou Evasão)
 const alertDeviceIcon = (label) =>
   L.divIcon({
     className: "custom-alert-pin",
@@ -127,9 +123,8 @@ export function GeofenceMap({
       ]
     : null;
 
-  const baseLat = event?.latitude ?? (centroid ? centroid[0] : -23.6477);
-  const baseLng = event?.longitude ?? (centroid ? centroid[1] : -46.6292);
-  const radius = event?.geofence_radius || 250;
+  const baseLat = centroid ? centroid[0] : (event?.latitude || -23.6477);
+  const baseLng = centroid ? centroid[1] : (event?.longitude || -46.6292);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -169,7 +164,7 @@ export function GeofenceMap({
 
     const bounds = L.latLngBounds([[baseLat, baseLng]]);
 
-    // 1. Renderização da Cerca (Poligonal ou Circular) sem nenhum ícone intrusivo no centro
+    // Renderização Exclusiva do Polígono do Pavilhão
     if (polygon) {
       const geofencePoly = L.polygon(polygon, {
         color: "#10b981",
@@ -188,20 +183,9 @@ export function GeofenceMap({
       `);
 
       bounds.extend(geofencePoly.getBounds());
-    } else {
-      const geofenceCircle = L.circle([baseLat, baseLng], {
-        color: "#10b981",
-        fillColor: "#10b981",
-        fillOpacity: 0.14,
-        weight: 2,
-        dashArray: "6, 8",
-        radius: radius,
-      }).addTo(layers);
-
-      bounds.extend(geofenceCircle.getBounds());
     }
 
-    // 2. Pinos dos Dispositivos (100% de visibilidade desobstruída)
+    // Pinos dos Dispositivos com Detecção de Posição
     devices.forEach((dev) => {
       const live = realtimeLocations[dev.id] || realtimeLocations[dev.device_id] || {};
 
@@ -232,10 +216,8 @@ export function GeofenceMap({
         distance = getDistanceMeters(baseLat, baseLng, lat, lng);
       }
 
-      const insideGeofence = polygon
-        ? isPointInPolygon(lat, lng, polygon)
-        : distance <= radius;
-
+      // 100% Ray-Casting no Polígono
+      const insideGeofence = polygon ? isPointInPolygon(lat, lng, polygon) : true;
       const isAlert = Boolean(live.isAlert || isTarget || !insideGeofence);
 
       if ((!distance || distance === 0) && isAlert) {
@@ -298,7 +280,7 @@ export function GeofenceMap({
     });
 
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
-  }, [baseLat, baseLng, radius, polygon, devices, focusTarget, realtimeLocations, event]);
+  }, [baseLat, baseLng, polygon, devices, focusTarget, realtimeLocations, event]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "420px", borderRadius: "8px", overflow: "hidden", border: "1px solid #334155" }}>
@@ -320,7 +302,6 @@ export function GeofenceMap({
 
       <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
-      {/* Legenda Operacional Limpa (Sem o prédio) */}
       <div style={{
         position: "absolute",
         bottom: "12px",
@@ -338,8 +319,7 @@ export function GeofenceMap({
         boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
       }}>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "10px", height: "10px", borderRadius: polygon ? "2px" : "50%", background: "#10b981" }}></span>
-          {polygon ? "Cerca Ativa (Pavilhão)" : `Cerca Ativa (${radius}m)`}
+          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#10b981" }}></span> Cerca Ativa (Pavilhão)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#059669", border: "1px solid #ffffff" }}></span> Pinos Táticos (Seguros)
