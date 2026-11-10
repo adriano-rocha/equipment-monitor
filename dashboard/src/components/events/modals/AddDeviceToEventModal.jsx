@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addDeviceToEvent } from "../../../services/api";
+import { addDeviceToEvent, getEventDevices } from "../../../services/api";
 
 export function AddDeviceToEventModal({
   event,
@@ -14,6 +14,28 @@ export function AddDeviceToEventModal({
   const [locationPoint, setLocationPoint] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // Sugestões inteligentes de postos existentes no evento
+  const [suggestedPoints, setSuggestedPoints] = useState(["Garçons", "Salas de Reunião"]);
+
+  useEffect(() => {
+    if (!isOpen || !event?.id) return;
+    getEventDevices(event.id, true)
+      .then((activeDevs) => {
+        if (Array.isArray(activeDevs)) {
+          const points = Array.from(
+            new Set(
+              activeDevs
+                .map((ed) => ed.location_point?.trim())
+                .filter(Boolean)
+            )
+          );
+          if (points.length > 0) {
+            setSuggestedPoints(points);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, event?.id]);
 
   const dropdownRef = useRef(null);
 
@@ -294,11 +316,42 @@ export function AddDeviceToEventModal({
           </div>
 
           {/* Campo de Posto Físico */}
+          {/* Campo de Posto Físico com Sugestões de Clique Rápido */}
           <div className="form-group">
             <label>Ponto Físico / Posto Operacional</label>
+
+            {/* Chips de clique rápido */}
+            {suggestedPoints.length > 0 && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                {suggestedPoints.map((pt) => {
+                  const isSelected = locationPoint === pt;
+                  return (
+                    <button
+                      key={pt}
+                      type="button"
+                      onClick={() => setLocationPoint(pt)}
+                      style={{
+                        background: isSelected ? "rgba(56, 189, 248, 0.25)" : "#0f172a",
+                        color: isSelected ? "#38bdf8" : "#cbd5e1",
+                        border: isSelected ? "1px solid #38bdf8" : "1px solid #334155",
+                        borderRadius: "4px",
+                        padding: "4px 9px",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      📍 {pt}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <input
               type="text"
-              placeholder="Ex: Entrada VIP, Docas, Palco Principal, Credenciamento..."
+              placeholder="Ex: Garçons, Salas de Reunião..."
               value={locationPoint}
               onChange={(e) => setLocationPoint(e.target.value)}
             />
