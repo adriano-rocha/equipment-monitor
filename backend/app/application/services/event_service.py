@@ -23,6 +23,7 @@ class EventService:
         latitude: float | None = None,
         longitude: float | None = None,
         geofence_radius: float | None = 250.0,
+        geofence_polygon: list[list[float]] | None = None,
     ) -> Event:
         event = Event(
             id=uuid4(),
@@ -34,6 +35,7 @@ class EventService:
             latitude=latitude,
             longitude=longitude,
             geofence_radius=geofence_radius,
+            geofence_polygon=geofence_polygon,
         )
 
         self._event_repository.add(event)
@@ -70,6 +72,7 @@ class EventService:
         latitude: float | None = None,
         longitude: float | None = None,
         geofence_radius: float | None = 250.0,
+        geofence_polygon: list[list[float]] | None = None,
     ) -> Event:
         event = self._event_repository.get_by_id(event_id)
 
@@ -86,6 +89,7 @@ class EventService:
             latitude=latitude,
             longitude=longitude,
             geofence_radius=geofence_radius,
+            geofence_polygon=geofence_polygon,
             created_at=event.created_at,
             updated_at=event.updated_at,
         )

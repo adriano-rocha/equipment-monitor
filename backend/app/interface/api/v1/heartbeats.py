@@ -139,14 +139,22 @@ async def register_heartbeat(
                 .first()
             )
 
-            if event and event.latitude is not None and event.longitude is not None:
-                event_center = (event.latitude, event.longitude)
+            if event and (
+                (event.latitude is not None and event.longitude is not None)
+                or getattr(event, "geofence_polygon", None)
+            ):
+                event_center = (
+                    (event.latitude, event.longitude)
+                    if event.latitude is not None and event.longitude is not None
+                    else None
+                )
                 event_radius = float(event.geofence_radius or 250.0)
 
                 dentro, distancia = GeofenceService.validar_perimetro(
                     device_coords=(payload.latitude, payload.longitude),
                     venue_center=event_center,
                     raio_maximo_metros=event_radius,
+                    geofence_polygon=getattr(event, "geofence_polygon", None),
                 )
 
                 speed = float(payload.speed_kmh or 0.0)

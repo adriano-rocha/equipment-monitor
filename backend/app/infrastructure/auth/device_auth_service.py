@@ -6,10 +6,12 @@ evita consultar os dois de novo (a credencial já foi carregada aqui para
 verificar o secret; o Use Case precisa dela para atualizar last_used_at).
 """
 
+import hashlib
 from dataclasses import dataclass
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from cachetools import TTLCache
 
 from app.application.exceptions import InvalidDeviceCredentialsError
 from app.application.ports.device_credential_repository import DeviceCredentialRepository
@@ -18,6 +20,11 @@ from app.domain.device import Device
 from app.domain.device_credential import DeviceCredential
 
 _AUTH_SCHEME = "DeviceKey"
+_AUTH_CACHE_TTL_SECONDS = 300
+_DEVICE_KEY_VALIDATION_CACHE: TTLCache = TTLCache(
+    maxsize=1024,
+    ttl=_AUTH_CACHE_TTL_SECONDS,
+)
 
 
 @dataclass
@@ -49,7 +56,7 @@ class DeviceAuthService:
             print("DEBUG: 2. credential NOT active! status=", repr(credential.status))
             raise InvalidDeviceCredentialsError()
 
-        if not self._verify_secret(secret, credential.secret_hash):
+        if not self._verify_secret(key_id, secret, credential.secret_hash):
             print("DEBUG: 3. verify_secret falhou!")
             raise InvalidDeviceCredentialsError()
 
@@ -60,12 +67,22 @@ class DeviceAuthService:
 
         return AuthenticatedDevice(device=device, credential=credential)
 
-    def _verify_secret(self, secret: str, secret_hash: str) -> bool:
+    def _verify_secret(self, key_id: str, secret: str, secret_hash: str) -> bool:
+        cache_key = (
+            key_id,
+            hashlib.sha256(secret.encode("utf-8")).hexdigest(),
+        )
+
+        if cache_key in _DEVICE_KEY_VALIDATION_CACHE:
+            return True
+
         try:
             self._password_hasher.verify(secret_hash, secret)
-            return True
         except VerifyMismatchError:
             return False
+
+        _DEVICE_KEY_VALIDATION_CACHE[cache_key] = True
+        return True
 
     @staticmethod
     def _parse_header(authorization_header: str | None) -> tuple[str, str]:

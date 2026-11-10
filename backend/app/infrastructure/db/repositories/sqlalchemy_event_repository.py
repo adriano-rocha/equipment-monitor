@@ -17,7 +17,6 @@ class SqlAlchemyEventRepository(EventRepository):
         self._session = session
 
     def add(self, event: Event) -> None:
-        # ✅ Adicionados latitude, longitude e geofence_radius
         model = EventModel(
             id=event.id,
             name=event.name,
@@ -28,6 +27,7 @@ class SqlAlchemyEventRepository(EventRepository):
             latitude=getattr(event, "latitude", None),
             longitude=getattr(event, "longitude", None),
             geofence_radius=getattr(event, "geofence_radius", 250.0),
+            geofence_polygon=getattr(event, "geofence_polygon", None),
         )
 
         self._session.add(model)
@@ -59,10 +59,10 @@ class SqlAlchemyEventRepository(EventRepository):
         model.starts_at = event.starts_at
         model.ends_at = event.ends_at
         model.is_active = event.is_active
-        # ✅ Atualizando as coordenadas e o raio também na edição:
         model.latitude = getattr(event, "latitude", None)
         model.longitude = getattr(event, "longitude", None)
         model.geofence_radius = getattr(event, "geofence_radius", 250.0)
+        model.geofence_polygon = getattr(event, "geofence_polygon", None)
 
     def list_by_period(
         self,
@@ -88,7 +88,6 @@ class SqlAlchemyEventRepository(EventRepository):
 
     @staticmethod
     def _to_domain(model: EventModel) -> Event:
-        # ✅ Repassando para a entidade de Domínio
         return Event(
             id=model.id,
             name=model.name,
@@ -99,6 +98,7 @@ class SqlAlchemyEventRepository(EventRepository):
             latitude=model.latitude,
             longitude=model.longitude,
             geofence_radius=model.geofence_radius,
+            geofence_polygon=model.geofence_polygon,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -109,7 +109,6 @@ class SqlAlchemyEventRepository(EventRepository):
         if model is None:
             raise EventNotFoundError()
 
-        # Remove as associações em event_devices para não violar a chave estrangeira
         self._session.query(EventDeviceModel).filter(
             EventDeviceModel.event_id == event_id
         ).delete(synchronize_session=False)

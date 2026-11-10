@@ -38,6 +38,7 @@ def _to_response(event) -> EventResponse:
         latitude=event.latitude,
         longitude=event.longitude,
         geofence_radius=event.geofence_radius or 250.0,
+        geofence_polygon=getattr(event, "geofence_polygon", None),
         starts_at=event.starts_at,
         ends_at=event.ends_at,
         is_active=event.is_active,
@@ -62,6 +63,7 @@ def create_event(
         latitude=payload.latitude,
         longitude=payload.longitude,
         geofence_radius=payload.geofence_radius,
+        geofence_polygon=payload.geofence_polygon,
     )
 
     session.commit()
@@ -118,6 +120,7 @@ def update_event(
         latitude=payload.latitude,
         longitude=payload.longitude,
         geofence_radius=payload.geofence_radius,
+        geofence_polygon=payload.geofence_polygon,
     )
 
     session.commit()

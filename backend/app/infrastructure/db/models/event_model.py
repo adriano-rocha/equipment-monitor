@@ -3,7 +3,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Index, String, func
+# 👉 Adicionado JSON nos imports
+from sqlalchemy import Boolean, DateTime, Float, Index, JSON, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.db.base import Base
@@ -32,6 +33,13 @@ class EventModel(Base):
         default=250.0,
         server_default="250.0",
         nullable=True,
+    )
+
+    # 👉 NOVO: Polígono de 4 cantos [[lat, lng], [lat, lng], ...]
+    geofence_polygon: Mapped[list[list[float]] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
     )
 
     latitude: Mapped[float | None] = mapped_column(

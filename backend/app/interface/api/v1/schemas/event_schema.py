@@ -1,4 +1,4 @@
-"""Schemas Pydantic para a API de eventos com suporte à Cerca Virtual."""
+"""Schemas Pydantic para a API de eventos com suporte à Cerca Virtual Circular e Poligonal."""
 
 from datetime import datetime
 from uuid import UUID
@@ -12,10 +12,11 @@ class EventCreate(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_active: bool = False
-    # 👉 Coordenadas e Raio da Cerca Virtual
+    # 👉 Coordenadas e Cercas
     latitude: float | None = None
     longitude: float | None = None
     geofence_radius: float | None = 250.0
+    geofence_polygon: list[list[float]] | None = None
 
     @model_validator(mode="after")
     def validate_period(self) -> "EventCreate":
@@ -30,10 +31,11 @@ class EventUpdate(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_active: bool
-    # 👉 Coordenadas e Raio da Cerca Virtual
+    # 👉 Coordenadas e Cercas
     latitude: float | None = None
     longitude: float | None = None
     geofence_radius: float | None = None
+    geofence_polygon: list[list[float]] | None = None
 
     @model_validator(mode="after")
     def validate_period(self) -> "EventUpdate":
@@ -51,9 +53,10 @@ class EventResponse(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_active: bool
-    # 👉 Retorna as coordenadas e o raio para o Frontend e Mapa
+    # 👉 Retorna as coordenadas e cercas para o Frontend e Mapa
     latitude: float | None = None
     longitude: float | None = None
     geofence_radius: float | None = 250.0
+    geofence_polygon: list[list[float]] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
