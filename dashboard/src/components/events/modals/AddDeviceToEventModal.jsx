@@ -14,8 +14,9 @@ export function AddDeviceToEventModal({
   const [locationPoint, setLocationPoint] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  // Sugestões inteligentes de postos existentes no evento
-  const [suggestedPoints, setSuggestedPoints] = useState(["Garçons", "Salas de Reunião"]);
+
+  // Sugestões 100% dinâmicas extraídas dos postos já ativos deste evento
+  const [suggestedPoints, setSuggestedPoints] = useState([]);
 
   useEffect(() => {
     if (!isOpen || !event?.id) return;
@@ -221,7 +222,8 @@ export function AddDeviceToEventModal({
                     const isSelected = d.id === deviceId;
                     const hasBattery = typeof d.battery_level === "number";
                     const isLow = hasBattery && d.battery_level <= 20;
-                    const isMedium = hasBattery && d.battery_level > 20 && d.battery_level <= 40;
+                    const isMedium =
+                      hasBattery && d.battery_level > 20 && d.battery_level <= 40;
 
                     return (
                       <li
@@ -250,7 +252,14 @@ export function AddDeviceToEventModal({
                             e.currentTarget.style.background = "transparent";
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            flexWrap: "wrap",
+                          }}
+                        >
                           <strong style={{ color: "#38bdf8" }}>
                             {d.asset_number}
                           </strong>
@@ -291,7 +300,11 @@ export function AddDeviceToEventModal({
 
                         {isSelected && (
                           <span
-                            style={{ color: "#10b981", fontWeight: "bold", marginLeft: "8px" }}
+                            style={{
+                              color: "#10b981",
+                              fontWeight: "bold",
+                              marginLeft: "8px",
+                            }}
                           >
                             ✓
                           </span>
@@ -315,14 +328,20 @@ export function AddDeviceToEventModal({
             )}
           </div>
 
-          {/* Campo de Posto Físico */}
           {/* Campo de Posto Físico com Sugestões de Clique Rápido */}
           <div className="form-group">
             <label>Ponto Físico / Posto Operacional</label>
 
-            {/* Chips de clique rápido */}
+            {/* Chips dinâmicos com os postos ativos */}
             {suggestedPoints.length > 0 && (
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  flexWrap: "wrap",
+                  marginBottom: "8px",
+                }}
+              >
                 {suggestedPoints.map((pt) => {
                   const isSelected = locationPoint === pt;
                   return (
@@ -331,9 +350,13 @@ export function AddDeviceToEventModal({
                       type="button"
                       onClick={() => setLocationPoint(pt)}
                       style={{
-                        background: isSelected ? "rgba(56, 189, 248, 0.25)" : "#0f172a",
+                        background: isSelected
+                          ? "rgba(56, 189, 248, 0.25)"
+                          : "#0f172a",
                         color: isSelected ? "#38bdf8" : "#cbd5e1",
-                        border: isSelected ? "1px solid #38bdf8" : "1px solid #334155",
+                        border: isSelected
+                          ? "1px solid #38bdf8"
+                          : "1px solid #334155",
                         borderRadius: "4px",
                         padding: "4px 9px",
                         fontSize: "0.78rem",
@@ -351,7 +374,7 @@ export function AddDeviceToEventModal({
 
             <input
               type="text"
-              placeholder="Ex: Garçons, Salas de Reunião..."
+              placeholder="Ex: Recepcionista, Volante, Entrada, Sala VIP..."
               value={locationPoint}
               onChange={(e) => setLocationPoint(e.target.value)}
             />
