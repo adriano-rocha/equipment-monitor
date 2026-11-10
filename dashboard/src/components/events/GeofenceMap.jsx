@@ -27,6 +27,30 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return Math.round(R * c);
 }
 
+// Algoritmo Ray-Casting (Point-in-Polygon) para checagem em tempo real na viewport
+function isPointInPolygon(lat, lon, polygon) {
+  if (!polygon || polygon.length < 3) return false;
+  let inside = false;
+  const n = polygon.length;
+  let j = n - 1;
+
+  for (let i = 0; i < n; i++) {
+    const latI = polygon[i][0];
+    const lonI = polygon[i][1];
+    const latJ = polygon[j][0];
+    const lonJ = polygon[j][1];
+
+    const intersect =
+      lonI > lon !== lonJ > lon &&
+      lat < ((latJ - latI) * (lon - lonI)) / (lonJ - lonI) + latI;
+
+    if (intersect) inside = !inside;
+    j = i;
+  }
+
+  return inside;
+}
+
 // 1. Ícone: Base / QG Central do Evento
 const baseIcon = L.divIcon({
   className: "custom-base-pin",
@@ -117,8 +141,21 @@ export function GeofenceMap({
   const mapInstanceRef = useRef(null);
   const layerGroupRef = useRef(null);
 
-  const baseLat = event?.latitude || -23.6477;
-  const baseLng = event?.longitude || -46.6292;
+  // Detecção de Cerca Poligonal vs Circular
+  const polygon = Array.isArray(event?.geofence_polygon) && event.geofence_polygon.length >= 3
+    ? event.geofence_polygon
+    : null;
+
+  // Centroide automático caso não haja latitude/longitude definidas
+  const centroid = polygon
+    ? [
+        polygon.reduce((sum, p) => sum + p[0], 0) / polygon.length,
+        polygon.reduce((sum, p) => sum + p[1], 0) / polygon.length,
+      ]
+    : null;
+
+  const baseLat = event?.latitude ?? (centroid ? centroid[0] : -23.6477);
+  const baseLng = event?.longitude ?? (centroid ? centroid[1] : -46.6292);
   const radius = event?.geofence_radius || 250;
 
   // Inicialização única do Leaflet com OpenStreetMap e Tema Escuro
@@ -151,7 +188,7 @@ export function GeofenceMap({
     };
   }, [baseLat, baseLng]);
 
-  // Atualização dos marcadores, raios e linhas em tempo real
+  // Atualização dos marcadores, raios/polígonos e linhas em tempo real
   useEffect(() => {
     const map = mapInstanceRef.current;
     const layers = layerGroupRef.current;
@@ -159,23 +196,48 @@ export function GeofenceMap({
 
     layers.clearLayers();
 
-    // 1. Círculo do Perímetro da Cerca Virtual
-    const geofenceCircle = L.circle([baseLat, baseLng], {
-      color: "#10b981",
-      fillColor: "#10b981",
-      fillOpacity: 0.14,
-      weight: 2,
-      dashArray: "6, 8",
-      radius: radius,
-    }).addTo(layers);
+    const bounds = L.latLngBounds([[baseLat, baseLng]]);
 
-    geofenceCircle.bindPopup(`
-      <div style="color: #0f172a; font-family: sans-serif; padding: 4px;">
-        <strong style="color: #059669; font-size: 13px;">🛡️ Perímetro Autorizado</strong><br/>
-        <b>Evento:</b> ${event?.name || "Evento"}<br/>
-        <b>Raio de Cobertura:</b> ${radius} metros
-      </div>
-    `);
+    // 1. Renderização da Cerca Virtual (Poligonal ou Circular)
+    if (polygon) {
+      const geofencePoly = L.polygon(polygon, {
+        color: "#10b981",
+        fillColor: "#10b981",
+        fillOpacity: 0.16,
+        weight: 2.5,
+        dashArray: "6, 8",
+      }).addTo(layers);
+
+      geofencePoly.bindPopup(`
+        <div style="color: #0f172a; font-family: sans-serif; padding: 4px;">
+          <strong style="color: #059669; font-size: 13px;">🛡️ Perímetro Pavilhão (Poligonal)</strong><br/>
+          <b>Evento:</b> ${event?.name || "Evento"}<br/>
+          <b>Cantos demarcados:</b> ${polygon.length} pontos<br/>
+          <b>Área:</b> Cobertura milimétrica do pavilhão
+        </div>
+      `);
+
+      bounds.extend(geofencePoly.getBounds());
+    } else {
+      const geofenceCircle = L.circle([baseLat, baseLng], {
+        color: "#10b981",
+        fillColor: "#10b981",
+        fillOpacity: 0.14,
+        weight: 2,
+        dashArray: "6, 8",
+        radius: radius,
+      }).addTo(layers);
+
+      geofenceCircle.bindPopup(`
+        <div style="color: #0f172a; font-family: sans-serif; padding: 4px;">
+          <strong style="color: #059669; font-size: 13px;">🛡️ Perímetro Autorizado (Circular)</strong><br/>
+          <b>Evento:</b> ${event?.name || "Evento"}<br/>
+          <b>Raio de Cobertura:</b> ${radius} metros
+        </div>
+      `);
+
+      bounds.extend(geofenceCircle.getBounds());
+    }
 
     // 2. Base Central do Evento (QG com zIndexOffset intermediário)
     const baseMarker = L.marker([baseLat, baseLng], {
@@ -191,9 +253,6 @@ export function GeofenceMap({
       </div>
     `);
 
-    const bounds = L.latLngBounds([[baseLat, baseLng]]);
-    bounds.extend(geofenceCircle.getBounds());
-
     // 3. Pinos dos Dispositivos com Detecção de Posição Real e Priorização de z-Index
     devices.forEach((dev) => {
       const live = realtimeLocations[dev.id] || realtimeLocations[dev.device_id] || {};
@@ -202,7 +261,6 @@ export function GeofenceMap({
         focusTarget?.deviceId === dev.id ||
         (focusTarget?.assetNumber && dev.asset_number === focusTarget.assetNumber);
 
-      const isAlert = Boolean(live.isAlert || isTarget);
       const label = dev.asset_number || "SIM-RASTREIO";
 
       // Resolução de Coordenadas
@@ -214,7 +272,7 @@ export function GeofenceMap({
         lng = focusTarget.longitude;
       }
 
-      if ((!lat || !lng) && isAlert) {
+      if ((!lat || !lng) && (live.isAlert || isTarget)) {
         lat = -23.6560;
         lng = -46.6340;
       }
@@ -222,11 +280,18 @@ export function GeofenceMap({
       lat = lat || baseLat;
       lng = lng || baseLng;
 
-      // Distância da Base
+      // Distância da Base / Centroide
       let distance = live.distance || live.distance_m;
       if (!distance || distance === 0) {
         distance = getDistanceMeters(baseLat, baseLng, lat, lng);
       }
+
+      // Validação de Contenção no Perímetro (Polígono Ray-Casting ou Raio)
+      const insideGeofence = polygon
+        ? isPointInPolygon(lat, lng, polygon)
+        : distance <= radius;
+
+      const isAlert = Boolean(live.isAlert || isTarget || !insideGeofence);
 
       if ((!distance || distance === 0) && isAlert) {
         const distMatch =
@@ -246,7 +311,6 @@ export function GeofenceMap({
       }
 
       // Seleção de Ícone e Prioridade de Camada (z-index)
-      // Dispositivos em alerta recebem zIndexOffset: 9999 (sempre no topo da visão)
       const icon = isAlert ? alertDeviceIcon(label) : normalTacticalIcon();
       const marker = L.marker([lat, lng], {
         icon,
@@ -255,14 +319,14 @@ export function GeofenceMap({
 
       bounds.extend([lat, lng]);
 
-      // Tooltip flutuante rápido no hover (útil para inspeção rápida de múltiplos aparelhos)
+      // Tooltip flutuante rápido no hover
       marker.bindTooltip(`📱 <b>${label}</b> (${dev.location_point || 'Posto'})`, {
         direction: "top",
         offset: [0, -10],
         opacity: 0.9,
       });
 
-      // Traça linha pontilhada vermelha da base até a posição externa de fuga
+      // Traça linha pontilhada vermelha da base até a posição externa de rompimento
       if (isAlert && (lat !== baseLat || lng !== baseLng)) {
         L.polyline([[baseLat, baseLng], [lat, lng]], {
           color: "#ef4444",
@@ -281,7 +345,7 @@ export function GeofenceMap({
             <b>Patrimônio:</b> ${label}<br/>
             <b>Tipo:</b> ${dev.device_type || 'Smartphone'}<br/>
             <b>Posto:</b> ${dev.location_point || 'Não atribuído'}<br/>
-            <b>Distância da Base:</b> <span style="color: ${distance > radius ? '#dc2626' : '#059669'}; font-weight: bold;">${distance}m</span><br/>
+            <b>Distância da Base:</b> <span style="color: ${isAlert ? '#dc2626' : '#059669'}; font-weight: bold;">${distance}m</span><br/>
             <b>Velocidade:</b> <b>${speed} km/h</b><br/>
             <b>Status:</b> ${isAlert ? '<span style="color: #dc2626; font-weight: bold;">FORA DO PERÍMETRO</span>' : '<span style="color: #059669; font-weight: bold;">SEGURO</span>'}
           </div>
@@ -294,7 +358,7 @@ export function GeofenceMap({
     });
 
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
-  }, [baseLat, baseLng, radius, devices, focusTarget, realtimeLocations, event]);
+  }, [baseLat, baseLng, radius, polygon, devices, focusTarget, realtimeLocations, event]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "420px", borderRadius: "8px", overflow: "hidden", border: "1px solid #334155" }}>
@@ -335,7 +399,8 @@ export function GeofenceMap({
         boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
       }}>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#10b981" }}></span> Cerca Ativa ({radius}m)
+          <span style={{ width: "10px", height: "10px", borderRadius: polygon ? "2px" : "50%", background: "#10b981" }}></span>
+          {polygon ? "Cerca Ativa (Pavilhão)" : `Cerca Ativa (${radius}m)`}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#059669", border: "1px solid #ffffff" }}></span> Pinos Táticos (Seguros)
