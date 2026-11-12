@@ -51,7 +51,21 @@ function Dashboard({ onLogout }) {
   const [search, setSearch] = useState("");
   // 'TODOS', 'ONLINE', 'SEM COMUNICAÇÃO', 'OFFLINE', 'EM_ESTOQUE', 'EM_OPERACAO'
   const [statusFilter, setStatusFilter] = useState("TODOS");
+  const [typeFilter, setTypeFilter] = useState("TODOS"); // 👈 NOVO: Filtro por tipo (smart, tab, note)
+  const [sortConfig, setSortConfig] = useState({ key: "asset_number", direction: "asc" }); // 👈 NOVO: Ordenação
   const [requestedPage, setRequestedPage] = useState(1);
+
+  // Função auxiliar para alternar ordenação ao clicar no cabeçalho
+  function handleSort(key) {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      // Padrão descrescente para bateria e data (maior carga / mais recente primeiro)
+      const defaultDesc = ["battery_level", "last_seen"].includes(key);
+      return { key, direction: defaultDesc ? "desc" : "asc" };
+    });
+  }
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
@@ -199,8 +213,12 @@ function Dashboard({ onLogout }) {
   }, []);
 
   // Contadores dinâmicos incluindo Estoque e Operação
+  // Contadores dinâmicos incluindo Estoque, Operação e Tipos de Hardware
   const counts = useMemo(() => {
-    const result = { TODOS: devices.length };
+    const result = {
+      TODOS: devices.length,
+      types: { smartphone: 0, tablet: 0, notebook: 0 },
+    };
     let inStock = 0;
     let inOperation = 0;
 
@@ -211,6 +229,12 @@ function Dashboard({ onLogout }) {
       } else {
         inStock++;
       }
+
+      // Contagem por tipo
+      const t = String(device.device_type ?? "").toLowerCase();
+      if (t.includes("smart") || t.includes("celular")) result.types.smartphone++;
+      else if (t.includes("tab")) result.types.tablet++;
+      else if (t.includes("not") || t.includes("desk") || t.includes("lap")) result.types.notebook++;
     }
 
     result.EM_ESTOQUE = inStock;
@@ -222,7 +246,9 @@ function Dashboard({ onLogout }) {
   // Filtro de Dispositivos (com suporte aos novos filtros de Estoque e Operação)
   const filteredDevices = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return devices.filter((device) => {
+
+    // 1. Filtragem por busca, status e tipo
+    const result = devices.filter((device) => {
       const matchesSearch =
         normalizedSearch === "" ||
         [
@@ -239,19 +265,58 @@ function Dashboard({ onLogout }) {
       const isAllocated = eventAllocations.has(device.id);
 
       let matchesStatus = true;
-      if (statusFilter === "TODOS") {
-        matchesStatus = true;
-      } else if (statusFilter === "EM_ESTOQUE") {
-        matchesStatus = !isAllocated;
-      } else if (statusFilter === "EM_OPERACAO") {
-        matchesStatus = isAllocated;
-      } else {
-        matchesStatus = device.status === statusFilter;
+      if (statusFilter === "TODOS") matchesStatus = true;
+      else if (statusFilter === "EM_ESTOQUE") matchesStatus = !isAllocated;
+      else if (statusFilter === "EM_OPERACAO") matchesStatus = isAllocated;
+      else matchesStatus = device.status === statusFilter;
+
+      let matchesType = true;
+      if (typeFilter !== "TODOS") {
+        const t = String(device.device_type ?? "").toLowerCase();
+        if (typeFilter === "smartphone") matchesType = t.includes("smart") || t.includes("celular");
+        else if (typeFilter === "tablet") matchesType = t.includes("tab");
+        else if (typeFilter === "notebook") matchesType = t.includes("not") || t.includes("desk");
       }
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesType;
     });
-  }, [devices, search, statusFilter, eventAllocations]);
+
+    // 2. Ordenação Dinâmica Multi-Coluna
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let valA = a[sortConfig.key];
+        let valB = b[sortConfig.key];
+
+        // Tratamento especial para bateria (trata vazios como -1)
+        if (sortConfig.key === "battery_level") {
+          valA = typeof valA === "number" ? valA : -1;
+          valB = typeof valB === "number" ? valB : -1;
+          return sortConfig.direction === "asc" ? valA - valB : valB - valA;
+        }
+
+        // Tratamento especial para data de último contato
+        if (sortConfig.key === "last_seen") {
+          valA = valA ? new Date(valA).getTime() : 0;
+          valB = valB ? new Date(valB).getTime() : 0;
+          return sortConfig.direction === "asc" ? valA - valB : valB - valA;
+        }
+
+        // Tratamento de alocação/posto
+        if (sortConfig.key === "allocation") {
+          valA = eventAllocations.get(a.id)?.locationPoint || "";
+          valB = eventAllocations.get(b.id)?.locationPoint || "";
+        }
+
+        // Ordenação alfanumérica natural (ex: patrimônio 4600 vs 4700)
+        const strA = String(valA ?? "").toLowerCase();
+        const strB = String(valB ?? "").toLowerCase();
+        const comp = strA.localeCompare(strB, undefined, { numeric: true });
+        return sortConfig.direction === "asc" ? comp : -comp;
+      });
+    }
+
+    return result;
+  }, [devices, search, statusFilter, typeFilter, sortConfig, eventAllocations]);
 
   const totalPages = Math.max(
     1,
@@ -458,7 +523,7 @@ function Dashboard({ onLogout }) {
                 }}
                 title="Mostrar apenas dispositivos livres na maleta/estoque"
               >
-                 Em Estoque ({counts.EM_ESTOQUE ?? 0})
+                Em Estoque ({counts.EM_ESTOQUE ?? 0})
               </button>
 
               <button
@@ -475,8 +540,59 @@ function Dashboard({ onLogout }) {
                 }}
                 title="Mostrar apenas dispositivos alocados em postos de eventos"
               >
-                 Em Operação ({counts.EM_OPERACAO ?? 0})
+                Em Operação ({counts.EM_OPERACAO ?? 0})
               </button>
+              {/* FILTROS POR TIPO DE HARDWARE COM CONTADORES */}
+              <div style={{ display: "flex", gap: "6px", marginLeft: "auto", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className={`btn-filter-todos ${typeFilter === "TODOS" ? "active" : ""}`}
+                  style={{ fontSize: "0.75rem", padding: "4px 8px" }}
+                  onClick={() => { setTypeFilter("TODOS"); setRequestedPage(1); }}
+                >
+                  Todos Tipos ({devices.length})
+                </button>
+                <button
+                  type="button"
+                  className={`btn-filter-todos ${typeFilter === "smartphone" ? "active" : ""}`}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "4px 8px",
+                    borderColor: typeFilter === "smartphone" ? "#38bdf8" : undefined,
+                    color: typeFilter === "smartphone" ? "#38bdf8" : undefined,
+                  }}
+                  onClick={() => { setTypeFilter("smartphone"); setRequestedPage(1); }}
+                >
+                  📱 Smartphones ({counts.types?.smartphone ?? 0})
+                </button>
+                <button
+                  type="button"
+                  className={`btn-filter-todos ${typeFilter === "tablet" ? "active" : ""}`}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "4px 8px",
+                    borderColor: typeFilter === "tablet" ? "#a855f7" : undefined,
+                    color: typeFilter === "tablet" ? "#a855f7" : undefined,
+                  }}
+                  onClick={() => { setTypeFilter("tablet"); setRequestedPage(1); }}
+                >
+                  📟 Tablets ({counts.types?.tablet ?? 0})
+                </button>
+                <button
+                  type="button"
+                  className={`btn-filter-todos ${typeFilter === "notebook" ? "active" : ""}`}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "4px 8px",
+                    borderColor: typeFilter === "notebook" ? "#f59e0b" : undefined,
+                    color: typeFilter === "notebook" ? "#f59e0b" : undefined,
+                  }}
+                  onClick={() => { setTypeFilter("notebook"); setRequestedPage(1); }}
+                >
+                  💻 Notebooks ({counts.types?.notebook ?? 0})
+                </button>
+              </div>
+
             </div>
           </div>
 
@@ -484,15 +600,37 @@ function Dashboard({ onLogout }) {
             <table>
               <thead>
                 <tr>
-                  <th>Patrimônio</th>
-                  <th>Tipo</th>
-                  {/* FEATURE 2: CABEÇALHO DA NOVA COLUNA */}
-                  <th>Alocação / Posto</th>
-                  <th>Hostname</th>
-                  <th>IP</th>
-                  <th>Bateria</th>
-                  <th>Status</th>
-                  <th>Último contato</th>
+                  {[
+                    { label: "Patrimônio", key: "asset_number" },
+                    { label: "Tipo", key: "device_type" },
+                    { label: "Alocação / Posto", key: "allocation" },
+                    { label: "Hostname", key: "hostname" },
+                    { label: "IP", key: "reported_ip" },
+                    { label: "Bateria", key: "battery_level" },
+                    { label: "Status", key: "status" },
+                    { label: "Último contato", key: "last_seen" },
+                  ].map((col) => {
+                    const isSorted = sortConfig.key === col.key;
+                    return (
+                      <th
+                        key={col.key}
+                        onClick={() => handleSort(col.key)}
+                        style={{
+                          cursor: "pointer",
+                          userSelect: "none",
+                          transition: "color 0.15s",
+                        }}
+                        title={`Clique para ordenar por ${col.label}`}
+                      >
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <span>{col.label}</span>
+                          <span style={{ fontSize: "0.65rem", color: isSorted ? "#38bdf8" : "#64748b" }}>
+                            {isSorted ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}
+                          </span>
+                        </div>
+                      </th>
+                    );
+                  })}
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -546,7 +684,7 @@ function Dashboard({ onLogout }) {
                               whiteSpace: "nowrap",
                             }}
                           >
-                             Em Estoque
+                            Em Estoque
                           </span>
                         )}
                       </td>
