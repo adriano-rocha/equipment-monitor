@@ -56,12 +56,19 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
     }
     if (!assetNumber) assetNumber = "SIM-RASTREIO";
 
+    const devId = alert.device_id || alert.deviceId;
+
+    // Garante compatibilidade total com qualquer componente que consumir a ação
     const normalizedAlert = {
       ...alert,
-      device_id: alert.device_id || alert.deviceId,
+      device_id: devId,
+      deviceId: devId,
       asset_number: assetNumber,
+      assetNumber: assetNumber,
       event_id: alert.event_id || alert.eventId,
+      eventId: alert.event_id || alert.eventId,
       event_name: eventName,
+      eventName: eventName,
       location_point: alert.location_point,
     };
 

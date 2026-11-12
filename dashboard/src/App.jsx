@@ -83,6 +83,7 @@ function Dashboard({ onLogout }) {
               activeDevs.forEach((ed) => {
                 if (!ed.unassigned_at && ed.is_active !== false) {
                   map.set(ed.device_id, {
+                    eventId: ev.id, // 👈 NOVO: Guarda o ID do evento para poder navegar até ele
                     eventName: ev.name,
                     locationPoint: ed.location_point || "Posto Ativo",
                   });
@@ -109,6 +110,7 @@ function Dashboard({ onLogout }) {
   }, []);
 
   // Alerta automático: bateria <= 15%
+  // Alerta automático: bateria <= 15% enriquecido com a alocação real
   const criticalBatteryAlerts = useMemo(() => {
     return devices
       .filter(
@@ -117,14 +119,25 @@ function Dashboard({ onLogout }) {
           d.battery_level <= 15 &&
           !dismissedAlerts.has(d.id),
       )
-      .map((d) => ({
-        device_id: d.id,
-        asset_number: d.asset_number,
-        battery_level: d.battery_level,
-        reason: "BATTERY_CRITICAL",
-        location_point: "Posto Operacional",
-      }));
-  }, [devices, dismissedAlerts]);
+      .map((d) => {
+        const alloc = eventAllocations.get(d.id);
+        return {
+          device_id: d.id,
+          deviceId: d.id,
+          asset_number: d.asset_number,
+          assetNumber: d.asset_number,
+          battery_level: d.battery_level,
+          reason: "BATTERY_CRITICAL",
+          event_id: alloc?.eventId || null,
+          eventId: alloc?.eventId || null,
+          event_name: alloc?.eventName || null,
+          eventName: alloc?.eventName || null,
+          location_point: alloc ? `${alloc.locationPoint} (${alloc.eventName})` : "Em Estoque / Maleta",
+          latitude: d.latitude || null,
+          longitude: d.longitude || null,
+        };
+      });
+  }, [devices, dismissedAlerts, eventAllocations]);
 
   // Remove alertas duplicados
   const activeAlerts = useMemo(() => {
@@ -273,25 +286,42 @@ function Dashboard({ onLogout }) {
           setWsAlerts((prev) => prev.filter((a) => a.device_id !== deviceId));
         }}
         onAction={(alert) => {
-          setEventFocus({
-            eventId: alert.event_id || alert.eventId || null,
-            eventName: alert.event_name || alert.eventName || "",
-            assetNumber:
-              alert.asset_number || alert.device_name || "SIM-RASTREIO",
-            deviceId: alert.device_id || alert.deviceId || null,
-            latitude: alert.latitude || null,
-            longitude: alert.longitude || null,
-            speed_kmh: alert.speed_kmh || null,
-            distance_m: alert.distance_m || null,
-            message: alert.message || null,
-            location_point: alert.location_point || null,
-            timestamp: Date.now(),
-          });
+          const devId = alert.device_id || alert.deviceId;
+          const asset = alert.asset_number || alert.assetNumber || alert.device_name || "";
+          const alloc = devId ? eventAllocations.get(devId) : null;
+          const targetDevice = devices.find((d) => d.id === devId || d.asset_number === asset);
 
-          setActiveTab("events");
-          setWsAlerts((prev) =>
-            prev.filter((a) => a.device_id !== alert.device_id),
-          );
+          const targetEventId = alert.event_id || alert.eventId || alloc?.eventId || null;
+          const targetEventName = alert.event_name || alert.eventName || alloc?.eventName || "";
+          const targetLocationPoint = alert.location_point || alloc?.locationPoint || "Posto Ativo";
+
+          // 1. Se estiver alocado em um evento, vai para Eventos e abre a câmera no pino do aparelho
+          if (targetEventId) {
+            setEventFocus({
+              eventId: targetEventId,
+              eventName: targetEventName,
+              assetNumber: asset || "SIM-RASTREIO",
+              deviceId: devId,
+              latitude: alert.latitude || targetDevice?.latitude || null,
+              longitude: alert.longitude || targetDevice?.longitude || null,
+              speed_kmh: alert.speed_kmh || null,
+              distance_m: alert.distance_m || null,
+              message: alert.message || null,
+              location_point: targetLocationPoint,
+              timestamp: Date.now(),
+            });
+            setActiveTab("events");
+          } else {
+            // 2. Se estiver em estoque (livre na maleta), abre a aba de Dispositivos e filtra direto pelo patrimônio dele
+            setActiveTab("devices");
+            if (asset) {
+              setSearch(asset);
+              setStatusFilter("TODOS");
+              setRequestedPage(1);
+            }
+          }
+
+          setWsAlerts((prev) => prev.filter((a) => a.device_id !== devId));
         }}
       />
 
