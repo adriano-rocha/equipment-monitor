@@ -82,15 +82,15 @@ const alertDeviceIcon = (label) =>
       <div style="
         background: #dc2626;
         color: white;
-        padding: 5px 11px;
-        border-radius: 16px;
+        padding: 4px 9px;
+        border-radius: 14px;
         font-weight: 800;
         font-size: 11px;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         border: 2px solid #fecaca;
-        box-shadow: 0 0 18px rgba(239, 68, 68, 1);
+        box-shadow: 0 0 16px rgba(239, 68, 68, 0.9);
         white-space: nowrap;
         cursor: pointer;
         animation: pulseDanger 1s infinite alternate;
@@ -98,8 +98,8 @@ const alertDeviceIcon = (label) =>
         🚨 ${label}
       </div>
     `,
-    iconSize: [95, 28],
-    iconAnchor: [47, 14],
+    iconSize: [85, 26],
+    iconAnchor: [42, 13],
   });
 
 export function GeofenceMap({
@@ -196,10 +196,10 @@ export function GeofenceMap({
       }).addTo(layers);
 
       geofencePoly.bindPopup(`
-        <div style="color: #0f172a; font-family: sans-serif; padding: 4px;">
-          <strong style="color: #059669; font-size: 13px;">🛡️ Perímetro Pavilhão</strong><br/>
+        <div style="color: #f8fafc; font-family: sans-serif; font-size: 11px; padding: 2px;">
+          <strong style="color: #34d399; font-size: 12px;">🛡️ Perímetro Pavilhão</strong><br/>
           <b>Evento:</b> ${event?.name || "Evento"}<br/>
-          <b>Cantos Demarcados:</b> ${polygon.length} pontos
+          <b>Cantos Demarcados:</b> ${polygon.length} vértices
         </div>
       `);
 
@@ -230,18 +230,18 @@ export function GeofenceMap({
       if (!distance || distance === 0) {
         distance = getDistanceMeters(baseLat, baseLng, lat, lng);
       }
+      const formattedDistance = Math.round(distance);
 
       const insideGeofence = polygon ? isPointInPolygon(lat, lng, polygon) : true;
       const isAlert = !insideGeofence;
 
-      let speed = live.speed || live.speed_kmh || focusTarget?.speed_kmh;
-      if (!speed && focusTarget?.message) {
+      // Sanitização de Velocidade com Deadband (elimina ruído de GPS em sala parada)
+      let rawSpeed = parseFloat(live.speed || live.speed_kmh || focusTarget?.speed_kmh || 0);
+      if (!rawSpeed && focusTarget?.message) {
         const speedMatch = focusTarget.message.match(/([\d.]+)\s*km\/h/i);
-        if (speedMatch) speed = speedMatch[1];
+        if (speedMatch) rawSpeed = parseFloat(speedMatch[1]);
       }
-      if (!speed) {
-        speed = isAlert ? "68.0" : "3.0";
-      }
+      const formattedSpeed = rawSpeed >= 3.5 ? rawSpeed.toFixed(1) : "0.0";
 
       const icon = isAlert ? alertDeviceIcon(label) : normalTacticalIcon();
       const marker = L.marker([lat, lng], {
@@ -265,22 +265,34 @@ export function GeofenceMap({
         }).addTo(layers);
       }
 
+      // Popup Tático Compacto (Não oculta o mapa)
       marker.bindPopup(`
-        <div style="color: #0f172a; font-family: sans-serif; min-width: 190px; padding: 4px;">
-          <div style="font-size: 13px; font-weight: 800; color: ${isAlert ? "#dc2626" : "#059669"}; margin-bottom: 6px;">
-            ${isAlert ? "🚨 ALERTA: ROMPIMENTO DE CERCA" : "📱 " + label}
+        <div style="
+          color: #f8fafc;
+          background: #0f172a;
+          font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          line-height: 1.45;
+          min-width: 170px;
+        ">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+            <strong style="color: ${isAlert ? "#f87171" : "#34d399"}; font-size: 11px; font-weight: 700;">
+              ${isAlert ? "🚨 FORA DO PERÍMETRO" : "🛡️ SEGURO NO POSTO"}
+            </strong>
           </div>
-          <div style="font-size: 12px; line-height: 1.5;">
-            <b>Patrimônio:</b> ${label}<br/>
-            <b>Tipo:</b> ${dev.device_type || "Smartphone"}<br/>
-            <b>Posto:</b> ${dev.location_point || "Não atribuído"}<br/>
-            <b>Distância:</b> <span style="color: ${isAlert ? "#dc2626" : "#059669"}; font-weight: bold;">${distance}m</span><br/>
-            <b>Velocidade:</b> <b>${speed} km/h</b><br/>
-            <b>Status:</b> ${isAlert ? '<span style="color: #dc2626; font-weight: bold;">FORA DO PERÍMETRO</span>' : '<span style="color: #059669; font-weight: bold;">SEGURO</span>'}
-          </div>
+          <div><b>Patrimônio:</b> ${label} (${dev.device_type || "Smartphone"})</div>
+          <div><b>Posto:</b> ${dev.location_point || "Não atribuído"}</div>
+          <div><b>Distância:</b> <span style="color: ${isAlert ? "#f87171" : "#34d399"}; font-weight: bold;">${formattedDistance}m</span></div>
+          <div><b>Velocidade:</b> ${formattedSpeed} km/h</div>
         </div>
-      `);
+      `, {
+        maxWidth: 220,
+        className: "custom-tactical-leaflet-popup"
+      });
 
+      // O popup SÓ abre se o operador tiver clicado especificamente neste aparelho
       if (isTarget) {
         marker.openPopup();
       }
@@ -319,6 +331,21 @@ export function GeofenceMap({
             transform: scale(1.06);
             box-shadow: 0 0 22px rgba(239, 68, 68, 1);
           }
+        }
+        /* Ajuste do container padrão de popup do Leaflet */
+        .custom-tactical-leaflet-popup .leaflet-popup-content-wrapper {
+          background: #0f172a !important;
+          border: 1px solid #334155 !important;
+          border-radius: 8px !important;
+          padding: 0 !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+        }
+        .custom-tactical-leaflet-popup .leaflet-popup-content {
+          margin: 0 !important;
+        }
+        .custom-tactical-leaflet-popup .leaflet-popup-tip {
+          background: #0f172a !important;
+          border: 1px solid #334155 !important;
         }
       `}</style>
 
