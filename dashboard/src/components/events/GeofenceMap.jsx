@@ -82,15 +82,15 @@ const alertDeviceIcon = (label) =>
       <div style="
         background: #dc2626;
         color: white;
-        padding: 4px 9px;
-        border-radius: 14px;
-        font-weight: 800;
-        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 10px;
         display: flex;
         align-items: center;
-        gap: 5px;
-        border: 2px solid #fecaca;
-        box-shadow: 0 0 16px rgba(239, 68, 68, 0.9);
+        gap: 4px;
+        border: 1.5px solid #ffffff;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
         white-space: nowrap;
         cursor: pointer;
         animation: pulseDanger 1s infinite alternate;
@@ -98,10 +98,10 @@ const alertDeviceIcon = (label) =>
         🚨 ${label}
       </div>
     `,
-    iconSize: [85, 26],
-    iconAnchor: [42, 13],
+    iconSize: [60, 20],
+    iconAnchor: [30, 10],
   });
-
+  
 export function GeofenceMap({
   event,
   devices = [],
