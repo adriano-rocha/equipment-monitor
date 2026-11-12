@@ -1,41 +1,44 @@
 export function AlertBanner({ alerts, onDismiss, onAction }) {
   if (!alerts || alerts.length === 0) return null;
 
+  // Limita a exibição visual a no máximo 2 alertas para nunca cobrir a tela
+  const visibleAlerts = alerts.slice(0, 2);
+  const remainingCount = alerts.length - visibleAlerts.length;
+
   function getAlertDetails(alert) {
     switch (alert.reason) {
       case "PERIMETER_BREACH":
         return {
-          title: "🔴 AFASTAMENTO DO PONTO DE COBERTURA",
+          title: "FORA DO PERÍMETRO",
           titleColor: "#f87171",
           borderColor: "#ef4444",
           bgColor: "#450a0a",
-          actionLabel: "Ver no Posto",
-          badgeColor: "#ef4444",
+          actionLabel: "Ver",
+          icon: "🚨",
         };
       case "HIGH_SPEED_EVASION":
         return {
-          title: "🚨 DESLOCAMENTO RÁPIDO DETECTADO",
+          title: "DESLOCAMENTO RÁPIDO",
           titleColor: "#fb923c",
           borderColor: "#f97316",
           bgColor: "#431407",
-          actionLabel: "Ver no Posto",
-          badgeColor: "#f97316",
+          actionLabel: "Ver",
+          icon: "⚡",
         };
       case "BATTERY_CRITICAL":
       default:
         return {
-          title: "🔋 BATERIA CRÍTICA (≤10%)",
+          title: "BATERIA CRÍTICA (≤10%)",
           titleColor: "#f87171",
           borderColor: "#ef4444",
           bgColor: "#450a0a",
-          actionLabel: "Substituir no Ponto",
-          badgeColor: "#ef4444",
+          actionLabel: "Trocar",
+          icon: "🔋",
         };
     }
   }
 
   function handleActionClick(alert) {
-    // 1. Extração do Nome do Evento (direto, via parênteses do posto ou via mensagem)
     let eventName = alert.event_name || alert.eventName || "";
     if (!eventName && alert.location_point && alert.location_point.includes("(")) {
       const matchPoint = alert.location_point.match(/\(([^)]+)\)/);
@@ -45,9 +48,7 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
       const matchMsg = alert.message.match(/evento\s+([^!.]+)/i);
       if (matchMsg) eventName = matchMsg[1].trim();
     }
-    if (!eventName) eventName = "";
 
-    // 2. Extração do Patrimônio / Nome do Aparelho
     let assetNumber = alert.asset_number || alert.device_name || alert.serial_number || "";
     if (!assetNumber && alert.message) {
       const matchDev = alert.message.match(/dispositivo\s+([^\s!]+)/i);
@@ -71,39 +72,42 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
     <div
       style={{
         position: "fixed",
-        top: "1.5rem",
-        right: "1.5rem",
+        top: "1rem",
+        right: "1rem",
         zIndex: 9999,
         display: "flex",
         flexDirection: "column",
-        gap: "0.75rem",
-        maxWidth: "440px",
-        width: "100%",
+        gap: "0.4rem",
+        maxWidth: "340px",
+        width: "calc(100% - 2rem)",
       }}
       role="alert"
       aria-live="assertive"
     >
-      {alerts.map((alert, idx) => {
+      {visibleAlerts.map((alert, idx) => {
         const details = getAlertDetails(alert);
         const displayName = alert.asset_number || alert.device_name || alert.serial_number || "SIM-RASTREIO";
+        const postName = alert.location_point ? alert.location_point.split("(")[0].trim() : "Posto";
 
         return (
           <div
             key={`${alert.device_id || idx}-${alert.reason || "alert"}`}
             style={{
-              background: details.bgColor,
-              border: `2px solid ${details.borderColor}`,
-              borderRadius: "8px",
-              padding: "1rem",
+              background: "rgba(30, 10, 10, 0.95)",
+              backdropFilter: "blur(8px)",
+              border: `1px solid ${details.borderColor}`,
+              borderLeft: `4px solid ${details.borderColor}`,
+              borderRadius: "6px",
+              padding: "8px 12px",
               color: "#fecaca",
-              boxShadow: "0 10px 25px rgba(0, 0, 0, 0.6)",
+              boxShadow: "0 6px 18px rgba(0, 0, 0, 0.5)",
               display: "flex",
               flexDirection: "column",
-              gap: "0.5rem",
-              animation: "fadeIn 0.3s ease-in-out",
+              gap: "4px",
+              animation: "fadeIn 0.2s ease-in-out",
             }}
           >
-            {/* Cabeçalho do Card */}
+            {/* Linha 1: Ícone + Título + Botão Fechar */}
             <div
               style={{
                 display: "flex",
@@ -113,24 +117,16 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
             >
               <span
                 style={{
-                  fontWeight: "bold",
-                  fontSize: "0.85rem",
+                  fontWeight: "700",
+                  fontSize: "0.75rem",
                   color: details.titleColor,
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.4rem",
-                  letterSpacing: "0.025em",
+                  gap: "0.3rem",
+                  letterSpacing: "0.03em",
                 }}
               >
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: details.badgeColor,
-                    boxShadow: `0 0 8px ${details.badgeColor}`,
-                  }}
-                />
+                <span>{details.icon}</span>
                 {details.title}
               </span>
 
@@ -142,9 +138,9 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
                   border: "none",
                   color: "#9ca3af",
                   cursor: "pointer",
-                  fontSize: "0.95rem",
+                  fontSize: "0.85rem",
                   lineHeight: 1,
-                  padding: "0.2rem",
+                  padding: "2px 4px",
                 }}
                 title="Dispensar alerta"
               >
@@ -152,70 +148,42 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
               </button>
             </div>
 
-            {/* Conteúdo / Mensagem */}
-            <div style={{ fontSize: "0.9rem", color: "#f3f4f6" }}>
-              <div>
-                Dispositivo:{" "}
-                <strong style={{ color: "#fff" }}>{displayName}</strong>
-              </div>
-
-              {alert.message && (
-                <div
-                  style={{
-                    color: "#fecaca",
-                    fontSize: "0.85rem",
-                    marginTop: "0.35rem",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {alert.message}
-                </div>
-              )}
-
-              {alert.battery_level !== undefined &&
-                alert.reason !== "PERIMETER_BREACH" && (
-                  <div
-                    style={{
-                      color: "#facc15",
-                      fontWeight: "bold",
-                      marginTop: "0.2rem",
-                    }}
-                  >
-                    Nível de Bateria: {alert.battery_level}% — Trocar imediatamente!
-                  </div>
-                )}
-
-              {alert.location_point && (
-                <div
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "#cbd5e1",
-                    marginTop: "0.35rem",
-                  }}
-                >
-                  📍 Posto: <b>{alert.location_point}</b>{" "}
-                  {alert.event_name ? `(${alert.event_name})` : ""}
-                </div>
-              )}
-            </div>
-
-            {/* Ação Operacional */}
+            {/* Linha 2: Dispositivo + Posto + Botão de Ação Rápido (Inline) */}
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
-                marginTop: "0.35rem",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: "2px",
               }}
             >
+              <div style={{ fontSize: "0.8rem", color: "#f3f4f6" }}>
+                <strong style={{ color: "#ffffff", fontSize: "0.85rem" }}>{displayName}</strong>
+                <span style={{ color: "#94a3b8", fontSize: "0.75rem", marginLeft: "6px" }}>
+                  • {postName}
+                </span>
+                {alert.battery_level !== undefined && alert.reason === "BATTERY_CRITICAL" && (
+                  <span style={{ color: "#facc15", fontWeight: "bold", marginLeft: "6px" }}>
+                    ({alert.battery_level}%)
+                  </span>
+                )}
+              </div>
+
               <button
                 type="button"
-                className="btn-danger"
                 style={{
-                  padding: "0.45rem 0.9rem",
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
+                  background: details.borderColor,
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "3px 8px",
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
                   cursor: "pointer",
+                  transition: "opacity 0.15s",
                 }}
+                onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
+                onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
                 onClick={() => handleActionClick(alert)}
               >
                 {details.actionLabel}
@@ -224,6 +192,20 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
           </div>
         );
       })}
+
+      {/* Indicador sutil caso haja mais de 2 alertas ativos */}
+      {remainingCount > 0 && (
+        <div
+          style={{
+            fontSize: "0.7rem",
+            color: "#cbd5e1",
+            textAlign: "right",
+            paddingRight: "4px",
+          }}
+        >
+          +{remainingCount} outro{remainingCount > 1 ? "s" : ""} alerta{remainingCount > 1 ? "s" : ""} ativo{remainingCount > 1 ? "s" : ""}
+        </div>
+      )}
     </div>
   );
 }
