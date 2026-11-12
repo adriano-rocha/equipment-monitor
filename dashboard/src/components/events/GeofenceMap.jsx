@@ -25,7 +25,7 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return Math.round(R * c);
 }
 
-// Ray-Casting (Point-in-Polygon)
+// Algoritmo PNPOLY Canônico: Raio Horizontal Leste-Oeste imune à rotação de galpões
 function isPointInPolygon(lat, lon, polygon) {
   if (!polygon || polygon.length < 3) return false;
   let inside = false;
@@ -39,8 +39,8 @@ function isPointInPolygon(lat, lon, polygon) {
     const lonJ = polygon[j][1];
 
     const intersect =
-      lonI > lon !== lonJ > lon &&
-      lat < ((latJ - latI) * (lon - lonI)) / (lonJ - lonI) + latI;
+      latI > lat !== latJ > lat &&
+      lon < ((lonJ - lonI) * (lat - latI)) / (latJ - latI) + lonI;
 
     if (intersect) inside = !inside;
     j = i;
@@ -111,10 +111,17 @@ export function GeofenceMap({
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layerGroupRef = useRef(null);
+  const hasInitialFitRef = useRef(false);
 
-  const polygon = Array.isArray(event?.geofence_polygon) && event.geofence_polygon.length >= 3
-    ? event.geofence_polygon
-    : null;
+  // Reseta a centralização inicial se trocar de evento
+  useEffect(() => {
+    hasInitialFitRef.current = false;
+  }, [event?.id]);
+
+  const polygon =
+    Array.isArray(event?.geofence_polygon) && event.geofence_polygon.length >= 3
+      ? event.geofence_polygon
+      : null;
 
   const centroid = polygon
     ? [
@@ -123,9 +130,10 @@ export function GeofenceMap({
       ]
     : null;
 
-  const baseLat = centroid ? centroid[0] : (event?.latitude || -23.6477);
-  const baseLng = centroid ? centroid[1] : (event?.longitude || -46.6292);
+  const baseLat = centroid ? centroid[0] : event?.latitude || -23.6477;
+  const baseLng = centroid ? centroid[1] : event?.longitude || -46.6292;
 
+  // 1. Inicialização do Mapa (Apenas uma vez)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -134,10 +142,23 @@ export function GeofenceMap({
         center: [baseLat, baseLng],
         zoom: 16,
         zoomControl: true,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        wheelPxPerZoomLevel: 120, // Suaviza o scroll para não saltar zoom rápido
+        wheelDebounceTime: 80,
       });
 
+      // Régua métrica tática no canto inferior direito
+      L.control
+        .scale({
+          metric: true,
+          imperial: false,
+          position: "bottomright",
+        })
+        .addTo(map);
+
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap',
+        attribution: "&copy; OpenStreetMap",
         maxZoom: 19,
         className: "asaph-dark-tiles",
       }).addTo(map);
@@ -155,6 +176,7 @@ export function GeofenceMap({
     };
   }, [baseLat, baseLng]);
 
+  // 2. Renderização de Camadas e Telemetria
   useEffect(() => {
     const map = mapInstanceRef.current;
     const layers = layerGroupRef.current;
@@ -164,7 +186,6 @@ export function GeofenceMap({
 
     const bounds = L.latLngBounds([[baseLat, baseLng]]);
 
-    // Renderização Exclusiva do Polígono do Pavilhão
     if (polygon) {
       const geofencePoly = L.polygon(polygon, {
         color: "#10b981",
@@ -185,7 +206,6 @@ export function GeofenceMap({
       bounds.extend(geofencePoly.getBounds());
     }
 
-    // Pinos dos Dispositivos com Detecção de Posição
     devices.forEach((dev) => {
       const live = realtimeLocations[dev.id] || realtimeLocations[dev.device_id] || {};
 
@@ -203,11 +223,6 @@ export function GeofenceMap({
         lng = focusTarget.longitude;
       }
 
-      if ((!lat || !lng) && (live.isAlert || isTarget)) {
-        lat = -23.6560;
-        lng = -46.6340;
-      }
-
       lat = lat || baseLat;
       lng = lng || baseLng;
 
@@ -216,16 +231,8 @@ export function GeofenceMap({
         distance = getDistanceMeters(baseLat, baseLng, lat, lng);
       }
 
-      // 100% Ray-Casting no Polígono
       const insideGeofence = polygon ? isPointInPolygon(lat, lng, polygon) : true;
-      const isAlert = Boolean(live.isAlert || isTarget || !insideGeofence);
-
-      if ((!distance || distance === 0) && isAlert) {
-        const distMatch =
-          focusTarget?.message?.match(/([\d.]+)\s*m/i) ||
-          window.__lastAlertMessage?.match(/([\d.]+)\s*m/i);
-        distance = distMatch ? Math.round(parseFloat(distMatch[1])) : 1044;
-      }
+      const isAlert = !insideGeofence;
 
       let speed = live.speed || live.speed_kmh || focusTarget?.speed_kmh;
       if (!speed && focusTarget?.message) {
@@ -244,7 +251,7 @@ export function GeofenceMap({
 
       bounds.extend([lat, lng]);
 
-      marker.bindTooltip(`📱 <b>${label}</b> (${dev.location_point || 'Posto'})`, {
+      marker.bindTooltip(`📱 <b>${label}</b> (${dev.location_point || "Posto"})`, {
         direction: "top",
         offset: [0, -10],
         opacity: 0.9,
@@ -260,30 +267,45 @@ export function GeofenceMap({
 
       marker.bindPopup(`
         <div style="color: #0f172a; font-family: sans-serif; min-width: 190px; padding: 4px;">
-          <div style="font-size: 13px; font-weight: 800; color: ${isAlert ? '#dc2626' : '#059669'}; margin-bottom: 6px;">
-            ${isAlert ? '🚨 ALERTA: ROMPIMENTO DE CERCA' : '📱 ' + label}
+          <div style="font-size: 13px; font-weight: 800; color: ${isAlert ? "#dc2626" : "#059669"}; margin-bottom: 6px;">
+            ${isAlert ? "🚨 ALERTA: ROMPIMENTO DE CERCA" : "📱 " + label}
           </div>
           <div style="font-size: 12px; line-height: 1.5;">
             <b>Patrimônio:</b> ${label}<br/>
-            <b>Tipo:</b> ${dev.device_type || 'Smartphone'}<br/>
-            <b>Posto:</b> ${dev.location_point || 'Não atribuído'}<br/>
-            <b>Distância:</b> <span style="color: ${isAlert ? '#dc2626' : '#059669'}; font-weight: bold;">${distance}m</span><br/>
+            <b>Tipo:</b> ${dev.device_type || "Smartphone"}<br/>
+            <b>Posto:</b> ${dev.location_point || "Não atribuído"}<br/>
+            <b>Distância:</b> <span style="color: ${isAlert ? "#dc2626" : "#059669"}; font-weight: bold;">${distance}m</span><br/>
             <b>Velocidade:</b> <b>${speed} km/h</b><br/>
             <b>Status:</b> ${isAlert ? '<span style="color: #dc2626; font-weight: bold;">FORA DO PERÍMETRO</span>' : '<span style="color: #059669; font-weight: bold;">SEGURO</span>'}
           </div>
         </div>
       `);
 
-      if (isAlert) {
+      if (isTarget) {
         marker.openPopup();
       }
     });
 
-    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
+    // Centralização inteligente: enquadra 1 vez na abertura ou segue o foco selecionado
+    if (!hasInitialFitRef.current && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
+      hasInitialFitRef.current = true;
+    } else if (focusTarget?.latitude && focusTarget?.longitude) {
+      map.panTo([focusTarget.latitude, focusTarget.longitude], { animate: true });
+    }
   }, [baseLat, baseLng, polygon, devices, focusTarget, realtimeLocations, event]);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "420px", borderRadius: "8px", overflow: "hidden", border: "1px solid #334155" }}>
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "420px",
+        borderRadius: "8px",
+        overflow: "hidden",
+        border: "1px solid #334155",
+      }}
+    >
       <style>{`
         .asaph-dark-tiles {
           filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.25) brightness(0.7) !important;
@@ -302,30 +324,50 @@ export function GeofenceMap({
 
       <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
-      <div style={{
-        position: "absolute",
-        bottom: "12px",
-        left: "12px",
-        background: "rgba(15, 23, 42, 0.9)",
-        backdropFilter: "blur(6px)",
-        padding: "6px 14px",
-        borderRadius: "6px",
-        border: "1px solid #334155",
-        fontSize: "11px",
-        color: "#cbd5e1",
-        display: "flex",
-        gap: "14px",
-        zIndex: 1000,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
-      }}>
+      <div
+        style={{
+          position: "absolute",
+          bottom: "12px",
+          left: "12px",
+          background: "rgba(15, 23, 42, 0.9)",
+          backdropFilter: "blur(6px)",
+          padding: "6px 14px",
+          borderRadius: "6px",
+          border: "1px solid #334155",
+          fontSize: "11px",
+          color: "#cbd5e1",
+          display: "flex",
+          gap: "14px",
+          zIndex: 1000,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+        }}
+      >
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#10b981" }}></span> Cerca Ativa (Pavilhão)
+          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#10b981" }}></span>{" "}
+          Cerca Ativa (Pavilhão)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#059669", border: "1px solid #ffffff" }}></span> Pinos Táticos (Seguros)
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#059669",
+              border: "1px solid #ffffff",
+            }}
+          ></span>{" "}
+          Pinos Táticos (Seguros)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444" }}></span> Rompimento / Fuga (Prioridade)
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#ef4444",
+            }}
+          ></span>{" "}
+          Rompimento / Fuga (Prioridade)
         </span>
       </div>
     </div>

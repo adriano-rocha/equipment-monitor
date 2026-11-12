@@ -11,10 +11,10 @@ class GeofenceService:
     @staticmethod
     def calcular_distancia_metros(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Calcula a distância em metros entre duas coordenadas geográficas (Fórmula de Haversine)."""
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
+        phi1 = math.radians(float(lat1))
+        phi2 = math.radians(float(lat2))
+        delta_phi = math.radians(float(lat2) - float(lat1))
+        delta_lambda = math.radians(float(lon2) - float(lon1))
 
         a = (
             math.sin(delta_phi / 2) ** 2
@@ -31,11 +31,10 @@ class GeofenceService:
         poligono: Sequence[Sequence[float]],
     ) -> bool:
         """
-        Algoritmo Ray-Casting (Point-in-Polygon / Jordan Curve).
-        Dispara um raio horizontal a partir do ponto (lat, lon) e conta quantas
-        arestas do polígono são intersectadas. Número ímpar = dentro; par = fora.
-        
-        Suporta qualquer polígono fechado de 4 ou mais cantos com qualquer rotação/orientação.
+        Algoritmo Ray-Casting canônico (PNPOLY - W. Randolph Franklin).
+        Dispara um raio horizontal para o Leste a partir de (lat, lon)
+        ao longo da linha de latitude.
+        Imune à rotação de pavilhões e arestas verticais.
         """
         if not poligono or len(poligono) < 3:
             return False
@@ -44,17 +43,21 @@ class GeofenceService:
         dentro = False
         j = n - 1
 
+        lat_ponto = float(lat)
+        lon_ponto = float(lon)
+
         for i in range(n):
-            lat_i, lon_i = poligono[i][0], poligono[i][1]
-            lat_j, lon_j = poligono[j][0], poligono[j][1]
+            lat_i, lon_i = float(poligono[i][0]), float(poligono[i][1])
+            lat_j, lon_j = float(poligono[j][0]), float(poligono[j][1])
 
-            # Verifica se o raio cruza o segmento entre os vértices j e i
-            cruzou = ((lon_i > lon) != (lon_j > lon)) and (
-                lat < (lat_j - lat_i) * (lon - lon_i) / (lon_j - lon_i) + lat_i
-            )
+            # Verifica se a latitude do ponto está entre as latitudes dos vértices j e i
+            if (lat_i > lat_ponto) != (lat_j > lat_ponto):
+                # Calcula a longitude onde o segmento cruza a latitude do ponto
+                lon_intersect = (lon_j - lon_i) * (lat_ponto - lat_i) / (lat_j - lat_i) + lon_i
 
-            if cruzou:
-                dentro = not dentro
+                # Se o cruzamento ocorre a leste (direita) do ponto, conta a interseção
+                if lon_ponto < lon_intersect:
+                    dentro = not dentro
 
             j = i
 
@@ -73,11 +76,11 @@ class GeofenceService:
     ) -> Tuple[bool, float]:
         """
         Retorna (dentro_do_perimetro: bool, distancia_calculada: float).
-        
+
         - Se geofence_polygon estiver definido (mínimo 3 pontos), usa Ray-Casting.
         - Caso contrário, usa cálculo circular Haversine legado.
         """
-        device_lat, device_lon = device_coords
+        device_lat, device_lon = float(device_coords[0]), float(device_coords[1])
 
         # ----------------------------------------------------
         # 1. MODO POLIGONAL (Pavilhões, galpões, áreas complexas)
@@ -88,10 +91,11 @@ class GeofenceService:
             # Para telemetria/relatório de distância, calcula distância até o centro
             # Se houver venue_center usa ele; senão, calcula o centroide do polígono
             if venue_center or center_coords:
-                centro = venue_center or center_coords
+                raw_center = venue_center or center_coords
+                centro = (float(raw_center[0]), float(raw_center[1]))
             else:
-                centro_lat = sum(p[0] for p in geofence_polygon) / len(geofence_polygon)
-                centro_lon = sum(p[1] for p in geofence_polygon) / len(geofence_polygon)
+                centro_lat = sum(float(p[0]) for p in geofence_polygon) / len(geofence_polygon)
+                centro_lon = sum(float(p[1]) for p in geofence_polygon) / len(geofence_polygon)
                 centro = (centro_lat, centro_lon)
 
             distancia = cls.calcular_distancia_metros(
@@ -103,11 +107,16 @@ class GeofenceService:
         # ----------------------------------------------------
         # 2. MODO CIRCULAR CONVENCIONAL (Legado)
         # ----------------------------------------------------
-        centro = venue_center or center_coords
-        if centro is None:
+        raw_center = venue_center or center_coords
+        if raw_center is None:
             raise ValueError("As coordenadas centrais do evento não foram fornecidas.")
 
-        raio = raio_maximo_metros if raio_maximo_metros is not None else (raio_metros if raio_metros is not None else 250.0)
+        centro = (float(raw_center[0]), float(raw_center[1]))
+        raio = (
+            float(raio_maximo_metros)
+            if raio_maximo_metros is not None
+            else (float(raio_metros) if raio_metros is not None else 250.0)
+        )
 
         distancia = cls.calcular_distancia_metros(
             device_lat, device_lon,
