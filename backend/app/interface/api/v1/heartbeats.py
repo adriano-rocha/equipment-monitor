@@ -1,6 +1,7 @@
 """Rota POST /api/v1/heartbeats com Cerca Virtual Dinâmica e Conformidade LGPD."""
 
 from datetime import datetime, timezone
+import json
 import logging
 from uuid import UUID
 
@@ -37,13 +38,14 @@ from app.interface.realtime.websocket_manager import websocket_manager
 logger = logging.getLogger("equipment_monitor.heartbeats")
 router = APIRouter()
 
-# Constantes de Negócio
+# Constantes de Negócio e Telemetria
 CRITICAL_BATTERY_THRESHOLD = 10.0
 HIGH_SPEED_THRESHOLD_KMH = 25.0
+MAX_ALLOWED_ACCURACY_METERS = 45.0  # Precisões piores que 45m são ruído indoor e não geram evasão
 
-# Controle em memória de estado para disparo por transição (Edge-Triggered)
-# Evita spam contínuo a cada 30s enquanto o aparelho permanecer na mesma condição
+# Controle em memória de estado para disparo por transição (Edge-Triggered) com Histerese
 _active_breaches: set[UUID] = set()
+_breach_candidate_counts: dict[UUID, int] = {}
 _active_battery_alerts: set[UUID] = set()
 
 
@@ -101,7 +103,6 @@ async def register_heartbeat(
     if payload.battery_level is not None:
         battery_val = float(payload.battery_level)
         if battery_val <= CRITICAL_BATTERY_THRESHOLD:
-            # Check + Add imediato antes de qualquer await (anti race condition)
             if device_id not in _active_battery_alerts:
                 _active_battery_alerts.add(device_id)
                 alert_service = AlertService(
@@ -117,9 +118,8 @@ async def register_heartbeat(
         else:
             _active_battery_alerts.discard(device_id)
 
-    # 4. Avaliação de Cerca Virtual Dinâmica com Deduplicação
+    # 4. Avaliação de Cerca Virtual Dinâmica com Filtro de Precisão e Histerese
     if payload.latitude is not None and payload.longitude is not None:
-        # Busca alocação ativa do dispositivo em eventos
         active_assignment = (
             session.query(EventDeviceModel)
             .filter(
@@ -150,54 +150,107 @@ async def register_heartbeat(
                 )
                 event_radius = float(event.geofence_radius or 250.0)
 
+                # Tratamento defensivo do polígono
+                polygon_data = getattr(event, "geofence_polygon", None)
+                if isinstance(polygon_data, str):
+                    try:
+                        polygon_data = json.loads(polygon_data)
+                    except Exception as parse_err:
+                        logger.warning(
+                            "Falha ao decodificar geofence_polygon do evento %s: %s",
+                            event.id,
+                            parse_err,
+                        )
+                        polygon_data = None
+
                 dentro, distancia = GeofenceService.validar_perimetro(
-                    device_coords=(payload.latitude, payload.longitude),
+                    device_coords=(float(payload.latitude), float(payload.longitude)),
                     venue_center=event_center,
                     raio_maximo_metros=event_radius,
-                    geofence_polygon=getattr(event, "geofence_polygon", None),
+                    geofence_polygon=polygon_data,
+                )
+
+                # Extrai precisão (do payload ou de dentro do metadata)
+                raw_accuracy = getattr(payload, "accuracy", None)
+                if raw_accuracy is None and payload.metadata:
+                    raw_accuracy = payload.metadata.get("accuracy")
+                accuracy_m = float(raw_accuracy) if raw_accuracy is not None else None
+
+                # FILTRO DE PRECISÃO: Se precisão > 45m, é sinal degradado de dentro do pavilhão
+                is_accuracy_unreliable = (
+                    accuracy_m is not None and accuracy_m > MAX_ALLOWED_ACCURACY_METERS
                 )
 
                 speed = float(payload.speed_kmh or 0.0)
                 is_high_speed = speed > HIGH_SPEED_THRESHOLD_KMH
 
-                # Transição: DISPOSITIVO FORA DA CERCA
-                if not dentro:
-                    # Check + Add imediato antes do await
-                    is_new_breach = device_id not in _active_breaches
-                    _active_breaches.add(device_id)
+                logger.info(
+                    "[GEOFENCE AUDIT] Device: %s | Modo: %s | Dentro: %s | Accuracy: %sm | Dist: %.1fm",
+                    authenticated.device.asset_number,
+                    "POLIGONAL" if (polygon_data and len(polygon_data) >= 3) else "CIRCULAR_LEGADO",
+                    dentro,
+                    accuracy_m if accuracy_m is not None else "N/A",
+                    distancia,
+                )
 
-                    reason = (
-                        "HIGH_SPEED_EVASION" if is_high_speed else "PERIMETER_BREACH"
-                    )
-                    msg = (
-                        f"🚨 ALERTA CRÍTICO: Dispositivo {authenticated.device.asset_number} "
-                        f"em evasão rápida ({speed:.1f} km/h a {distancia:.1f}m da base)!"
-                        if is_high_speed
-                        else f"🚨 O dispositivo {authenticated.device.asset_number} rompeu o perímetro "
-                        f"do evento {event.name}! ({distancia:.1f}m de distância)"
-                    )
+                # -----------------------------------------------------------------
+                # Caso 1: DISPOSITIVO FORA DA CERCA COM SINAL CONFIÁVEL
+                # -----------------------------------------------------------------
+                if not dentro and not is_accuracy_unreliable:
+                    # Histerese: Exige 2 heartbeats consecutivos fora para confirmar fuga
+                    current_count = _breach_candidate_counts.get(device_id, 0) + 1
+                    _breach_candidate_counts[device_id] = current_count
 
-                    alert_payload = {
-                        "type": "ALERT_TRIGGERED" if is_new_breach else "DEVICE_POSITION_UPDATED",
-                        "event": "alert_triggered" if is_new_breach else "position_updated",
-                        "device_id": str(device_id),
-                        "asset_number": authenticated.device.asset_number,
-                        "event_name": event.name,
-                        "event_id": str(event.id),
-                        "location_point": active_assignment.location_point or "Posto Operacional",
-                        "reason": reason,
-                        "message": msg,
-                        "latitude": float(payload.latitude),
-                        "longitude": float(payload.longitude),
-                        "speed_kmh": speed,
-                        "distance_m": float(distancia),
-                        "is_breached": True,
-                    }
+                    if current_count >= 2:
+                        is_new_breach = device_id not in _active_breaches
+                        _active_breaches.add(device_id)
 
-                    await _safe_broadcast(alert_payload)
+                        reason = (
+                            "HIGH_SPEED_EVASION" if is_high_speed else "PERIMETER_BREACH"
+                        )
+                        msg = (
+                            f"🚨 ALERTA CRÍTICO: Dispositivo {authenticated.device.asset_number} "
+                            f"em evasão rápida ({speed:.1f} km/h a {distancia:.1f}m da base)!"
+                            if is_high_speed
+                            else f"🚨 O dispositivo {authenticated.device.asset_number} rompeu o perímetro "
+                            f"do evento {event.name}!"
+                        )
 
-                # Transição: DISPOSITIVO DENTRO DA CERCA (NORMAL)
+                        alert_payload = {
+                            "type": "ALERT_TRIGGERED" if is_new_breach else "DEVICE_POSITION_UPDATED",
+                            "event": "alert_triggered" if is_new_breach else "position_updated",
+                            "device_id": str(device_id),
+                            "asset_number": authenticated.device.asset_number,
+                            "event_name": event.name,
+                            "event_id": str(event.id),
+                            "location_point": active_assignment.location_point or "Posto Operacional",
+                            "reason": reason,
+                            "message": msg,
+                            "latitude": float(payload.latitude),
+                            "longitude": float(payload.longitude),
+                            "speed_kmh": speed,
+                            "distance_m": float(distancia),
+                            "is_breached": True,
+                        }
+
+                        await _safe_broadcast(alert_payload)
+
+                        # Disparo único de Telegram em caso de rompimento confirmado
+                        if is_new_breach:
+                            try:
+                                telegram_service = TelegramService(get_settings())
+                                if hasattr(telegram_service, "send_alert"):
+                                    await telegram_service.send_alert(msg)
+                                elif hasattr(telegram_service, "send_message"):
+                                    await telegram_service.send_message(msg)
+                            except Exception as exc:
+                                logger.warning("Falha ao despachar alerta Telegram: %s", exc)
+
+                # -----------------------------------------------------------------
+                # Caso 2: DISPOSITIVO DENTRO DA CERCA OU SINAL IMPRECISO (NORMAL)
+                # -----------------------------------------------------------------
                 else:
+                    _breach_candidate_counts.pop(device_id, None)
                     was_breached = device_id in _active_breaches
                     _active_breaches.discard(device_id)
 

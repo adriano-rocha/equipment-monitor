@@ -3,9 +3,8 @@
 Todo o corpo é opcional (SPEC-001) — um heartbeat vazio {} é válido.
 """
 
-import json
-from typing import Optional, Dict, Any
 from datetime import datetime
+import json
 from typing import Optional
 from uuid import UUID
 
@@ -24,6 +23,7 @@ class HeartbeatRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     speed_kmh: Optional[float] = None
+    accuracy: Optional[float] = None  # 👈 Margem de erro em metros do Android GPS/Network
 
     @field_validator("metadata")
     @classmethod

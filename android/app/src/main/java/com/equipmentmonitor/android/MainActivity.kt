@@ -120,7 +120,7 @@ class MainActivity : Activity() {
 
         findViewById<Button>(R.id.stopButton).setOnClickListener {
             showCoordinatorPinDialog()
-        }
+        }   
     }
 
     override fun onResume() {
