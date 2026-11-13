@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from uuid import UUID
-from fastapi import Response
+
+from app.infrastructure.db.models.device_model import DeviceModel
 
 from app.application.use_cases.delete_device_use_case import DeleteDeviceUseCase
 from app.application.services.device_status_service import (
@@ -26,6 +27,8 @@ from app.application.use_cases.update_device_use_case import (
 )
 
 from app.interface.api.v1.schemas.device_schema import (
+    DeviceCheckinRequest,
+    DeviceCheckinResponse,
     DeviceCreateRequest,
     DeviceCreateResponse,
     DeviceCredentialsResponse,
@@ -58,6 +61,7 @@ def list_devices(
             hostname=device.hostname,
             reported_ip=device.reported_ip,
             battery_level=device.battery_level,
+            operational_state=getattr(device, "operational_state", "ATIVO") or "ATIVO",
             last_seen=device.last_seen,
             status=calculate_communication_status(
                 device.last_seen,
@@ -65,6 +69,7 @@ def list_devices(
             ),
         )
         for device in devices
+    
     ]
 
 
@@ -165,3 +170,62 @@ def delete_device(
 
     use_case.execute(device_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/devices/checkin", response_model=DeviceCheckinResponse)
+def checkin_device(
+    payload: DeviceCheckinRequest,
+    session: Session = Depends(get_db_session),
+) -> DeviceCheckinResponse:
+    """Check-in Express: localiza por patrimônio exato ou 4 dígitos finais e marca como RECOLHIDO."""
+    raw_code = payload.asset_code.strip()
+
+    # 1. Busca exata (ex: 'NOTE-0142' ou '0142')
+    device = (
+        session.query(DeviceModel)
+        .filter(
+            DeviceModel.asset_number == raw_code,
+            DeviceModel.deleted_at.is_(None),
+        )
+        .first()
+    )
+
+    # 2. Fallback inteligente: se digitou apenas os 4 dígitos finais (ex: '0142' para 'PAT-0142')
+    if not device and len(raw_code) >= 3:
+        device = (
+            session.query(DeviceModel)
+            .filter(
+                DeviceModel.asset_number.endswith(raw_code),
+                DeviceModel.deleted_at.is_(None),
+            )
+            .first()
+        )
+
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dispositivo com patrimônio ou final '{raw_code}' não foi encontrado.",
+        )
+
+    already_collected = (device.operational_state == "RECOLHIDO")
+
+    if not already_collected:
+        device.operational_state = "RECOLHIDO"
+        session.commit()
+        session.refresh(device)
+
+    msg = (
+        f"Patrimônio {device.asset_number} já estava recolhido."
+        if already_collected
+        else f"Check-in concluído! {device.asset_number} marcado como RECOLHIDO."
+    )
+
+    return DeviceCheckinResponse(
+        id=device.id,
+        asset_number=device.asset_number,
+        device_type=device.device_type,
+        model=device.model,
+        operational_state=device.operational_state,
+        already_collected=already_collected,
+        message=msg,
+    )

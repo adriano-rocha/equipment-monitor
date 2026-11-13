@@ -20,6 +20,7 @@ import {
   EditDeviceModal,
 } from "./components/devices/DeviceModals";
 import { EventsView } from "./components/events/EventsView";
+import ExpressCheckinModal from "./components/ExpressCheckinModal";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -68,9 +69,15 @@ function Dashboard({ onLogout }) {
   }
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCheckinOpen, setIsCheckinOpen] = useState(false); // 👈 Modal de Check-in Express
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [deletingDevice, setDeletingDevice] = useState(null);
+
+  // Contador de aparelhos já recolhidos hoje
+  const recolhidosCount = useMemo(() => {
+    return devices.filter((d) => d.operational_state === "RECOLHIDO").length;
+  }, [devices]);
 
   const [dismissedAlerts, setDismissedAlerts] = useState(() => new Set());
   const [wsAlerts, setWsAlerts] = useState([]);
@@ -449,6 +456,30 @@ function Dashboard({ onLogout }) {
             </div>
 
             <div className="header-actions">
+              {/* Botão de Check-in Express / Fechamento de Turno */}
+              <button
+                type="button"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  fontWeight: 700,
+                  fontSize: "0.875rem",
+                  background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+                  color: "#ffffff",
+                  border: "1px solid #34d399",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)",
+                  transition: "all 0.2s ease",
+                }}
+                onClick={() => setIsCheckinOpen(true)}
+                title="Bipagem contínua via leitor USB, câmera ou auto-submit de 4 dígitos"
+              >
+                <span>⚡</span> Check-in Express ({recolhidosCount}/{devices.length})
+              </button>
+
               <button
                 type="button"
                 className="btn-create-device"
@@ -647,9 +678,28 @@ function Dashboard({ onLogout }) {
                         {device.device_type ?? "-"}
                       </td>
 
-                      {/* FEATURE 2: BADGE DE ALOCAÇÃO NA LINHA */}
+                      {/* FEATURE 2: BADGE DE ALOCAÇÃO E RECOLHIDO NA LINHA */}
                       <td>
-                        {alloc ? (
+                        {device.operational_state === "RECOLHIDO" ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              background: "rgba(16, 185, 129, 0.2)",
+                              color: "#34d399",
+                              border: "1px solid rgba(52, 211, 153, 0.4)",
+                              whiteSpace: "nowrap",
+                            }}
+                            title="Equipamento auditado e recolhido fisicamente"
+                          >
+                            Recolhido
+                          </span>
+                        ) : alloc ? (
                           <span
                             style={{
                               display: "inline-flex",
@@ -767,6 +817,20 @@ function Dashboard({ onLogout }) {
           onClearFocus={() => setEventFocus(null)}
         />
       )}
+
+      {/* Modal de Check-in Express / Bipagem */}
+      <ExpressCheckinModal
+        isOpen={isCheckinOpen}
+        onClose={() => setIsCheckinOpen(false)}
+        totalDevices={devices.length}
+        initialRecolhidos={recolhidosCount}
+        onCheckinSuccess={() => refresh()}
+        apiBaseUrl={
+          import.meta.env.VITE_API_URL ||
+          "https://equipment-monitor-fd2u.onrender.com"
+        }
+        token={getAccessToken()}
+      />
 
       <CreateDeviceModal
         isOpen={isCreateOpen}
