@@ -14,6 +14,7 @@ class UpdateDeviceInput:
     manufacturer: str | None = None
     model: str | None = None
     serial_number: str | None = None
+    operational_state: str | None = None
 
 
 class UpdateDeviceUseCase:
@@ -42,6 +43,8 @@ class UpdateDeviceUseCase:
             device.model = input_data.model
         if input_data.serial_number is not None:
             device.serial_number = input_data.serial_number
+        if input_data.operational_state is not None:
+            device.operational_state = input_data.operational_state
 
         self._device_repo.update(device)
         return device

@@ -44,6 +44,7 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
      model.hostname = device.hostname
      model.reported_ip = device.reported_ip
      model.battery_level = device.battery_level
+     model.operational_state = device.operational_state
      model.last_seen = device.last_seen
      model.deleted_at = device.deleted_at
 
@@ -67,6 +68,7 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
          hostname=model.hostname,
          reported_ip=model.reported_ip,
          battery_level=model.battery_level,
+         operational_state=model.operational_state or "ATIVO",
          last_seen=model.last_seen,
          deleted_at=model.deleted_at,
      )
@@ -82,6 +84,7 @@ class SqlAlchemyDeviceRepository(DeviceRepository):
             hostname=device.hostname,
             reported_ip=device.reported_ip,
             battery_level=device.battery_level,
+            operational_state=device.operational_state,
             last_seen=device.last_seen,
         )
         self._session.add(model)

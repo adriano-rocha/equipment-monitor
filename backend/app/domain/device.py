@@ -23,6 +23,7 @@ class Device:
     hostname: str | None = None
     reported_ip: str | None = None
     battery_level: int | None = None
+    operational_state: str = "ATIVO"
     last_seen: datetime | None = None
     deleted_at: datetime | None = None
 

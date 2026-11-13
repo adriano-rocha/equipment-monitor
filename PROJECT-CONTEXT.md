@@ -137,6 +137,7 @@ device
 ├── hostname (VARCHAR 255, atualizado via heartbeat)
 ├── reported_ip (VARCHAR 45, atualizado via heartbeat)
 ├── battery_level (INTEGER 0-100, atualizado via heartbeat)
+├── operational_state (ATIVO | RECOLHIDO | EM_MANUTENCAO | DESATIVADO)
 └── last_seen (TIMESTAMP WITH TIME ZONE, atualizado via heartbeat)
 ```
 
@@ -941,6 +942,8 @@ Implementado no repositório:
 * validações;
 * endpoint `POST /api/v1/heartbeats`;
 * endpoint `GET /api/v1/devices`;
+* endpoints `POST /api/v1/devices/checkin` and `POST /api/v1/devices/undo-checkin` para gestão de recolhimento operacional;
+* atualização administrativa de `operational_state` via `PATCH /api/v1/devices/{device_id}`;
 * cálculo backend de `communication_status`;
 * serviço de autenticação de usuário;
 * hash e verificação de senha Argon2;

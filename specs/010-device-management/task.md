@@ -19,3 +19,5 @@
 - [x] 2.4 Testar que credencial excluída retorna 401 no heartbeat.
 - [x] 2.5 Adicionar ações de editar e excluir no Dashboard com diálogo de confirmação.
 - [x] 2.6 Rodar suíte completa de testes.
+- [x] 2.7 Persistir `operational_state` por meio do PATCH e permitir sua edição no Dashboard.
+- [x] 2.8 Implementar a rota e o fluxo de sessão para desfazer recolhimento, preservando a associação ao evento/posto.

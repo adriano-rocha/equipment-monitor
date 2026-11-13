@@ -30,6 +30,7 @@ Permitir que o Coordenador cadastre, consulte, edite e desative equipamentos atr
 
 ### RN-003 — Edição de Inventário (PATCH /api/v1/devices/{device_id})
 * Permite atualizar: `asset_number`, `device_type`, `manufacturer`, `model`, `serial_number`.
+* Permite atualizar `operational_state` com um dos estados definidos na ADR-007.
 * Se o `asset_number` for alterado para um patrimônio já existente em outro dispositivo, o backend retorna `409 Conflict`.
 
 ### RN-004 — Exclusão e Histórico (DELETE /api/v1/devices/{device_id})
@@ -39,6 +40,12 @@ Permitir que o Coordenador cadastre, consulte, edite e desative equipamentos atr
 * Vínculos ativos em `event_devices` são encerrados com `unassigned_at = now()`.
 * Qualquer heartbeat futuro enviado com a credencial excluída receberá `401 Unauthorized`.
 * O dispositivo deixa de ser listado na visualização padrão de equipamentos ativos do painel.
+
+### RN-005 — Estado Operacional e Desfazer Recolhimento
+* `operational_state` utiliza os estados definidos na ADR-007 e é independente do estado de comunicação.
+* `POST /api/v1/devices/checkin` marca o equipamento como `RECOLHIDO`.
+* `POST /api/v1/devices/undo-checkin` localiza por patrimônio exato ou pelos quatro dígitos finais e altera somente `operational_state` para `ATIVO`.
+* Desfazer o recolhimento não encerra nem altera a associação ativa do equipamento a evento/posto.
 
 ## 4. Contratos de API
 
@@ -80,9 +87,14 @@ Erros:
     422 Unprocessable Entity: Campos proibidos ou formato inválido.
     PATCH /api/v1/devices/{device_id}
     Headers: Authorization: Bearer <jwt_coordenador>
-    Request Body: Campos parciais permitidos (asset_number, device_type, manufacturer, model, serial_number).
+    Request Body: Campos parciais permitidos (asset_number, device_type, manufacturer, model, serial_number, operational_state).
     Response 200 OK: DeviceResponse atualizado.
     Erros: 404 Not Found, 409 Conflict, 422 Unprocessable Entity.
+POST /api/v1/devices/undo-checkin
+    Headers: Authorization: Bearer <jwt_coordenador>
+    Request Body: {"asset_code": "<patrimônio completo ou 4 dígitos finais>"}
+    Response 200 OK: DeviceCheckinResponse com operational_state=ATIVO e already_collected=false.
+    Erros: 404 Not Found, 422 Unprocessable Entity.
 DELETE /api/v1/devices/{device_id}
     Headers: Authorization: Bearer <jwt_coordenador>
     Response 204 No Content
@@ -93,6 +105,8 @@ DELETE /api/v1/devices/{device_id}
     A credencial gerada autentica com sucesso um POST /api/v1/heartbeats (HTTP 201).
     No Dashboard, o modal exibe key_id e secret uma única vez, com botão de cópia e aviso de que não poderá ser recuperado.
     PATCH permite corrigir o patrimônio e retorna 409 se colidir com outro existente.
+    PATCH permite atualizar operational_state e retorna o estado persistido.
+    Desfazer o recolhimento reativa o dispositivo e preserva seu vínculo ativo de evento/posto.
     DELETE revoga a credencial e impede novos heartbeats (HTTP 401).
 
 ---

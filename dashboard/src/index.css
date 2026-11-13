@@ -1677,6 +1677,22 @@ tbody tr:last-child td {
   color: #d29922;
 }
 
+.checkin-history-state.is-reactivated {
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+
+.checkin-undo-button {
+  min-height: 26px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.checkin-undo-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 @media (max-width: 900px) {
   .event-detail-header {
     flex-direction: column;

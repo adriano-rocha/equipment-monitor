@@ -112,6 +112,7 @@ def create_device(
         hostname=device.hostname,
         reported_ip=device.reported_ip,
         battery_level=device.battery_level,
+        operational_state=device.operational_state,
         last_seen=device.last_seen,
         status=calculate_communication_status(device.last_seen, settings),
         credentials=DeviceCredentialsResponse(
@@ -137,6 +138,7 @@ def update_device(
             manufacturer=payload.manufacturer,
             model=payload.model,
             serial_number=payload.serial_number,
+            operational_state=payload.operational_state,
         )
     )
 
@@ -151,6 +153,7 @@ def update_device(
         hostname=device.hostname,
         reported_ip=device.reported_ip,
         battery_level=device.battery_level,
+        operational_state=device.operational_state,
         last_seen=device.last_seen,
         status=calculate_communication_status(device.last_seen, settings),
     )
@@ -172,6 +175,55 @@ def delete_device(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post("/devices/undo-checkin", response_model=DeviceCheckinResponse)
+def undo_checkin_device(
+    payload: DeviceCheckinRequest,
+    session: Session = Depends(get_db_session),
+) -> DeviceCheckinResponse:
+    raw_code = payload.asset_code.strip()
+
+    device = (
+        session.query(DeviceModel)
+        .filter(
+            DeviceModel.asset_number == raw_code,
+            DeviceModel.deleted_at.is_(None),
+        )
+        .with_for_update()
+        .first()
+    )
+
+    if not device and len(raw_code) == 4 and raw_code.isdigit():
+        device = (
+            session.query(DeviceModel)
+            .filter(
+                DeviceModel.asset_number.endswith(raw_code),
+                DeviceModel.deleted_at.is_(None),
+            )
+            .with_for_update()
+            .first()
+        )
+
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dispositivo com patrimônio ou final '{raw_code}' não foi encontrado.",
+        )
+
+    device.operational_state = "ATIVO"
+    session.commit()
+    session.refresh(device)
+
+    return DeviceCheckinResponse(
+        id=device.id,
+        asset_number=device.asset_number,
+        device_type=device.device_type,
+        model=device.model,
+        operational_state="ATIVO",
+        already_collected=False,
+        message=f"Equipamento {device.asset_number} reativado e retornado ao posto com sucesso!",
+    )
+
+
 @router.post("/devices/checkin", response_model=DeviceCheckinResponse)
 def checkin_device(
     payload: DeviceCheckinRequest,
@@ -187,6 +239,7 @@ def checkin_device(
             DeviceModel.asset_number == raw_code,
             DeviceModel.deleted_at.is_(None),
         )
+        .with_for_update()
         .first()
     )
 
@@ -198,6 +251,7 @@ def checkin_device(
                 DeviceModel.asset_number.endswith(raw_code),
                 DeviceModel.deleted_at.is_(None),
             )
+            .with_for_update()
             .first()
         )
 

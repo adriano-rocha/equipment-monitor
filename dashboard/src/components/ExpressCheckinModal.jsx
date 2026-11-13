@@ -59,8 +59,11 @@ export default function ExpressCheckinModal({
   const [lastMessage, setLastMessage] = useState(null);
   const [sessionHistory, setSessionHistory] = useState([]);
   const [cameraActive, setCameraActive] = useState(false);
+  const [undoingIds, setUndoingIds] = useState(() => new Set());
+  const [initialRecolhidosAtOpen] = useState(() => initialRecolhidos);
 
   const inputRef = useRef(null);
+  const sessionHistorySequenceRef = useRef(0);
   const html5QrCodeRef = useRef(null);
   const cameraStartPromiseRef = useRef(null);
   const cameraStopPromiseRef = useRef(null);
@@ -121,10 +124,42 @@ export default function ExpressCheckinModal({
     };
   }, [isOpen, stopCamera]);
 
-  // Contagem dinâmica
-  const recolhidosCount =
-    initialRecolhidos +
-    sessionHistory.filter((item) => !item.already_collected).length;
+  const sessionDeviceStates = new Map();
+  for (const item of sessionHistory) {
+    const current = sessionDeviceStates.get(item.id);
+    if (!current) {
+      sessionDeviceStates.set(item.id, {
+        firstSequence: item.sequence,
+        initiallyCollected: item.already_collected,
+        latestSequence: item.sequence,
+        currentlyCollected: !item.reactivated,
+      });
+      continue;
+    }
+
+    if (item.sequence < current.firstSequence) {
+      current.firstSequence = item.sequence;
+      current.initiallyCollected = item.already_collected;
+    }
+    if (item.sequence > current.latestSequence) {
+      current.latestSequence = item.sequence;
+      current.currentlyCollected = !item.reactivated;
+    }
+  }
+
+  const sessionCountDelta = [...sessionDeviceStates.values()].reduce(
+    (total, device) => {
+      if (device.initiallyCollected) {
+        return total - (device.currentlyCollected ? 0 : 1);
+      }
+      return total + (device.currentlyCollected ? 1 : 0);
+    },
+    0,
+  );
+  const recolhidosCount = Math.max(
+    0,
+    initialRecolhidosAtOpen + sessionCountDelta,
+  );
   const progressPercent = totalDevices
     ? Math.min(100, Math.round((recolhidosCount / totalDevices) * 100))
     : 0;
@@ -171,13 +206,16 @@ export default function ExpressCheckinModal({
         }
 
         // Adiciona ao topo do histórico
+        sessionHistorySequenceRef.current += 1;
         setSessionHistory((prev) => [
           {
             id: data.id,
+            sequence: sessionHistorySequenceRef.current,
             asset_number: data.asset_number,
             device_type: data.device_type,
             model: data.model,
             already_collected: data.already_collected,
+            reactivated: false,
             time: new Date().toLocaleTimeString("pt-BR", {
               hour: "2-digit",
               minute: "2-digit",
@@ -196,6 +234,68 @@ export default function ExpressCheckinModal({
     } finally {
       setLoading(false);
       // Mantém o cursor focado para a próxima leitura imediata
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
+
+  const handleUndoCheckin = async (item) => {
+    const deviceState = sessionDeviceStates.get(item.id);
+    if (
+      loading ||
+      item.reactivated ||
+      undoingIds.has(item.id) ||
+      deviceState?.latestSequence !== item.sequence
+    ) {
+      return;
+    }
+
+    setUndoingIds((previous) => new Set(previous).add(item.id));
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/v1/devices/undo-checkin`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({ asset_code: item.asset_number }),
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Não foi possível desfazer o recolhimento.");
+      }
+
+      setSessionHistory((previous) =>
+        previous.map((entry) =>
+          entry.id === item.id && entry.sequence === item.sequence
+            ? { ...entry, reactivated: true }
+            : entry,
+        ),
+      );
+      playSound("success");
+      setLastMessage({
+        type: "success",
+        text: data.message,
+      });
+      if (onCheckinSuccess) onCheckinSuccess(data);
+    } catch (error) {
+      playSound("error");
+      setLastMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Falha ao desfazer o recolhimento.",
+      });
+    } finally {
+      setUndoingIds((previous) => {
+        const next = new Set(previous);
+        next.delete(item.id);
+        return next;
+      });
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -433,7 +533,7 @@ export default function ExpressCheckinModal({
           ) : (
             sessionHistory.map((item) => (
               <div
-                key={`${item.id}-${item.time}`}
+                key={`${item.id}-${item.sequence}`}
                 className="checkin-history-item"
               >
                 <div className="checkin-history-device">
@@ -451,10 +551,29 @@ export default function ExpressCheckinModal({
                   <span
                     className={`checkin-history-state ${
                       item.already_collected ? "is-existing" : ""
-                    }`}
+                    }${item.reactivated ? " is-reactivated" : ""}`}
                   >
-                    {item.already_collected ? "JÁ ESTAVA" : "RECOLHIDO"}
+                    {item.reactivated
+                      ? "REATIVADO"
+                      : item.already_collected
+                        ? "JÁ ESTAVA"
+                        : "RECOLHIDO"}
                   </span>
+                  <button
+                    type="button"
+                    className="btn-ghost checkin-undo-button"
+                    onClick={() => handleUndoCheckin(item)}
+                    disabled={
+                      loading ||
+                      undoingIds.has(item.id) ||
+                      item.reactivated ||
+                      sessionDeviceStates.get(item.id)?.latestSequence !==
+                        item.sequence
+                    }
+                    aria-label={`Desfazer recolhimento de ${item.asset_number}`}
+                  >
+                    {undoingIds.has(item.id) ? "Desfazendo..." : "↩ Desfazer"}
+                  </button>
                 </div>
               </div>
             ))

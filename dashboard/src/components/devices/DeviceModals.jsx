@@ -151,6 +151,9 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
     () => device?.asset_number || "",
   );
   const [deviceType, setDeviceType] = useState(() => device?.device_type || "");
+  const [operationalState, setOperationalState] = useState(
+    () => device?.operational_state || "ATIVO",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -172,6 +175,7 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
         manufacturer: device.manufacturer || null,
         model: device.model || null,
         serial_number: device.serial_number || null,
+        operational_state: operationalState,
       };
       await updateDevice(device.id, payload);
       onSuccess();
@@ -230,6 +234,19 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
               onChange={(e) => setAssetNumber(e.target.value)}
               required
             />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit_operational_state">Estado Operacional</label>
+            <select
+              id="edit_operational_state"
+              value={operationalState}
+              onChange={(e) => setOperationalState(e.target.value)}
+            >
+              <option value="ATIVO">ATIVO — Em operação / Disponível no posto</option>
+              <option value="RECOLHIDO">RECOLHIDO — Recolhido / Guardado na base</option>
+              <option value="EM_MANUTENCAO">EM_MANUTENCAO — Com defeito / Em reparo</option>
+              <option value="DESATIVADO">DESATIVADO</option>
+            </select>
           </div>
           <div className="modal-actions">
             <button
