@@ -1397,7 +1397,7 @@ tbody tr:last-child td {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -1409,7 +1409,7 @@ tbody tr:last-child td {
 }
 
 .checkin-header p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: var(--color-muted);
   font-size: 11px;
 }
@@ -1422,8 +1422,8 @@ tbody tr:last-child td {
   display: grid;
   grid-template-columns: 1fr minmax(100px, 150px);
   align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -1438,10 +1438,10 @@ tbody tr:last-child td {
 }
 
 .checkin-progress-value {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--color-text);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 650;
 }
 
@@ -1466,8 +1466,8 @@ tbody tr:last-child td {
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px 14px;
   overflow-y: auto;
 }
 
@@ -1477,18 +1477,19 @@ tbody tr:last-child td {
 
 .checkin-code-input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 40px 0 12px;
-  border: 1px solid #2d333b;
+  min-height: 42px;
+  padding: 10px 40px 10px 14px;
+  border: 1px solid rgb(16 185 129 / 40%);
   border-radius: var(--radius-control);
   background: var(--color-input);
   color: #ffffff;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 18px;
+  font-size: 14px;
+  letter-spacing: 0.05em;
 }
 
 .checkin-code-input:focus {
-  border-color: var(--color-primary);
+  border-color: #34d399;
   outline: 2px solid var(--color-primary-glow);
 }
 
@@ -1567,14 +1568,17 @@ tbody tr:last-child td {
 
 .checkin-history {
   display: flex;
+  max-height: min(30vh, 220px);
   min-height: 0;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
+  gap: 4px;
+  padding-top: 8px;
+  overflow-y: auto;
   border-top: 1px solid var(--color-border);
 }
 
 .checkin-history-heading {
+  flex: 0 0 auto;
   color: var(--color-muted);
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 10px;
@@ -1584,7 +1588,8 @@ tbody tr:last-child td {
 }
 
 .checkin-history-empty {
-  padding: 14px 0;
+  flex: 0 0 auto;
+  padding: 8px 0;
   color: var(--color-muted);
   font-size: 12px;
   text-align: center;
@@ -1592,10 +1597,12 @@ tbody tr:last-child td {
 
 .checkin-history-item {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: #0c0e11;
@@ -1614,6 +1621,7 @@ tbody tr:last-child td {
   color: #ffffff;
   font-family: "SFMono-Regular", Consolas, monospace;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .checkin-history-item time {
@@ -1671,8 +1679,7 @@ tbody tr:last-child td {
   }
 
   .checkin-history-item {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
   }
 }
 
