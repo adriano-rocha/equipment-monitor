@@ -130,7 +130,7 @@ Modelo real implementado:
 device
 ├── id (UUID, PK)
 ├── asset_number (VARCHAR 50, UNIQUE)
-├── device_type (VARCHAR 30: notebook | tablet | smartphone)
+├── device_type (VARCHAR 50, tipo livre opcional; exemplos: notebook, tablet, smartphone)
 ├── manufacturer (VARCHAR 100, opcional)
 ├── model (VARCHAR 150, opcional)
 ├── serial_number (VARCHAR 150, opcional)

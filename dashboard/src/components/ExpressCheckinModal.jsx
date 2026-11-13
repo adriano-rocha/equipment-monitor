@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 
 // Feedback sonoro nativo via Web Audio API (sem arquivos externos)
 const playSound = (type) => {
@@ -219,11 +222,27 @@ export default function ExpressCheckinModal({
   const startCamera = async () => {
     if (html5QrCodeRef.current || cameraStopPromiseRef.current) return;
 
-    const html5QrCode = new Html5Qrcode("reader-viewfinder");
+    const html5QrCode = new Html5Qrcode("reader-viewfinder", {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.QR_CODE,
+      ],
+      verbose: false,
+    });
     html5QrCodeRef.current = html5QrCode;
     setLastMessage(null);
 
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+    const config = {
+      fps: 15,
+      qrbox: (viewfinderWidth, viewfinderHeight) => ({
+        width: Math.min(320, viewfinderWidth),
+        height: Math.min(130, viewfinderHeight),
+      }),
+      aspectRatio: 1.777778,
+    };
     let startPromise;
     cameraScannedCodesRef.current.clear();
 
@@ -396,6 +415,12 @@ export default function ExpressCheckinModal({
               aria-label="Visor da câmera para leitura do código"
             />
           </div>
+          {cameraActive && (
+            <p className="checkin-camera-hint">
+              Aponte para o código de barras a cerca de 20 cm de distância para
+              foco nítido.
+            </p>
+          )}
 
           <section className="checkin-history" aria-label="Histórico de leitura da sessão">
             <div className="checkin-history-heading">

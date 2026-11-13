@@ -31,7 +31,7 @@ class DeviceModel(Base):
     )
 
     device_type: Mapped[str | None] = mapped_column(
-        String(30),
+        String(50),
         nullable=True,
     )
 

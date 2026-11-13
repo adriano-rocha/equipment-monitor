@@ -2,6 +2,26 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { createDevice, deleteDevice, updateDevice } from "../../services/api";
 
+const DEVICE_TYPE_SUGGESTIONS = [
+  "Smartphone",
+  "Tablet",
+  "Notebook",
+  "All in One",
+  "Monitor",
+  "Fone / Headset",
+  "Teclado / Mouse",
+];
+
+function DeviceTypeDatalist() {
+  return (
+    <datalist id="device-types-suggestions">
+      {DEVICE_TYPE_SUGGESTIONS.map((type) => (
+        <option key={type} value={type} />
+      ))}
+    </datalist>
+  );
+}
+
 // ----------------------------------------------------------------------------
 // MODAL: CADASTRAR EQUIPAMENTO
 // ----------------------------------------------------------------------------
@@ -75,17 +95,16 @@ export function CreateDeviceModal({ isOpen, onClose, onSuccess }) {
             <label htmlFor="device_type" style={{ fontSize: "0.85rem" }}>
               Tipo de Dispositivo
             </label>
-            <select
+            <input
               id="device_type"
+              type="text"
+              list="device-types-suggestions"
               value={deviceType}
               onChange={(e) => setDeviceType(e.target.value)}
+              placeholder="Ex: Monitor, Fone JBL, All in One, Smartphone..."
               autoFocus
-            >
-              <option value="">Não informado</option>
-              <option value="smartphone">Smartphone</option>
-              <option value="notebook">Notebook</option>
-              <option value="tablet">Tablet</option>
-            </select>
+            />
+            <DeviceTypeDatalist />
           </div>
 
           <div className="form-group">
@@ -190,16 +209,15 @@ export function EditDeviceModal({ device, isOpen, onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
             <label htmlFor="edit_device_type">Tipo de Dispositivo</label>
-            <select
+            <input
               id="edit_device_type"
+              type="text"
+              list="device-types-suggestions"
               value={deviceType}
               onChange={(e) => setDeviceType(e.target.value)}
-            >
-              <option value="">Não informado</option>
-              <option value="smartphone">Smartphone</option>
-              <option value="notebook">Notebook</option>
-              <option value="tablet">Tablet</option>
-            </select>
+              placeholder="Ex: Monitor, Fone JBL, All in One, Smartphone..."
+            />
+            <DeviceTypeDatalist />
           </div>
           <div className="form-group">
             <label htmlFor="edit_asset_number">

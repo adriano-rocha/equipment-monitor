@@ -16,7 +16,7 @@ class DeviceCreateRequest(BaseModel):
     )
 
     asset_number: str = Field(..., min_length=1, max_length=50)
-    device_type: Literal["notebook", "tablet", "smartphone"] | None = None
+    device_type: str | None = Field(default=None, max_length=50)
     manufacturer: str | None = Field(default=None, max_length=100)
     model: str | None = Field(default=None, max_length=150)
     serial_number: str | None = Field(default=None, max_length=150)
@@ -60,7 +60,7 @@ class DeviceUpdateRequest(BaseModel):
     )
 
     asset_number: str | None = Field(default=None, min_length=1, max_length=50)
-    device_type: Literal["notebook", "tablet", "smartphone"] | None = None
+    device_type: str | None = Field(default=None, max_length=50)
     manufacturer: str | None = Field(default=None, max_length=100)
     model: str | None = Field(default=None, max_length=150)
     serial_number: str | None = Field(default=None, max_length=150)

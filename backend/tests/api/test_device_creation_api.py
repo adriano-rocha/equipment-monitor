@@ -58,6 +58,18 @@ def test_create_device_success(client: TestClient, auth_headers: dict[str, str])
     assert data["credentials"]["secret"].startswith("sec_")
 
 
+def test_create_device_accepts_custom_type(client: TestClient, auth_headers: dict[str, str]):
+    custom_type = "Monitor ultrawide profissional 4K HDR"
+    response = client.post(
+        "/api/v1/devices",
+        json={"asset_number": "MON-CUSTOM-001", "device_type": custom_type},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["device_type"] == custom_type
+
+
 def test_create_device_duplicate_asset_returns_409(client: TestClient, auth_headers: dict[str, str]):
     payload = {
         "asset_number": "NB-DUPLICATE-001",
@@ -150,12 +162,17 @@ def test_update_device_success(client: TestClient, auth_headers: dict[str, str])
     # Atualiza (inclusive patrimônio - Decisão F)
     patch_res = client.patch(
         f"/api/v1/devices/{device_id}",
-        json={"asset_number": "NB-UPDATE-RENAMED", "manufacturer": "Lenovo"},
+        json={
+            "asset_number": "NB-UPDATE-RENAMED",
+            "device_type": "Fone JBL",
+            "manufacturer": "Lenovo",
+        },
         headers=auth_headers,
     )
     assert patch_res.status_code == 200
     data = patch_res.json()
     assert data["asset_number"] == "NB-UPDATE-RENAMED"
+    assert data["device_type"] == "Fone JBL"
     assert data["manufacturer"] == "Lenovo"
 
 
