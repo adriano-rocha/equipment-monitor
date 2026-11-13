@@ -185,7 +185,7 @@ export function AddDeviceToEventModal({
                     right: "0.6rem",
                     background: "transparent",
                     border: "none",
-                    color: "#94a3b8",
+                    color: "var(--color-muted)",
                     cursor: "pointer",
                     fontSize: "0.85rem",
                     padding: "0.2rem 0.4rem",
@@ -207,14 +207,14 @@ export function AddDeviceToEventModal({
                   right: 0,
                   maxHeight: "220px",
                   overflowY: "auto",
-                  background: "#0f172a",
-                  border: "1px solid #334155",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: "6px",
                   marginTop: "4px",
                   padding: 0,
                   listStyle: "none",
                   zIndex: 9999,
-                  boxShadow: "0 10px 25px rgba(0, 0, 0, 0.6)",
+                  boxShadow: "none",
                 }}
               >
                 {filteredDevices.length > 0 ? (
@@ -233,19 +233,19 @@ export function AddDeviceToEventModal({
                           padding: "0.65rem 0.9rem",
                           cursor: "pointer",
                           fontSize: "0.875rem",
-                          borderBottom: "1px solid #1e293b",
+                          borderBottom: "1px solid var(--color-border)",
                           background: isSelected
-                            ? "rgba(56, 189, 248, 0.18)"
+                            ? "rgba(16, 185, 129, 0.1)"
                             : "transparent",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
-                          color: "#f8fafc",
+                          color: "var(--color-text)",
                           transition: "background 0.15s ease",
                         }}
                         onMouseEnter={(e) => {
                           if (!isSelected)
-                            e.currentTarget.style.background = "#1e293b";
+                            e.currentTarget.style.background = "#22272e";
                         }}
                         onMouseLeave={(e) => {
                           if (!isSelected)
@@ -260,10 +260,10 @@ export function AddDeviceToEventModal({
                             flexWrap: "wrap",
                           }}
                         >
-                          <strong style={{ color: "#38bdf8" }}>
+                          <strong style={{ color: "#c9d1d9" }}>
                             {d.asset_number}
                           </strong>
-                          <span style={{ color: "#94a3b8" }}>
+                          <span style={{ color: "var(--color-muted)" }}>
                             — {d.device_type || "smartphone"}
                           </span>
 
@@ -279,35 +279,27 @@ export function AddDeviceToEventModal({
                                 alignItems: "center",
                                 gap: "3px",
                                 background: isLow
-                                  ? "rgba(239, 68, 68, 0.18)"
+                                  ? "rgba(248, 113, 113, 0.12)"
                                   : isMedium
-                                  ? "rgba(245, 158, 11, 0.18)"
-                                  : "rgba(16, 185, 129, 0.18)",
+                                    ? "rgba(210, 153, 34, 0.12)"
+                                    : "#1a1d21",
                                 color: isLow
-                                  ? "#ef4444"
+                                  ? "#f87171"
                                   : isMedium
-                                  ? "#f59e0b"
-                                  : "#10b981",
+                                    ? "#d29922"
+                                    : "var(--color-text)",
                                 border: isLow
-                                  ? "1px solid rgba(239, 68, 68, 0.4)"
-                                  : "none",
+                                  ? "1px solid rgba(248, 113, 113, 0.3)"
+                                  : "1px solid var(--color-border)",
                               }}
                             >
-                              {isLow ? "🪫" : "🔋"} {d.battery_level}%
+                              {d.battery_level}%
                             </span>
                           )}
                         </div>
 
                         {isSelected && (
-                          <span
-                            style={{
-                              color: "#10b981",
-                              fontWeight: "bold",
-                              marginLeft: "8px",
-                            }}
-                          >
-                            ✓
-                          </span>
+                          <span className="selected-device-tag">Selecionado</span>
                         )}
                       </li>
                     );
@@ -317,7 +309,7 @@ export function AddDeviceToEventModal({
                     style={{
                       padding: "0.75rem",
                       textAlign: "center",
-                      color: "#94a3b8",
+                      color: "var(--color-muted)",
                       fontSize: "0.85rem",
                     }}
                   >
@@ -351,12 +343,12 @@ export function AddDeviceToEventModal({
                       onClick={() => setLocationPoint(pt)}
                       style={{
                         background: isSelected
-                          ? "rgba(56, 189, 248, 0.25)"
-                          : "#0f172a",
-                        color: isSelected ? "#38bdf8" : "#cbd5e1",
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "#1a1d21",
+                        color: isSelected ? "#10b981" : "#c9d1d9",
                         border: isSelected
-                          ? "1px solid #38bdf8"
-                          : "1px solid #334155",
+                          ? "1px solid #10b981"
+                          : "1px solid #2d333b",
                         borderRadius: "4px",
                         padding: "4px 9px",
                         fontSize: "0.78rem",
@@ -365,7 +357,7 @@ export function AddDeviceToEventModal({
                         transition: "all 0.15s ease",
                       }}
                     >
-                      📍 {pt}
+                      {pt}
                     </button>
                   );
                 })}

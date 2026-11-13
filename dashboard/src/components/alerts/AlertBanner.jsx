@@ -11,29 +11,23 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
         return {
           title: "FORA DO PERÍMETRO",
           titleColor: "#f87171",
-          borderColor: "#ef4444",
-          bgColor: "#450a0a",
+          borderColor: "rgb(248 113 113 / 35%)",
           actionLabel: "Ver",
-          icon: "🚨",
         };
       case "HIGH_SPEED_EVASION":
         return {
           title: "DESLOCAMENTO RÁPIDO",
-          titleColor: "#fb923c",
-          borderColor: "#f97316",
-          bgColor: "#431407",
+          titleColor: "#d29922",
+          borderColor: "rgb(210 153 34 / 35%)",
           actionLabel: "Ver",
-          icon: "⚡",
         };
       case "BATTERY_CRITICAL":
       default:
         return {
           title: "BATERIA CRÍTICA (≤10%)",
           titleColor: "#f87171",
-          borderColor: "#ef4444",
-          bgColor: "#450a0a",
+          borderColor: "rgb(248 113 113 / 35%)",
           actionLabel: "Trocar",
-          icon: "🔋",
         };
     }
   }
@@ -100,21 +94,19 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
           <div
             key={`${alert.device_id || idx}-${alert.reason || "alert"}`}
             style={{
-              background: "rgba(30, 10, 10, 0.95)",
-              backdropFilter: "blur(8px)",
+              background: "#14171a",
               border: `1px solid ${details.borderColor}`,
               borderLeft: `4px solid ${details.borderColor}`,
-              borderRadius: "6px",
+              borderRadius: "4px",
               padding: "8px 12px",
               color: "#fecaca",
-              boxShadow: "0 6px 18px rgba(0, 0, 0, 0.5)",
+              boxShadow: "none",
               display: "flex",
               flexDirection: "column",
               gap: "4px",
               animation: "fadeIn 0.2s ease-in-out",
             }}
           >
-            {/* Linha 1: Ícone + Título + Botão Fechar */}
             <div
               style={{
                 display: "flex",
@@ -129,33 +121,23 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
                   color: details.titleColor,
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.3rem",
                   letterSpacing: "0.03em",
                 }}
               >
-                <span>{details.icon}</span>
                 {details.title}
               </span>
 
               <button
                 type="button"
+                className="btn-ghost alert-dismiss-button"
                 onClick={() => onDismiss(alert.device_id)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#9ca3af",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  lineHeight: 1,
-                  padding: "2px 4px",
-                }}
                 title="Dispensar alerta"
+                aria-label="Dispensar alerta"
               >
-                ✕
+                ×
               </button>
             </div>
 
-            {/* Linha 2: Dispositivo + Posto + Botão de Ação Rápido (Inline) */}
             <div
               style={{
                 display: "flex",
@@ -164,13 +146,13 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
                 marginTop: "2px",
               }}
             >
-              <div style={{ fontSize: "0.8rem", color: "#f3f4f6" }}>
+              <div style={{ fontSize: "0.8rem", color: "var(--color-text)" }}>
                 <strong style={{ color: "#ffffff", fontSize: "0.85rem" }}>{displayName}</strong>
-                <span style={{ color: "#94a3b8", fontSize: "0.75rem", marginLeft: "6px" }}>
+                <span style={{ color: "var(--color-muted)", fontSize: "0.75rem", marginLeft: "6px" }}>
                   • {postName}
                 </span>
                 {alert.battery_level !== undefined && alert.reason === "BATTERY_CRITICAL" && (
-                  <span style={{ color: "#facc15", fontWeight: "bold", marginLeft: "6px" }}>
+                  <span style={{ color: "#d29922", fontWeight: "bold", marginLeft: "6px" }}>
                     ({alert.battery_level}%)
                   </span>
                 )}
@@ -178,19 +160,7 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
 
               <button
                 type="button"
-                style={{
-                  background: details.borderColor,
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "4px",
-                  padding: "3px 8px",
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  transition: "opacity 0.15s",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
-                onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
+                className="btn-secondary alert-action-button"
                 onClick={() => handleActionClick(alert)}
               >
                 {details.actionLabel}
@@ -205,7 +175,7 @@ export function AlertBanner({ alerts, onDismiss, onAction }) {
         <div
           style={{
             fontSize: "0.7rem",
-            color: "#cbd5e1",
+            color: "var(--color-text)",
             textAlign: "right",
             paddingRight: "4px",
           }}

@@ -267,9 +267,9 @@ export function ConfirmDeleteModal({ device, isOpen, onClose, onSuccess }) {
             {errorMsg}
           </div>
         )}
-        <p style={{ color: "#e2e8f0", fontSize: "0.95rem", lineHeight: 1.5 }}>
+        <p style={{ color: "var(--color-text)", fontSize: "0.95rem", lineHeight: 1.5 }}>
           Tem certeza que deseja desativar o dispositivo{" "}
-          <strong style={{ color: "#38bdf8" }}>{device.asset_number}</strong>?
+          <strong style={{ color: "var(--color-text)" }}>{device.asset_number}</strong>?
         </p>
         <div className="warning-banner" style={{ marginTop: "1rem" }}>
           <strong>Atenção:</strong> O dispositivo será removido da lista
@@ -357,7 +357,7 @@ export function CredentialsDisplayModal({ deviceData, onClose }) {
             alignItems: "center",
             background: "#ffffff",
             padding: "1rem",
-            borderRadius: "8px",
+            borderRadius: "6px",
             margin: "1rem 0",
           }}
         >
@@ -369,13 +369,13 @@ export function CredentialsDisplayModal({ deviceData, onClose }) {
           />
           <span
             style={{
-              color: "#0f172a",
+              color: "#0c0e11",
               fontSize: "0.82rem",
               fontWeight: "600",
               marginTop: "0.4rem",
             }}
           >
-            📱 Escaneie pelo botão do app Asaph-Track
+            Escaneie pelo botão do app Asaph-Track
           </span>
         </div>
 

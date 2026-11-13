@@ -89,12 +89,32 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
   const [swappingDevice, setSwappingDevice] = useState(null);
 
   const [eventViewMode, setEventViewMode] = useState("split");
+  const [eventSortConfig, setEventSortConfig] = useState({
+    key: "asset_number",
+    direction: "asc",
+  });
   const [realtimeLocations, setRealtimeLocations] = useState({});
 
   const [searchTerm, setSearchTerm] = useState("");
   // 'all', 'online', 'warning', 'offline', 'alert', 'low_battery'
   const [statusFilter, setStatusFilter] = useState("all");
   const alertedRowRef = useRef(null);
+
+  function handleEventSort(key) {
+    setEventSortConfig((previous) => {
+      if (previous.key === key) {
+        return {
+          key,
+          direction: previous.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        key,
+        direction: ["battery_level", "last_seen"].includes(key) ? "desc" : "asc",
+      };
+    });
+  }
 
   function refreshEvents() {
     getEvents()
@@ -379,8 +399,60 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
       if (!groups[point]) groups[point] = [];
       groups[point].push(ed);
     }
+
+    for (const devices of Object.values(groups)) {
+      devices.sort((first, second) => {
+        const firstDevice = deviceMap.get(first.device_id);
+        const secondDevice = deviceMap.get(second.device_id);
+        let firstValue;
+        let secondValue;
+
+        if (eventSortConfig.key === "battery_level") {
+          firstValue = firstDevice?.battery_level ?? -1;
+          secondValue = secondDevice?.battery_level ?? -1;
+          return eventSortConfig.direction === "asc"
+            ? firstValue - secondValue
+            : secondValue - firstValue;
+        }
+
+        if (eventSortConfig.key === "last_seen") {
+          firstValue = firstDevice?.last_seen
+            ? new Date(firstDevice.last_seen).getTime()
+            : 0;
+          secondValue = secondDevice?.last_seen
+            ? new Date(secondDevice.last_seen).getTime()
+            : 0;
+          return eventSortConfig.direction === "asc"
+            ? firstValue - secondValue
+            : secondValue - firstValue;
+        }
+
+        firstValue =
+          eventSortConfig.key === "status"
+            ? firstDevice?.status ?? STATUS.ONLINE
+            : firstDevice?.[eventSortConfig.key];
+        secondValue =
+          eventSortConfig.key === "status"
+            ? secondDevice?.status ?? STATUS.ONLINE
+            : secondDevice?.[eventSortConfig.key];
+        const comparison = String(firstValue ?? "")
+          .toLowerCase()
+          .localeCompare(String(secondValue ?? "").toLowerCase(), undefined, {
+            numeric: true,
+          });
+        return eventSortConfig.direction === "asc" ? comparison : -comparison;
+      });
+    }
+
     return groups;
-  }, [eventDevices, deviceMap, searchTerm, statusFilter, checkIsAlerted]);
+  }, [
+    eventDevices,
+    deviceMap,
+    searchTerm,
+    statusFilter,
+    checkIsAlerted,
+    eventSortConfig,
+  ]);
 
   const totalFilteredDevices = useMemo(() => {
     return Object.values(groupedByPoint).reduce(
@@ -410,12 +482,11 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
   if (selectedEvent) {
     return (
       <div className="event-detail-container">
-        <div className="section-header" style={{ marginBottom: "1.25rem" }}>
+        <div className="section-header event-detail-header">
           <div>
             <button
               type="button"
-              className="btn-secondary"
-              style={{ marginBottom: "0.5rem" }}
+              className="btn-ghost event-back-button"
               onClick={() => {
                 setSelectedEvent(null);
                 setSearchTerm("");
@@ -427,115 +498,47 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
             </button>
             <h2>{selectedEvent.name}</h2>
             <div
-              style={{
-                display: "flex",
-                gap: "0.75rem",
-                alignItems: "center",
-                marginTop: "0.25rem",
-              }}
+              className="event-location-details"
             >
-              <span style={{ color: "#94a3b8" }}>
-                📍 {selectedEvent.location}
-              </span>
+              <span>{selectedEvent.location}</span>
               {selectedEvent.geofence_radius && (
-                <span
-                  style={{
-                    background: "rgba(16, 185, 129, 0.15)",
-                    color: "#10b981",
-                    padding: "0.2rem 0.5rem",
-                    borderRadius: "4px",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  🛡️ Cerca: {selectedEvent.geofence_radius}m
+                <span className="event-geofence-indicator">
+                  Cerca: {selectedEvent.geofence_radius}m
                 </span>
               )}
             </div>
           </div>
 
-          <div
-            className="header-actions"
-            style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
-          >
+          <div className="header-actions event-detail-actions">
             <button
               type="button"
-              className="btn-action-edit"
-              style={{
-                padding: "0.5rem 1rem",
-                fontSize: "0.85rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
+              className="btn-secondary"
               onClick={() => setIsClosureReportOpen(true)}
             >
-              📄 Romaneio de Fechamento
+              Romaneio de Fechamento
             </button>
-            <div
-              style={{
-                display: "flex",
-                background: "#0f172a",
-                padding: "3px",
-                borderRadius: "6px",
-                border: "1px solid #334155",
-                marginRight: "0.5rem",
-              }}
-            >
+            <div className="event-view-switcher" role="group" aria-label="Modo de visualização">
               <button
                 type="button"
+                className={eventViewMode === "split" ? "active" : ""}
+                aria-pressed={eventViewMode === "split"}
                 onClick={() => setEventViewMode("split")}
-                style={{
-                  background:
-                    eventViewMode === "split"
-                      ? "rgba(56, 189, 248, 0.2)"
-                      : "transparent",
-                  color: eventViewMode === "split" ? "#38bdf8" : "#94a3b8",
-                  border: "none",
-                  padding: "0.35rem 0.65rem",
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
               >
                 Mapa/Lista
               </button>
               <button
                 type="button"
+                className={eventViewMode === "map" ? "active" : ""}
+                aria-pressed={eventViewMode === "map"}
                 onClick={() => setEventViewMode("map")}
-                style={{
-                  background:
-                    eventViewMode === "map"
-                      ? "rgba(56, 189, 248, 0.2)"
-                      : "transparent",
-                  color: eventViewMode === "map" ? "#38bdf8" : "#94a3b8",
-                  border: "none",
-                  padding: "0.35rem 0.65rem",
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
               >
                 Mapa
               </button>
               <button
                 type="button"
+                className={eventViewMode === "list" ? "active" : ""}
+                aria-pressed={eventViewMode === "list"}
                 onClick={() => setEventViewMode("list")}
-                style={{
-                  background:
-                    eventViewMode === "list"
-                      ? "rgba(56, 189, 248, 0.2)"
-                      : "transparent",
-                  color: eventViewMode === "list" ? "#38bdf8" : "#94a3b8",
-                  border: "none",
-                  padding: "0.35rem 0.65rem",
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
               >
                 Lista
               </button>
@@ -543,14 +546,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
 
             <button
               type="button"
-              className="btn-action-edit"
-              style={{
-                padding: "0.5rem 1rem",
-                fontSize: "0.85rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
+              className="btn-secondary"
               onClick={() => setEditingEvent(selectedEvent)}
               title="Editar nome, local, raio ou coordenadas da cerca"
             >
@@ -559,15 +555,14 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
 
             <button
               type="button"
-              className="btn-action-delete"
-              style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}
+              className="btn-danger"
               onClick={() => setDeletingEvent(selectedEvent)}
             >
               Excluir
             </button>
             <button
               type="button"
-              className="btn-create-device"
+              className="btn-primary"
               onClick={() => setIsAddDeviceOpen(true)}
             >
               + Vincular Dispositivo
@@ -588,219 +583,87 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
 
         {(eventViewMode === "split" || eventViewMode === "list") && (
           <>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: "0.75rem",
-                }}
-              >
-                {/* Campo de Busca */}
-                <div
-                  style={{
-                    position: "relative",
-                    flex: "1 1 300px",
-                    maxWidth: "460px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      left: "0.85rem",
-                      color: "#64748b",
-                      fontSize: "0.95rem",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    🔍
-                  </span>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar patrimônio, tipo ou ponto..."
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem 2.2rem 0.6rem 2.4rem",
-                      background: "#0f172a",
-                      border: "1px solid #334155",
-                      borderRadius: "6px",
-                      color: "#f8fafc",
-                      fontSize: "0.875rem",
-                      outline: "none",
-                    }}
-                  />
-                  {searchTerm && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchTerm("");
-                        if (onClearFocus) onClearFocus();
-                      }}
-                      style={{
-                        position: "absolute",
-                        right: "0.6rem",
-                        background: "transparent",
-                        border: "none",
-                        color: "#94a3b8",
-                        cursor: "pointer",
-                        padding: "0.2rem 0.4rem",
-                        fontSize: "0.85rem",
-                      }}
-                      title="Limpar pesquisa"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {/* Botões de Filtro por Status (Com Bateria Baixa) */}
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+            <div className="event-devices-toolbar">
+              <div className="event-search-filter-row">
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar patrimônio, tipo ou posto..."
+                  aria-label="Buscar dispositivos nos postos"
+                  className="event-search-input"
+                />
+                <div className="event-status-filters" aria-label="Filtrar por status">
                   <button
                     type="button"
+                    className={statusFilter === "all" ? "active" : ""}
+                    aria-pressed={statusFilter === "all"}
                     onClick={() => setStatusFilter("all")}
-                    style={{
-                      padding: "0.45rem 0.85rem",
-                      borderRadius: "6px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      border: statusFilter === "all" ? "1px solid #10b981" : "1px solid #334155",
-                      background: statusFilter === "all" ? "#10b981" : "#0f172a",
-                      color: statusFilter === "all" ? "#ffffff" : "#cbd5e1",
-                      transition: "all 0.2s ease",
-                    }}
                   >
                     Todos ({statusCounts.all})
                   </button>
-
                   <button
                     type="button"
+                    className={statusFilter === "online" ? "active" : ""}
+                    aria-pressed={statusFilter === "online"}
                     onClick={() => setStatusFilter("online")}
-                    style={{
-                      padding: "0.45rem 0.85rem",
-                      borderRadius: "6px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      border: statusFilter === "online" ? "1px solid #10b981" : "1px solid #334155",
-                      background: statusFilter === "online" ? "rgba(16, 185, 129, 0.2)" : "#0f172a",
-                      color: statusFilter === "online" ? "#10b981" : "#cbd5e1",
-                      transition: "all 0.2s ease",
-                    }}
                   >
                     Online ({statusCounts.online})
                   </button>
-
                   <button
                     type="button"
+                    className={statusFilter === "warning" ? "active" : ""}
+                    aria-pressed={statusFilter === "warning"}
                     onClick={() => setStatusFilter("warning")}
-                    style={{
-                      padding: "0.45rem 0.85rem",
-                      borderRadius: "6px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      border: statusFilter === "warning" ? "1px solid #f59e0b" : "1px solid #334155",
-                      background: statusFilter === "warning" ? "rgba(245, 158, 11, 0.2)" : "#0f172a",
-                      color: statusFilter === "warning" ? "#f59e0b" : "#cbd5e1",
-                      transition: "all 0.2s ease",
-                    }}
                   >
                     Sem comunicação ({statusCounts.warning})
                   </button>
-
                   <button
                     type="button"
+                    className={statusFilter === "offline" ? "active" : ""}
+                    aria-pressed={statusFilter === "offline"}
                     onClick={() => setStatusFilter("offline")}
-                    style={{
-                      padding: "0.45rem 0.85rem",
-                      borderRadius: "6px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      border: statusFilter === "offline" ? "1px solid #ef4444" : "1px solid #334155",
-                      background: statusFilter === "offline" ? "rgba(239, 68, 68, 0.2)" : "#0f172a",
-                      color: statusFilter === "offline" ? "#ef4444" : "#cbd5e1",
-                      transition: "all 0.2s ease",
-                    }}
                   >
                     Offline ({statusCounts.offline})
                   </button>
-
-                  {/* NOVO FILTRO DE BATERIA */}
                   {statusCounts.lowBattery > 0 && (
                     <button
                       type="button"
+                      className={statusFilter === "low_battery" ? "active" : ""}
+                      aria-pressed={statusFilter === "low_battery"}
                       onClick={() => setStatusFilter("low_battery")}
-                      style={{
-                        padding: "0.45rem 0.85rem",
-                        borderRadius: "6px",
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        border: statusFilter === "low_battery" ? "1px solid #f97316" : "1px solid #334155",
-                        background: statusFilter === "low_battery" ? "rgba(249, 115, 22, 0.2)" : "#0f172a",
-                        color: statusFilter === "low_battery" ? "#f97316" : "#cbd5e1",
-                        transition: "all 0.2s ease",
-                      }}
                     >
-                      🪫 Bateria Baixa ({statusCounts.lowBattery})
+                      Bateria baixa ({statusCounts.lowBattery})
                     </button>
                   )}
-
                   {statusCounts.alert > 0 && (
                     <button
                       type="button"
+                      className={statusFilter === "alert" ? "active" : ""}
+                      aria-pressed={statusFilter === "alert"}
                       onClick={() => setStatusFilter("alert")}
-                      style={{
-                        padding: "0.45rem 0.85rem",
-                        borderRadius: "6px",
-                        fontSize: "0.8rem",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        border: "1px solid #ef4444",
-                        background: statusFilter === "alert" ? "#ef4444" : "rgba(239, 68, 68, 0.2)",
-                        color: "#ffffff",
-                        boxShadow: "0 0 10px rgba(239, 68, 68, 0.5)",
-                      }}
                     >
-                      🚨 Em Alerta ({statusCounts.alert})
+                      Em alerta ({statusCounts.alert})
                     </button>
                   )}
                 </div>
               </div>
-
               {(searchTerm || statusFilter !== "all") && (
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginTop: "0.5rem" }}>
-                  <p style={{ fontSize: "0.82rem", color: "#94a3b8", margin: 0 }}>
-                    Mostrando {totalFilteredDevices} de {activeEventDevicesCount} aparelhos
-                    {statusFilter !== "all" && <span> com filtro ativo</span>}
-                    {searchTerm && <span> para "<strong style={{ color: "#38bdf8" }}>{searchTerm}</strong>"</span>}.
-                  </p>
+                <div className="event-filter-summary">
+                  <span>
+                    Mostrando {totalFilteredDevices} de {activeEventDevicesCount} dispositivos
+                    {searchTerm && ` para "${searchTerm}"`}
+                  </span>
                   <button
                     type="button"
+                    className="btn-ghost"
                     onClick={() => {
                       setSearchTerm("");
                       setStatusFilter("all");
                       if (onClearFocus) onClearFocus();
                     }}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "#38bdf8",
-                      fontSize: "0.8rem",
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                      padding: 0,
-                    }}
                   >
-                    Limpar todos os filtros
+                    Limpar filtros
                   </button>
                 </div>
               )}
@@ -809,43 +672,24 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
             {loadingDevices ? (
               <p>Carregando postos e dispositivos...</p>
             ) : activeEventDevicesCount === 0 ? (
-              <div
-                className="empty-state"
-                style={{
-                  padding: "3rem",
-                  textAlign: "center",
-                  background: "#1e293b",
-                  borderRadius: "8px",
-                }}
-              >
+              <div className="empty-state event-empty-state">
                 <p>Nenhum dispositivo associado a este evento no momento.</p>
                 <button
                   type="button"
                   className="btn-primary"
-                  style={{ marginTop: "1rem" }}
                   onClick={() => setIsAddDeviceOpen(true)}
                 >
                   + Adicionar primeiro dispositivo
                 </button>
               </div>
             ) : Object.keys(groupedByPoint).length === 0 ? (
-              <div
-                className="empty-state"
-                style={{
-                  padding: "2.5rem",
-                  textAlign: "center",
-                  background: "#1e293b",
-                  borderRadius: "8px",
-                  border: "1px dashed #334155",
-                }}
-              >
-                <p style={{ color: "#e2e8f0", margin: 0, fontWeight: 500 }}>
+              <div className="empty-state event-empty-state">
+                <p>
                   Nenhum posto ou dispositivo encontrado com os filtros atuais.
                 </p>
                 <button
                   type="button"
                   className="btn-secondary"
-                  style={{ marginTop: "1rem", fontSize: "0.85rem" }}
                   onClick={() => {
                     setSearchTerm("");
                     setStatusFilter("all");
@@ -857,53 +701,64 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
               </div>
             ) : (
               Object.entries(groupedByPoint).map(([pointName, list]) => (
-                <div
-                  key={pointName}
-                  className="point-card"
-                  style={{
-                    marginBottom: "2rem",
-                    background: "#1e293b",
-                    padding: "1.25rem",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      borderBottom: "1px solid #334155",
-                      paddingBottom: "0.75rem",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontSize: "1.1rem",
-                        color: "#38bdf8",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                      }}
-                    >
-                      <span>📍</span> {pointName}
-                    </h3>
-                    <span style={{ fontSize: "0.85rem", color: "#94a3b8" }}>
+                <div key={pointName} className="point-card">
+                  <div className="point-card-header">
+                    <h3>{pointName}</h3>
+                    <span>
                       {list.length}{" "}
                       {list.length === 1 ? "dispositivo" : "dispositivos"}
                     </span>
                   </div>
 
                   <div className="table-container">
-                    <table>
+                    <table className="event-devices-table">
                       <thead>
                         <tr>
-                          <th>Patrimônio</th>
-                          <th>Tipo</th>
-                          <th>Bateria</th>
-                          <th>Status de Comunicação</th>
-                          <th>Último Contato</th>
+                          {[
+                            { label: "Patrimônio", key: "asset_number" },
+                            { label: "Tipo", key: "device_type" },
+                            { label: "Bateria", key: "battery_level" },
+                            { label: "Status de Comunicação", key: "status" },
+                            { label: "Último Contato", key: "last_seen" },
+                          ].map((column) => {
+                            const isSorted =
+                              eventSortConfig.key === column.key;
+                            return (
+                              <th
+                                key={column.key}
+                                aria-sort={
+                                  isSorted
+                                    ? eventSortConfig.direction === "asc"
+                                      ? "ascending"
+                                      : "descending"
+                                    : "none"
+                                }
+                              >
+                                <button
+                                  type="button"
+                                  className="table-sort-button"
+                                  onClick={() => handleEventSort(column.key)}
+                                  title={`Ordenar por ${column.label}`}
+                                >
+                                  <span>{column.label}</span>
+                                  <span
+                                    className={
+                                      isSorted
+                                        ? "sort-indicator is-active"
+                                        : "sort-indicator"
+                                    }
+                                    aria-hidden="true"
+                                  >
+                                    {isSorted
+                                      ? eventSortConfig.direction === "asc"
+                                        ? "▲"
+                                        : "▼"
+                                      : "⇅"}
+                                  </span>
+                                </button>
+                              </th>
+                            );
+                          })}
                           <th>Ações</th>
                         </tr>
                       </thead>
@@ -916,78 +771,32 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                             <tr
                               key={ed.id}
                               ref={isAlerted ? alertedRowRef : null}
-                              style={
-                                isAlerted
-                                  ? {
-                                      background: "rgba(220, 38, 38, 0.22)",
-                                      boxShadow: "inset 4px 0 0 #ef4444",
-                                      transition: "all 0.3s ease",
-                                    }
-                                  : undefined
-                              }
+                              className={isAlerted ? "is-alerted" : ""}
                             >
                               <td className="asset-number">
-                                <span
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "0.6rem",
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <strong
-                                    style={{
-                                      color: isAlerted ? "#fca5a5" : "inherit",
-                                    }}
-                                  >
-                                    {dev?.asset_number ?? "SIM-RASTREIO"}
-                                  </strong>
+                                <span>
+                                  {dev?.asset_number ?? "SIM-RASTREIO"}
                                   {isAlerted && (
-                                    <span
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "0.25rem",
-                                        fontSize: "0.75rem",
-                                        fontWeight: 700,
-                                        color: "#ffffff",
-                                        background: "#dc2626",
-                                        border: "1px solid #ef4444",
-                                        borderRadius: "4px",
-                                        padding: "0.2rem 0.5rem",
-                                        boxShadow:
-                                          "0 0 12px rgba(239, 68, 68, 0.7)",
-                                        letterSpacing: "0.02em",
-                                      }}
-                                    >
-                                      🚨 Alvo do Alerta
+                                    <span className="device-alert-tag">
+                                      Alvo do alerta
                                     </span>
                                   )}
                                 </span>
                               </td>
-                              <td style={{ textTransform: "capitalize" }}>
+                              <td className="device-type-cell">
                                 {dev?.device_type ?? "Smartphone"}
                               </td>
-
-                              {/* COLUNA DE BATERIA */}
                               <td>
                                 {typeof dev?.battery_level === "number" ? (
                                   <span
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "0.3rem",
-                                      color:
-                                        dev.battery_level <= 15
-                                          ? "#ef4444"
-                                          : dev.battery_level <= 30
-                                          ? "#f59e0b"
-                                          : "#34d399",
-                                      fontWeight:
-                                        dev.battery_level <= 20 ? 700 : 500,
-                                    }}
+                                    className={`battery-value ${
+                                      dev.battery_level <= 15
+                                        ? "is-critical"
+                                        : dev.battery_level <= 30
+                                          ? "is-low"
+                                          : ""
+                                    }`}
                                   >
-                                    {dev.battery_level <= 15 ? "🪫" : "🔋"}
                                     {dev.battery_level}%
                                   </span>
                                 ) : (
@@ -1004,7 +813,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                               <td className="actions-cell">
                                 <button
                                   type="button"
-                                  className="btn-action-edit"
+                                  className="btn-secondary"
                                   onClick={() => setMovingDevice(ed)}
                                   title="Alterar ponto físico"
                                 >
@@ -1012,11 +821,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-action-edit"
-                                  style={{
-                                    background: "#b45309",
-                                    borderColor: "#d97706",
-                                  }}
+                                  className="btn-secondary"
                                   onClick={() => setSwappingDevice(ed)}
                                   title="Substituir por outro aparelho neste ponto"
                                 >
@@ -1024,7 +829,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-action-delete"
+                                  className="btn-ghost-danger"
                                   onClick={() => setUnassigningDevice(ed)}
                                   title="Desvincular do evento"
                                 >
@@ -1152,7 +957,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
         <div className="header-actions">
           <button
             type="button"
-            className="btn-create-device"
+            className="btn-primary"
             onClick={() => setIsCreateOpen(true)}
           >
             + Novo Evento
@@ -1160,45 +965,12 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          gap: "1.25rem",
-          marginTop: "1.5rem",
-        }}
-      >
+      <div className="events-grid">
         {events.map((evt) => (
-          <div
-            key={evt.id}
-            style={{
-              background: "#1e293b",
-              padding: "1.5rem",
-              borderRadius: "8px",
-              border: evt.is_active ? "1px solid #38bdf8" : "1px solid #334155",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-            }}
-          >
+          <article key={evt.id} className="event-card">
             <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: "1.15rem",
-                    color: "#f8fafc",
-                  }}
-                >
-                  {evt.name}
-                </h3>
+              <div className="event-card-heading">
+                <h3>{evt.name}</h3>
                 <span
                   className={`status-badge ${
                     evt.is_active ? "status-online" : "status-offline"
@@ -1207,77 +979,46 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                   {evt.is_active ? "Ativo" : "Encerrado"}
                 </span>
               </div>
-              <p
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "0.95rem",
-                  margin: "0.25rem 0",
-                }}
-              >
-                📍 {evt.location}
-              </p>
+              <p className="event-card-location">{evt.location}</p>
               {evt.geofence_radius && (
-                <span
-                  style={{
-                    display: "inline-block",
-                    marginTop: "0.5rem",
-                    background: "rgba(16, 185, 129, 0.12)",
-                    color: "#10b981",
-                    padding: "0.2rem 0.55rem",
-                    borderRadius: "4px",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                  }}
-                >
+                <span className="event-card-geofence">
                   Cerca: {evt.geofence_radius}m
                 </span>
               )}
             </div>
 
-            <div
-              style={{ display: "flex", gap: "0.5rem", marginTop: "1.25rem" }}
-            >
+            <div className="event-card-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleSelectEvent(evt)}
+              >
+                Abrir evento
+              </button>
+
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ flex: 1, textAlign: "center" }}
-                onClick={() => handleSelectEvent(evt)}
-              >
-                Ver Dispositivos e Postos →
-              </button>
-
-              <button
-                type="button"
-                className="btn-action-edit"
-                style={{ padding: "0 0.85rem" }}
                 onClick={() => setEditingEvent(evt)}
                 title="Editar este evento"
               >
-                ✏️
+                Editar
               </button>
 
               <button
                 type="button"
-                className="btn-action-delete"
-                style={{ padding: "0 0.8rem" }}
+                className="btn-danger"
                 onClick={() => setDeletingEvent(evt)}
                 title="Excluir este evento"
               >
                 Excluir
               </button>
             </div>
-          </div>
+          </article>
         ))}
 
         {events.length === 0 && (
-          <div
-            className="empty-state"
-            style={{
-              gridColumn: "1 / -1",
-              textAlign: "center",
-              padding: "3rem",
-            }}
-          >
+          <div className="empty-state event-empty-list">
             Nenhum evento cadastrado. Clique no botão acima para criar o
             primeiro.
           </div>

@@ -170,17 +170,17 @@ export default function ClosureReportModal({
               onClick={() => window.print()}
               disabled={!report}
             >
-              📄 Imprimir / Salvar PDF
+              Imprimir / Salvar PDF
             </button>
             <button
               type="button"
               onClick={() => downloadCsv(report)}
               disabled={!report}
             >
-              📊 Exportar CSV
+              Exportar CSV
             </button>
             <button type="button" onClick={onClose}>
-              ✕ Fechar
+              Fechar
             </button>
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function ClosureReportModal({
                   <DeviceTable devices={pendingDevices} pending />
                 ) : (
                   <p className="closure-report-success">
-                    ✅ 100% dos equipamentos recolhidos com sucesso!
+                    100% dos equipamentos recolhidos com sucesso.
                   </p>
                 )}
               </section>

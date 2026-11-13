@@ -284,7 +284,7 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }) {
                 marginBottom: "0.5rem",
               }}
             >
-              <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#cbd5e1" }}>
+              <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-text)" }}>
                 Arraste as 4 alças (1, 2, 3 e 4) sobre os cantos do pavilhão:
               </label>
               <div style={{ display: "flex", gap: "0.4rem" }}>
@@ -297,10 +297,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }) {
                   style={{
                     padding: "0.25rem 0.5rem",
                     fontSize: "0.75rem",
-                    background: "#0f172a",
-                    border: "1px solid #334155",
-                    borderRadius: "4px",
-                    color: "#f8fafc",
+                    minHeight: "32px",
+                    background: "var(--color-input)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-control)",
+                    color: "var(--color-text)",
                     width: "200px",
                   }}
                 />
@@ -311,10 +312,11 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }) {
                   style={{
                     padding: "0.25rem 0.6rem",
                     fontSize: "0.75rem",
-                    background: "#334155",
-                    border: "none",
-                    borderRadius: "4px",
-                    color: "#f8fafc",
+                    minHeight: "32px",
+                    background: "#1a1d21",
+                    border: "1px solid #2d333b",
+                    borderRadius: "var(--radius-control)",
+                    color: "var(--color-text)",
                     cursor: "pointer",
                   }}
                 >
@@ -327,9 +329,9 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }) {
               style={{
                 width: "100%",
                 height: "250px",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 overflow: "hidden",
-                border: "1px solid #334155",
+                border: "1px solid var(--color-border)",
                 position: "relative",
               }}
             >
@@ -343,17 +345,18 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }) {
                   top: "10px",
                   right: "10px",
                   zIndex: 1000,
-                  background: "rgba(15, 23, 42, 0.9)",
-                  border: "1px solid #10b981",
-                  color: "#10b981",
+                  minHeight: "32px",
+                  background: "#1a1d21",
+                  border: "1px solid #2d333b",
+                  color: "var(--color-text)",
                   fontSize: "11px",
                   padding: "4px 8px",
                   borderRadius: "4px",
                   cursor: "pointer",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                  boxShadow: "none",
                 }}
               >
-                🎯 Centralizar Pavilhão Aqui
+                Centralizar Pavilhão Aqui
               </button>
             </div>
 
@@ -364,17 +367,17 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }) {
                 alignItems: "center",
                 marginTop: "0.4rem",
                 fontSize: "0.75rem",
-                color: "#94a3b8",
+                color: "var(--color-muted)",
               }}
             >
               <span>
                 Centroide do Pavilhão:{" "}
-                <b style={{ color: "#38bdf8" }}>
+                <b style={{ color: "var(--color-text)" }}>
                   Lat: {selectedCoords.lat.toFixed(5)} | Lng: {selectedCoords.lng.toFixed(5)}
                 </b>
               </span>
               <span>
-                Perímetro: <b style={{ color: "#10b981" }}>4 Cantos Demarcados</b>
+                Perímetro: <b>4 Cantos Demarcados</b>
               </span>
             </div>
           </div>

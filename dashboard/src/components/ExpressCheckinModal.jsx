@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Feedback sonoro nativo via Web Audio API (sem arquivos externos)
 const playSound = (type) => {
@@ -55,23 +55,31 @@ export default function ExpressCheckinModal({
   const [lastMessage, setLastMessage] = useState(null);
   const [sessionHistory, setSessionHistory] = useState([]);
   const [cameraActive, setCameraActive] = useState(false);
-  const [cameraSupported, setCameraSupported] = useState(false);
+  const cameraSupported =
+    typeof window !== "undefined" && "BarcodeDetector" in window;
 
   const inputRef = useRef(null);
   const videoRef = useRef(null);
   const scanIntervalRef = useRef(null);
 
-  // Foco automático e permanente no campo de entrada
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
-      setCameraSupported("BarcodeDetector" in window);
-    } else {
-      stopCamera();
-      setInputCode("");
-      setLastMessage(null);
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
     }
-  }, [isOpen]);
+    setCameraActive(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 150);
+    return () => {
+      window.clearTimeout(focusTimer);
+      stopCamera();
+    };
+  }, [isOpen, stopCamera]);
 
   // Contagem dinâmica
   const recolhidosCount =
@@ -111,13 +119,13 @@ export default function ExpressCheckinModal({
           playSound("duplicate");
           setLastMessage({
             type: "warning",
-            text: `⚠️ ${data.asset_number} já estava recolhido.`,
+            text: `${data.asset_number} já estava recolhido.`,
           });
         } else {
           playSound("success");
           setLastMessage({
             type: "success",
-            text: `✅ ${data.asset_number} (${data.device_type || "dispositivo"}) recolhido com sucesso!`,
+            text: `${data.asset_number} (${data.device_type || "dispositivo"}) recolhido com sucesso.`,
           });
           if (onCheckinSuccess) onCheckinSuccess(data);
         }
@@ -139,7 +147,7 @@ export default function ExpressCheckinModal({
           ...prev,
         ]);
       }
-    } catch (err) {
+    } catch {
       playSound("error");
       setLastMessage({
         type: "error",
@@ -190,82 +198,78 @@ export default function ExpressCheckinModal({
                 const detectedVal = barcodes[0].rawValue;
                 handleCheckin(detectedVal);
               }
-            } catch (scanErr) {
+            } catch {
               // Frame dropped, segue em frente
             }
           }
         }, 400);
       }
-    } catch (err) {
+    } catch {
       alert("Não foi possível acessar a câmera. Verifique as permissões.");
       stopCamera();
     }
   };
 
-  const stopCamera = () => {
-    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+    <div className="checkin-backdrop">
+      <section
+        className="checkin-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkin-title"
+      >
+        <header className="checkin-header">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold">
-                ⚡
-              </span>
-              <h2 className="text-xl font-bold text-white">
-                Check-in Express (Fechamento)
-              </h2>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <span className="filter-group-label">ASAPH TRACK / OPERAÇÃO</span>
+            <h2 id="checkin-title">Check-in Express</h2>
+            <p>
               Bipagem de leitor USB, câmera ou auto-submit de 4 dígitos.
             </p>
           </div>
           <button
+            type="button"
+            className="btn-ghost checkin-close"
+            aria-label="Fechar check-in"
             onClick={() => {
               stopCamera();
               onClose();
             }}
-            className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors"
           >
-            ✕
+            Fechar
           </button>
-        </div>
+        </header>
 
-        {/* Barra de Progresso / KPIs */}
-        <div className="px-6 py-4 bg-slate-950/20 border-b border-slate-800 flex items-center justify-between">
+        <section className="checkin-progress" aria-label="Progresso de recolhimento">
           <div>
-            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-              Equipamentos Recolhidos
+            <span className="checkin-progress-label">
+              Equipamentos recolhidos
             </span>
-            <div className="text-2xl font-black text-white flex items-baseline gap-2">
-              <span className="text-emerald-400">{recolhidosCount}</span>
-              <span className="text-slate-500 text-sm font-semibold">
+            <div className="checkin-progress-value">
+              <strong>{recolhidosCount}</strong>
+              <span>
                 / {totalDevices} ({progressPercent}%)
               </span>
             </div>
           </div>
-          <div className="w-36 bg-slate-800 h-3 rounded-full overflow-hidden">
+          <div
+            className="checkin-progress-track"
+            role="progressbar"
+            aria-label="Percentual de equipamentos recolhidos"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+          >
             <div
-              className="bg-emerald-500 h-full transition-all duration-300"
+              className="checkin-progress-fill"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-        </div>
+        </section>
 
-        {/* Input & Controles */}
-        <div className="p-6 space-y-4">
-          <div className="relative">
+        <div className="checkin-content">
+          <div className="checkin-code-field">
             <input
               ref={inputRef}
               type="text"
@@ -273,105 +277,87 @@ export default function ExpressCheckinModal({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Digite os 4 dígitos ou bipe a etiqueta..."
-              className="w-full bg-slate-950 border-2 border-emerald-500/50 focus:border-emerald-400 text-white text-xl font-mono px-4 py-3.5 rounded-xl outline-none placeholder:text-slate-600 shadow-inner"
+              className="checkin-code-input"
+              aria-label="Código de patrimônio"
               disabled={loading}
               autoFocus
             />
             {loading && (
-              <div className="absolute right-4 top-4 text-emerald-400 animate-spin text-sm">
-                ⏳
-              </div>
+              <span className="checkin-loader" role="status" aria-label="Processando" />
             )}
           </div>
 
-          {/* Feedback de Status */}
           {lastMessage && (
             <div
-              className={`p-3 rounded-lg text-sm font-medium transition-all ${
-                lastMessage.type === "success"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                  : lastMessage.type === "warning"
-                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                  : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
-              }`}
+              className={`checkin-feedback is-${lastMessage.type}`}
+              role="status"
             >
               {lastMessage.text}
             </div>
           )}
 
-          {/* Botão de Câmera (se suportado pelo navegador) */}
           {cameraSupported && (
-            <div className="flex justify-end">
+            <div className="checkin-camera-actions">
               {!cameraActive ? (
                 <button
                   type="button"
                   onClick={startCamera}
-                  className="text-xs flex items-center gap-1.5 text-slate-300 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors border border-slate-700"
+                  className="btn-secondary"
                 >
-                  📷 Ler com Câmera
+                  Ler com câmera
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={stopCamera}
-                  className="text-xs flex items-center gap-1.5 text-rose-300 bg-rose-950/40 hover:bg-rose-900/50 px-3 py-1.5 rounded-lg transition-colors border border-rose-800/40"
+                  className="btn-ghost-danger"
                 >
-                  ⏹ Parar Câmera
+                  Parar câmera
                 </button>
               )}
             </div>
           )}
 
-          {/* Viewfinder da Câmera */}
           {cameraActive && (
-            <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-black aspect-video flex items-center justify-center">
+            <div className="checkin-viewfinder">
               <video
                 ref={videoRef}
                 playsInline
-                className="w-full h-full object-cover"
+                aria-label="Imagem da câmera para leitura do código"
               />
-              <div className="absolute inset-0 border-2 border-emerald-500/60 rounded-lg pointer-events-none m-8 animate-pulse" />
+              <div className="checkin-scan-frame" />
             </div>
           )}
-        </div>
 
-        {/* Histórico da Sessão */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-2 border-t border-slate-800/80 pt-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Bipados nesta sessão ({sessionHistory.length})
-          </div>
+          <section className="checkin-history" aria-label="Histórico de leitura da sessão">
+            <div className="checkin-history-heading">
+              Lidos nesta sessão ({sessionHistory.length})
+            </div>
           {sessionHistory.length === 0 ? (
-            <div className="text-center py-6 text-slate-600 text-sm">
-              Nenhum equipamento bipado ainda. Comece a escanear!
+            <div className="checkin-history-empty">
+              Nenhum equipamento lido nesta sessão.
             </div>
           ) : (
-            sessionHistory.map((item, idx) => (
+            sessionHistory.map((item) => (
               <div
-                key={`${item.id}-${idx}`}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/40 border border-slate-800/60 text-sm"
+                key={`${item.id}-${item.time}`}
+                className="checkin-history-item"
               >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      item.already_collected ? "bg-amber-400" : "bg-emerald-400"
-                    }`}
-                  />
-                  <span className="font-mono font-bold text-white">
+                <div className="checkin-history-device">
+                  <strong>
                     {item.asset_number}
-                  </span>
-                  <span className="text-xs text-slate-400">
+                  </strong>
+                  <span>
                     {item.device_type || "dispositivo"}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-slate-500">
+                <div className="checkin-history-meta">
+                  <time>
                     {item.time}
-                  </span>
+                  </time>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      item.already_collected
-                        ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    className={`checkin-history-state ${
+                      item.already_collected ? "is-existing" : ""
                     }`}
                   >
                     {item.already_collected ? "JÁ ESTAVA" : "RECOLHIDO"}
@@ -380,8 +366,9 @@ export default function ExpressCheckinModal({
               </div>
             ))
           )}
+          </section>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

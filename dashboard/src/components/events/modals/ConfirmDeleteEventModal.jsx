@@ -33,9 +33,9 @@ export function ConfirmDeleteEventModal({ event, isOpen, onClose, onSuccess }) {
             {errorMsg}
           </div>
         )}
-        <p style={{ color: "#e2e8f0", fontSize: "0.95rem", lineHeight: 1.5 }}>
+        <p style={{ color: "var(--color-text)", fontSize: "0.95rem", lineHeight: 1.5 }}>
           Tem certeza que deseja excluir o evento{" "}
-          <strong style={{ color: "#38bdf8" }}>{event.name}</strong>?
+          <strong style={{ color: "var(--color-text)" }}>{event.name}</strong>?
         </p>
         <div className="warning-banner" style={{ marginTop: "1rem" }}>
           <strong>Atenção:</strong> O evento será removido e todas as

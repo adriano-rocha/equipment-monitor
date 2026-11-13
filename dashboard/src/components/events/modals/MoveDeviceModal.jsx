@@ -52,7 +52,7 @@ export function MoveDeviceModal({ eventId, eventDevice, isOpen, onClose, onSucce
 
           <p
             style={{
-              color: "#94a3b8",
+              color: "var(--color-muted)",
               fontSize: "0.85rem",
               marginTop: "0.5rem",
             }}

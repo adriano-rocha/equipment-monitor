@@ -58,48 +58,49 @@ const normalTacticalIcon = () =>
         color: #ffffff;
         width: 22px;
         height: 22px;
-        border-radius: 50%;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
-        border: 2px solid #ffffff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+        font-family: monospace;
+        font-size: 9px;
+        font-weight: 700;
+        border: 1px solid #ffffff;
         cursor: pointer;
-        transition: transform 0.15s ease-in-out;
-      " onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'">
-        📱
+      ">
+        D
       </div>
     `,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
 
-const alertDeviceIcon = (label) =>
+const alertDeviceIcon = () =>
   L.divIcon({
     className: "custom-alert-pin",
     html: `
       <div style="
         background: #dc2626;
         color: white;
-        padding: 2px 7px;
-        border-radius: 12px;
+        width: 64px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: 4px;
         font-weight: 700;
-        font-size: 10px;
+        font-family: monospace;
+        font-size: 9px;
         display: flex;
         align-items: center;
-        gap: 4px;
-        border: 1.5px solid #ffffff;
-        box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+        justify-content: center;
+        border: 1px solid #ffffff;
         white-space: nowrap;
         cursor: pointer;
-        animation: pulseDanger 1s infinite alternate;
       ">
-        🚨 ${label}
+        ALERTA
       </div>
     `,
-    iconSize: [60, 20],
-    iconAnchor: [30, 10],
+    iconSize: [64, 22],
+    iconAnchor: [32, 11],
   });
   
 export function GeofenceMap({
@@ -196,8 +197,8 @@ export function GeofenceMap({
       }).addTo(layers);
 
       geofencePoly.bindPopup(`
-        <div style="color: #f8fafc; font-family: sans-serif; font-size: 11px; padding: 2px;">
-          <strong style="color: #34d399; font-size: 12px;">🛡️ Perímetro Pavilhão</strong><br/>
+        <div style="color: #c9d1d9; font-family: sans-serif; font-size: 11px; padding: 2px;">
+          <strong style="color: #10b981; font-size: 12px;">Perímetro Pavilhão</strong><br/>
           <b>Evento:</b> ${event?.name || "Evento"}<br/>
           <b>Cantos Demarcados:</b> ${polygon.length} vértices
         </div>
@@ -243,7 +244,7 @@ export function GeofenceMap({
       }
       const formattedSpeed = rawSpeed >= 3.5 ? rawSpeed.toFixed(1) : "0.0";
 
-      const icon = isAlert ? alertDeviceIcon(label) : normalTacticalIcon();
+      const icon = isAlert ? alertDeviceIcon() : normalTacticalIcon();
       const marker = L.marker([lat, lng], {
         icon,
         zIndexOffset: isAlert ? 9999 : 100,
@@ -251,7 +252,7 @@ export function GeofenceMap({
 
       bounds.extend([lat, lng]);
 
-      marker.bindTooltip(`📱 <b>${label}</b> (${dev.location_point || "Posto"})`, {
+      marker.bindTooltip(`<b>${label}</b> (${dev.location_point || "Posto"})`, {
         direction: "top",
         offset: [0, -10],
         opacity: 0.9,
@@ -259,7 +260,7 @@ export function GeofenceMap({
 
       if (isAlert && (lat !== baseLat || lng !== baseLng)) {
         L.polyline([[baseLat, baseLng], [lat, lng]], {
-          color: "#ef4444",
+          color: "#f87171",
           weight: 2,
           dashArray: "6, 8",
         }).addTo(layers);
@@ -269,22 +270,22 @@ export function GeofenceMap({
       marker.bindPopup(`
         <div style="
           color: #f8fafc;
-          background: #0f172a;
+          background: #14171a;
           font-family: -apple-system, BlinkMacSystemFont, sans-serif;
           padding: 8px 10px;
-          border-radius: 6px;
+          border-radius: 4px;
           font-size: 11px;
           line-height: 1.45;
           min-width: 170px;
         ">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-            <strong style="color: ${isAlert ? "#f87171" : "#34d399"}; font-size: 11px; font-weight: 700;">
-              ${isAlert ? "🚨 FORA DO PERÍMETRO" : "🛡️ SEGURO NO POSTO"}
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #23272e; padding-bottom: 4px;">
+            <strong style="color: ${isAlert ? "#f87171" : "#10b981"}; font-size: 11px; font-weight: 700;">
+              ${isAlert ? "FORA DO PERÍMETRO" : "DENTRO DO PERÍMETRO"}
             </strong>
           </div>
           <div><b>Patrimônio:</b> ${label} (${dev.device_type || "Smartphone"})</div>
           <div><b>Posto:</b> ${dev.location_point || "Não atribuído"}</div>
-          <div><b>Distância:</b> <span style="color: ${isAlert ? "#f87171" : "#34d399"}; font-weight: bold;">${formattedDistance}m</span></div>
+          <div><b>Distância:</b> <span style="color: ${isAlert ? "#f87171" : "#10b981"}; font-weight: bold;">${formattedDistance}m</span></div>
           <div><b>Velocidade:</b> ${formattedSpeed} km/h</div>
         </div>
       `, {
@@ -313,39 +314,29 @@ export function GeofenceMap({
         position: "relative",
         width: "100%",
         height: "420px",
-        borderRadius: "8px",
+        borderRadius: "6px",
         overflow: "hidden",
-        border: "1px solid #334155",
+        border: "1px solid #23272e",
       }}
     >
       <style>{`
         .asaph-dark-tiles {
           filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.25) brightness(0.7) !important;
         }
-        @keyframes pulseDanger {
-          0% {
-            transform: scale(0.96);
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
-          }
-          100% {
-            transform: scale(1.06);
-            box-shadow: 0 0 22px rgba(239, 68, 68, 1);
-          }
-        }
         /* Ajuste do container padrão de popup do Leaflet */
         .custom-tactical-leaflet-popup .leaflet-popup-content-wrapper {
-          background: #0f172a !important;
-          border: 1px solid #334155 !important;
-          border-radius: 8px !important;
+          background: #14171a !important;
+          border: 1px solid #23272e !important;
+          border-radius: 6px !important;
           padding: 0 !important;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+          box-shadow: none !important;
         }
         .custom-tactical-leaflet-popup .leaflet-popup-content {
           margin: 0 !important;
         }
         .custom-tactical-leaflet-popup .leaflet-popup-tip {
-          background: #0f172a !important;
-          border: 1px solid #334155 !important;
+          background: #14171a !important;
+          border: 1px solid #23272e !important;
         }
       `}</style>
 
@@ -356,17 +347,16 @@ export function GeofenceMap({
           position: "absolute",
           bottom: "12px",
           left: "12px",
-          background: "rgba(15, 23, 42, 0.9)",
-          backdropFilter: "blur(6px)",
-          padding: "6px 14px",
+          background: "#14171a",
+          padding: "6px 10px",
           borderRadius: "6px",
-          border: "1px solid #334155",
+          border: "1px solid #23272e",
           fontSize: "11px",
-          color: "#cbd5e1",
+          color: "#c9d1d9",
           display: "flex",
           gap: "14px",
           zIndex: 1000,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          boxShadow: "none",
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -391,7 +381,7 @@ export function GeofenceMap({
               width: "10px",
               height: "10px",
               borderRadius: "50%",
-              background: "#ef4444",
+              background: "#f87171",
             }}
           ></span>{" "}
           Rompimento / Fuga (Prioridade)

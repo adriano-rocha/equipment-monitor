@@ -24,21 +24,6 @@ import ExpressCheckinModal from "./components/ExpressCheckinModal";
 
 const ITEMS_PER_PAGE = 10;
 
-function getFilterVariant(filter) {
-  const text = `${filter.label} ${filter.value}`.toLowerCase();
-  if (text.includes("online")) return "btn-filter-online";
-  if (
-    text.includes("comunicação") ||
-    text.includes("comunicacao") ||
-    text.includes("warning") ||
-    text.includes("sem")
-  ) {
-    return "btn-filter-warning";
-  }
-  if (text.includes("offline")) return "btn-filter-offline";
-  return "btn-filter-todos";
-}
-
 function Dashboard({ onLogout }) {
   const { devices, loading, refreshing, error, lastUpdated, refresh } =
     useDevices();
@@ -52,8 +37,8 @@ function Dashboard({ onLogout }) {
   const [search, setSearch] = useState("");
   // 'TODOS', 'ONLINE', 'SEM COMUNICAÇÃO', 'OFFLINE', 'EM_ESTOQUE', 'EM_OPERACAO'
   const [statusFilter, setStatusFilter] = useState("TODOS");
-  const [typeFilter, setTypeFilter] = useState("TODOS"); // 👈 NOVO: Filtro por tipo (smart, tab, note)
-  const [sortConfig, setSortConfig] = useState({ key: "asset_number", direction: "asc" }); // 👈 NOVO: Ordenação
+  const [typeFilter, setTypeFilter] = useState("TODOS");
+  const [sortConfig, setSortConfig] = useState({ key: "asset_number", direction: "asc" });
   const [requestedPage, setRequestedPage] = useState(1);
 
   // Função auxiliar para alternar ordenação ao clicar no cabeçalho
@@ -69,7 +54,7 @@ function Dashboard({ onLogout }) {
   }
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isCheckinOpen, setIsCheckinOpen] = useState(false); // 👈 Modal de Check-in Express
+  const [isCheckinOpen, setIsCheckinOpen] = useState(false);
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [deletingDevice, setDeletingDevice] = useState(null);
@@ -104,7 +89,7 @@ function Dashboard({ onLogout }) {
               activeDevs.forEach((ed) => {
                 if (!ed.unassigned_at && ed.is_active !== false) {
                   map.set(ed.device_id, {
-                    eventId: ev.id, // 👈 NOVO: Guarda o ID do evento para poder navegar até ele
+                    eventId: ev.id,
                     eventName: ev.name,
                     locationPoint: ed.location_point || "Posto Ativo",
                   });
@@ -271,11 +256,10 @@ function Dashboard({ onLogout }) {
 
       const isAllocated = eventAllocations.has(device.id);
 
-      let matchesStatus = true;
-      if (statusFilter === "TODOS") matchesStatus = true;
-      else if (statusFilter === "EM_ESTOQUE") matchesStatus = !isAllocated;
+      let matchesStatus;
+      if (statusFilter === "EM_ESTOQUE") matchesStatus = !isAllocated;
       else if (statusFilter === "EM_OPERACAO") matchesStatus = isAllocated;
-      else matchesStatus = device.status === statusFilter;
+      else matchesStatus = statusFilter === "TODOS" || device.status === statusFilter;
 
       let matchesType = true;
       if (typeFilter !== "TODOS") {
@@ -459,30 +443,16 @@ function Dashboard({ onLogout }) {
               {/* Botão de Check-in Express / Fechamento de Turno */}
               <button
                 type="button"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
-                  background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-                  color: "#ffffff",
-                  border: "1px solid #34d399",
-                  cursor: "pointer",
-                  boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)",
-                  transition: "all 0.2s ease",
-                }}
+                className="btn-primary"
                 onClick={() => setIsCheckinOpen(true)}
                 title="Bipagem contínua via leitor USB, câmera ou auto-submit de 4 dígitos"
               >
-                <span>⚡</span> Check-in Express ({recolhidosCount}/{devices.length})
+                Check-in Express ({recolhidosCount}/{devices.length})
               </button>
 
               <button
                 type="button"
-                className="btn-create-device"
+                className="btn-primary"
                 onClick={() => setIsCreateOpen(true)}
               >
                 + Cadastrar dispositivo
@@ -519,111 +489,99 @@ function Dashboard({ onLogout }) {
               }}
             />
 
-            <div className="status-filters" aria-label="Filtrar por status">
-              {STATUS_FILTERS.map((filter) => {
-                const count = counts[filter.value] ?? 0;
-                const variantClass = getFilterVariant(filter);
-                return (
-                  <button
-                    type="button"
-                    key={filter.value}
-                    className={`${variantClass} ${statusFilter === filter.value ? "active" : ""}`}
-                    aria-pressed={statusFilter === filter.value}
-                    onClick={() => {
-                      setStatusFilter(filter.value);
-                      setRequestedPage(1);
-                    }}
-                  >
-                    {filter.label} ({count})
-                  </button>
-                );
-              })}
-
-              {/* FEATURE 3: BOTÕES RÁPIDOS DE ESTOQUE E OPERAÇÃO */}
-              <button
-                type="button"
-                className={`btn-filter-todos ${statusFilter === "EM_ESTOQUE" ? "active" : ""}`}
-                style={{
-                  border: statusFilter === "EM_ESTOQUE" ? "1px solid #10b981" : "1px solid #334155",
-                  background: statusFilter === "EM_ESTOQUE" ? "rgba(16, 185, 129, 0.25)" : undefined,
-                  color: statusFilter === "EM_ESTOQUE" ? "#10b981" : undefined,
-                }}
-                onClick={() => {
-                  setStatusFilter("EM_ESTOQUE");
-                  setRequestedPage(1);
-                }}
-                title="Mostrar apenas dispositivos livres na maleta/estoque"
-              >
-                Em Estoque ({counts.EM_ESTOQUE ?? 0})
-              </button>
-
-              <button
-                type="button"
-                className={`btn-filter-todos ${statusFilter === "EM_OPERACAO" ? "active" : ""}`}
-                style={{
-                  border: statusFilter === "EM_OPERACAO" ? "1px solid #38bdf8" : "1px solid #334155",
-                  background: statusFilter === "EM_OPERACAO" ? "rgba(56, 189, 248, 0.25)" : undefined,
-                  color: statusFilter === "EM_OPERACAO" ? "#38bdf8" : undefined,
-                }}
-                onClick={() => {
-                  setStatusFilter("EM_OPERACAO");
-                  setRequestedPage(1);
-                }}
-                title="Mostrar apenas dispositivos alocados em postos de eventos"
-              >
-                Em Operação ({counts.EM_OPERACAO ?? 0})
-              </button>
-              {/* FILTROS POR TIPO DE HARDWARE COM CONTADORES */}
-              <div style={{ display: "flex", gap: "6px", marginLeft: "auto", flexWrap: "wrap" }}>
+            <div className="filter-toolbar-groups">
+              <div className="status-filters filter-group" aria-label="Filtrar por status">
+                <span className="filter-group-label">Status</span>
+                {STATUS_FILTERS.map((filter) => {
+                  const count = counts[filter.value] ?? 0;
+                  return (
+                    <button
+                      type="button"
+                      key={filter.value}
+                      className={statusFilter === filter.value ? "active" : ""}
+                      aria-pressed={statusFilter === filter.value}
+                      onClick={() => {
+                        setStatusFilter(filter.value);
+                        setRequestedPage(1);
+                      }}
+                    >
+                      {filter.label} ({count})
+                    </button>
+                  );
+                })}
                 <button
                   type="button"
-                  className={`btn-filter-todos ${typeFilter === "TODOS" ? "active" : ""}`}
-                  style={{ fontSize: "0.75rem", padding: "4px 8px" }}
-                  onClick={() => { setTypeFilter("TODOS"); setRequestedPage(1); }}
+                  className={statusFilter === "EM_ESTOQUE" ? "active" : ""}
+                  aria-pressed={statusFilter === "EM_ESTOQUE"}
+                  onClick={() => {
+                    setStatusFilter("EM_ESTOQUE");
+                    setRequestedPage(1);
+                  }}
+                  title="Mostrar apenas dispositivos livres em estoque"
+                >
+                  Estoque ({counts.EM_ESTOQUE ?? 0})
+                </button>
+                <button
+                  type="button"
+                  className={statusFilter === "EM_OPERACAO" ? "active" : ""}
+                  aria-pressed={statusFilter === "EM_OPERACAO"}
+                  onClick={() => {
+                    setStatusFilter("EM_OPERACAO");
+                    setRequestedPage(1);
+                  }}
+                  title="Mostrar dispositivos alocados em eventos"
+                >
+                  Operação ({counts.EM_OPERACAO ?? 0})
+                </button>
+              </div>
+
+              <div className="status-filters filter-group" aria-label="Filtrar por tipo">
+                <span className="filter-group-label">Tipo</span>
+                <button
+                  type="button"
+                  className={typeFilter === "TODOS" ? "active" : ""}
+                  aria-pressed={typeFilter === "TODOS"}
+                  onClick={() => {
+                    setTypeFilter("TODOS");
+                    setRequestedPage(1);
+                  }}
                 >
                   Todos Tipos ({devices.length})
                 </button>
                 <button
                   type="button"
-                  className={`btn-filter-todos ${typeFilter === "smartphone" ? "active" : ""}`}
-                  style={{
-                    fontSize: "0.75rem",
-                    padding: "4px 8px",
-                    borderColor: typeFilter === "smartphone" ? "#38bdf8" : undefined,
-                    color: typeFilter === "smartphone" ? "#38bdf8" : undefined,
+                  className={typeFilter === "smartphone" ? "active" : ""}
+                  aria-pressed={typeFilter === "smartphone"}
+                  onClick={() => {
+                    setTypeFilter("smartphone");
+                    setRequestedPage(1);
                   }}
-                  onClick={() => { setTypeFilter("smartphone"); setRequestedPage(1); }}
                 >
-                  📱 Smartphones ({counts.types?.smartphone ?? 0})
+                  Smartphones ({counts.types?.smartphone ?? 0})
                 </button>
                 <button
                   type="button"
-                  className={`btn-filter-todos ${typeFilter === "tablet" ? "active" : ""}`}
-                  style={{
-                    fontSize: "0.75rem",
-                    padding: "4px 8px",
-                    borderColor: typeFilter === "tablet" ? "#a855f7" : undefined,
-                    color: typeFilter === "tablet" ? "#a855f7" : undefined,
+                  className={typeFilter === "tablet" ? "active" : ""}
+                  aria-pressed={typeFilter === "tablet"}
+                  onClick={() => {
+                    setTypeFilter("tablet");
+                    setRequestedPage(1);
                   }}
-                  onClick={() => { setTypeFilter("tablet"); setRequestedPage(1); }}
                 >
-                  📟 Tablets ({counts.types?.tablet ?? 0})
+                  Tablets ({counts.types?.tablet ?? 0})
                 </button>
                 <button
                   type="button"
-                  className={`btn-filter-todos ${typeFilter === "notebook" ? "active" : ""}`}
-                  style={{
-                    fontSize: "0.75rem",
-                    padding: "4px 8px",
-                    borderColor: typeFilter === "notebook" ? "#f59e0b" : undefined,
-                    color: typeFilter === "notebook" ? "#f59e0b" : undefined,
+                  className={typeFilter === "notebook" ? "active" : ""}
+                  aria-pressed={typeFilter === "notebook"}
+                  onClick={() => {
+                    setTypeFilter("notebook");
+                    setRequestedPage(1);
                   }}
-                  onClick={() => { setTypeFilter("notebook"); setRequestedPage(1); }}
                 >
-                  💻 Notebooks ({counts.types?.notebook ?? 0})
+                  Notebooks ({counts.types?.notebook ?? 0})
                 </button>
               </div>
-
             </div>
           </div>
 
@@ -655,7 +613,7 @@ function Dashboard({ onLogout }) {
                       >
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                           <span>{col.label}</span>
-                          <span style={{ fontSize: "0.65rem", color: isSorted ? "#38bdf8" : "#64748b" }}>
+                          <span className={isSorted ? "sort-indicator is-active" : "sort-indicator"}>
                             {isSorted ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}
                           </span>
                         </div>
@@ -681,59 +639,18 @@ function Dashboard({ onLogout }) {
                       {/* FEATURE 2: BADGE DE ALOCAÇÃO E RECOLHIDO NA LINHA */}
                       <td>
                         {device.operational_state === "RECOLHIDO" ? (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "2px 8px",
-                              borderRadius: "4px",
-                              fontSize: "0.75rem",
-                              fontWeight: 700,
-                              background: "rgba(16, 185, 129, 0.2)",
-                              color: "#34d399",
-                              border: "1px solid rgba(52, 211, 153, 0.4)",
-                              whiteSpace: "nowrap",
-                            }}
-                            title="Equipamento auditado e recolhido fisicamente"
-                          >
+                          <span className="allocation-badge is-collected" title="Equipamento recolhido fisicamente">
                             Recolhido
                           </span>
                         ) : alloc ? (
                           <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "2px 8px",
-                              borderRadius: "4px",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                              background: "rgba(56, 189, 248, 0.15)",
-                              color: "#38bdf8",
-                              border: "1px solid rgba(56, 189, 248, 0.3)",
-                              whiteSpace: "nowrap",
-                            }}
+                            className="allocation-badge"
                             title={`Evento: ${alloc.eventName} | Posto: ${alloc.locationPoint}`}
                           >
-                            📍 {alloc.eventName} ({alloc.locationPoint})
+                            {alloc.eventName} ({alloc.locationPoint})
                           </span>
                         ) : (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "2px 8px",
-                              borderRadius: "4px",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                              background: "rgba(148, 163, 184, 0.12)",
-                              color: "#94a3b8",
-                              border: "1px solid #334155",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
+                          <span className="allocation-badge is-stock">
                             Em Estoque
                           </span>
                         )}
@@ -819,18 +736,20 @@ function Dashboard({ onLogout }) {
       )}
 
       {/* Modal de Check-in Express / Bipagem */}
-      <ExpressCheckinModal
-        isOpen={isCheckinOpen}
-        onClose={() => setIsCheckinOpen(false)}
-        totalDevices={devices.length}
-        initialRecolhidos={recolhidosCount}
-        onCheckinSuccess={() => refresh()}
-        apiBaseUrl={
-          import.meta.env.VITE_API_URL ||
-          "https://equipment-monitor-fd2u.onrender.com"
-        }
-        token={getAccessToken()}
-      />
+      {isCheckinOpen && (
+        <ExpressCheckinModal
+          isOpen={isCheckinOpen}
+          onClose={() => setIsCheckinOpen(false)}
+          totalDevices={devices.length}
+          initialRecolhidos={recolhidosCount}
+          onCheckinSuccess={() => refresh()}
+          apiBaseUrl={
+            import.meta.env.VITE_API_URL ||
+            "https://equipment-monitor-fd2u.onrender.com"
+          }
+          token={getAccessToken()}
+        />
+      )}
 
       <CreateDeviceModal
         isOpen={isCreateOpen}
