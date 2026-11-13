@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 
 // Feedback sonoro nativo via Web Audio API (sem arquivos externos)
 const playSound = (type) => {
@@ -55,20 +56,56 @@ export default function ExpressCheckinModal({
   const [lastMessage, setLastMessage] = useState(null);
   const [sessionHistory, setSessionHistory] = useState([]);
   const [cameraActive, setCameraActive] = useState(false);
-  const cameraSupported =
-    typeof window !== "undefined" && "BarcodeDetector" in window;
 
   const inputRef = useRef(null);
-  const videoRef = useRef(null);
-  const scanIntervalRef = useRef(null);
+  const html5QrCodeRef = useRef(null);
+  const cameraStartPromiseRef = useRef(null);
+  const cameraStopPromiseRef = useRef(null);
+  const cameraScannedCodesRef = useRef(new Set());
 
   const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
+    if (cameraStopPromiseRef.current) return cameraStopPromiseRef.current;
+
+    const html5QrCode = html5QrCodeRef.current;
+    if (!html5QrCode) {
+      setCameraActive(false);
+      return Promise.resolve();
     }
-    setCameraActive(false);
+
+    const cleanupPromise = Promise.resolve()
+      .then(async () => {
+        const startPromise = cameraStartPromiseRef.current;
+        if (startPromise) {
+          try {
+            await startPromise;
+          } catch {
+            // startCamera displays the startup error and cleanup continues here.
+          }
+        }
+
+        if (html5QrCode.isScanning) {
+          await html5QrCode.stop().then(() => html5QrCode.clear());
+        } else {
+          html5QrCode.clear();
+        }
+      })
+      .catch((error) => {
+        console.error("Erro ao liberar a câmera:", error);
+        setLastMessage({
+          type: "error",
+          text: "Não foi possível desligar a câmera. Tente parar a câmera novamente.",
+        });
+      })
+      .finally(() => {
+        if (!html5QrCode.isScanning && html5QrCodeRef.current === html5QrCode) {
+          html5QrCodeRef.current = null;
+        }
+        setCameraActive(html5QrCode.isScanning);
+        cameraStopPromiseRef.current = null;
+      });
+
+    cameraStopPromiseRef.current = cleanupPromise;
+    return cleanupPromise;
   }, []);
 
   useEffect(() => {
@@ -77,7 +114,7 @@ export default function ExpressCheckinModal({
     const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 150);
     return () => {
       window.clearTimeout(focusTimer);
-      stopCamera();
+      void stopCamera();
     };
   }, [isOpen, stopCamera]);
 
@@ -178,35 +215,47 @@ export default function ExpressCheckinModal({
     }
   };
 
-  // Câmera nativa via BarcodeDetector
+  // Câmera via html5-qrcode, compatível com navegadores móveis.
   const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraActive(true);
+    if (html5QrCodeRef.current || cameraStopPromiseRef.current) return;
 
-        const barcodeDetector = new window.BarcodeDetector();
-        scanIntervalRef.current = setInterval(async () => {
-          if (videoRef.current && videoRef.current.readyState === 4) {
-            try {
-              const barcodes = await barcodeDetector.detect(videoRef.current);
-              if (barcodes.length > 0) {
-                const detectedVal = barcodes[0].rawValue;
-                handleCheckin(detectedVal);
-              }
-            } catch {
-              // Frame dropped, segue em frente
-            }
-          }
-        }, 400);
+    const html5QrCode = new Html5Qrcode("reader-viewfinder");
+    html5QrCodeRef.current = html5QrCode;
+    setLastMessage(null);
+
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+    let startPromise;
+    cameraScannedCodesRef.current.clear();
+
+    try {
+      startPromise = html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          if (cameraScannedCodesRef.current.has(decodedText)) return;
+          cameraScannedCodesRef.current.add(decodedText);
+          handleCheckin(decodedText);
+        },
+        () => {},
+      );
+      cameraStartPromiseRef.current = startPromise;
+      await startPromise;
+      setCameraActive(true);
+    } catch (error) {
+      if (cameraStartPromiseRef.current === startPromise) {
+        cameraStartPromiseRef.current = null;
       }
-    } catch {
-      alert("Não foi possível acessar a câmera. Verifique as permissões.");
-      stopCamera();
+      const errorMessage =
+        error instanceof Error ? ` ${error.message}` : "";
+      setLastMessage({
+        type: "error",
+        text: `Não foi possível acessar a câmera. Verifique as permissões.${errorMessage}`,
+      });
+      await stopCamera();
+    } finally {
+      if (cameraStartPromiseRef.current === startPromise) {
+        cameraStartPromiseRef.current = null;
+      }
     }
   };
 
@@ -233,7 +282,7 @@ export default function ExpressCheckinModal({
             className="btn-ghost checkin-close"
             aria-label="Fechar check-in"
             onClick={() => {
-              stopCamera();
+              void stopCamera();
               onClose();
             }}
           >
@@ -296,38 +345,57 @@ export default function ExpressCheckinModal({
             </div>
           )}
 
-          {cameraSupported && (
-            <div className="checkin-camera-actions">
-              {!cameraActive ? (
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="btn-secondary"
+          <div className="checkin-camera-actions">
+            {!cameraActive ? (
+              <button
+                type="button"
+                onClick={startCamera}
+                className="btn-secondary checkin-camera-button"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="checkin-camera-icon"
                 >
-                  Ler com câmera
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stopCamera}
-                  className="btn-ghost-danger"
-                >
-                  Parar câmera
-                </button>
-              )}
-            </div>
-          )}
+                  <path
+                    d="M4 7.5h3l1.5-2h7l1.5 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="13"
+                    r="3.25"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+                Ler com Câmera
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void stopCamera()}
+                className="btn-ghost-danger"
+              >
+                Parar câmera
+              </button>
+            )}
+          </div>
 
-          {cameraActive && (
-            <div className="checkin-viewfinder">
-              <video
-                ref={videoRef}
-                playsInline
-                aria-label="Imagem da câmera para leitura do código"
-              />
-              <div className="checkin-scan-frame" />
-            </div>
-          )}
+          <div
+            className={`checkin-viewfinder-slot${cameraActive ? " is-active" : ""}`}
+          >
+            <div
+              id="reader-viewfinder"
+              className="checkin-viewfinder"
+              role="region"
+              aria-label="Visor da câmera para leitura do código"
+            />
+          </div>
 
           <section className="checkin-history" aria-label="Histórico de leitura da sessão">
             <div className="checkin-history-heading">
