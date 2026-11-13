@@ -1,12 +1,14 @@
 """Testes de API para Eventos, Pontos Físicos e Responsáveis (Etapa 3 / SPEC-006)."""
 
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.infrastructure.auth.user_auth_service import UserAuthService
+from app.infrastructure.db.models.device_model import DeviceModel
+from app.infrastructure.db.models.event_device_model import EventDeviceModel
 from app.infrastructure.db.models.user_model import UserModel
 from tests.database import TestSessionLocal
 
@@ -233,3 +235,127 @@ def test_move_device_between_events_closes_previous_association(
     assoc_b_record = next(a for a in all_associations if a["event_id"] == evt_b["id"])
     assert assoc_b_record["unassigned_at"] is None
     assert assoc_b_record["is_active"] is True
+
+
+def test_event_closure_report_separates_collected_and_pending_devices(
+    client: TestClient, auth_headers: dict[str, str]
+):
+    """O romaneio usa apenas associações ativas e classifica pelo estado operacional."""
+    now = datetime.now(timezone.utc)
+    event = client.post(
+        "/api/v1/events",
+        json={
+            "name": f"Fechamento {uuid4().hex[:6]}",
+            "location": "Pavilhão de Teste",
+            "starts_at": now.isoformat(),
+            "ends_at": (now + timedelta(days=1)).isoformat(),
+            "is_active": True,
+        },
+        headers=auth_headers,
+    ).json()
+
+    device_ids = {}
+    for asset_number, device_type in (
+        ("CLOSURE-NB", "notebook"),
+        ("CLOSURE-PHONE", "smartphone"),
+        ("CLOSURE-REMOVED", "tablet"),
+    ):
+        created = client.post(
+            "/api/v1/devices",
+            json={
+                "asset_number": f"{asset_number}-{uuid4().hex[:6]}",
+                "device_type": device_type,
+            },
+            headers=auth_headers,
+        )
+        assert created.status_code == 201
+        device_ids[device_type] = created.json()["id"]
+
+    for device_type, location in (
+        ("notebook", "Recepção"),
+        ("smartphone", "Palco"),
+        ("tablet", "Posto temporário"),
+    ):
+        assigned = client.post(
+            f"/api/v1/events/{event['id']}/devices",
+            json={
+                "device_id": device_ids[device_type],
+                "location_point": location,
+            },
+            headers=auth_headers,
+        )
+        assert assigned.status_code == 201
+
+    session = TestSessionLocal()
+    try:
+        notebook = session.get(DeviceModel, UUID(device_ids["notebook"]))
+        smartphone = session.get(DeviceModel, UUID(device_ids["smartphone"]))
+        assert notebook is not None
+        assert smartphone is not None
+        tablet_assignment = (
+            session.query(EventDeviceModel)
+            .filter(
+                EventDeviceModel.event_id == UUID(event["id"]),
+                EventDeviceModel.device_id == UUID(device_ids["tablet"]),
+            )
+            .one()
+        )
+        notebook.operational_state = "RECOLHIDO"
+        notebook.battery_level = 81
+        smartphone.operational_state = "EM_MANUTENCAO"
+        tablet_assignment.unassigned_at = datetime.now(timezone.utc)
+        session.commit()
+    finally:
+        session.close()
+
+    response = client.get(
+        f"/api/v1/events/{event['id']}/closure-report",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["event_id"] == event["id"]
+    assert report["total_devices"] == 2
+    assert report["total_collected"] == 1
+    assert report["total_pending"] == 1
+    assert report["collection_rate_percent"] == 50.0
+    assert report["counts_by_type"]["notebook"] == 1
+    assert report["counts_by_type"]["smartphone"] == 1
+    assert report["pending_devices"][0]["operational_state"] == "EM_MANUTENCAO"
+    assert report["pending_devices"][0]["location_point"] == "Palco"
+    assert report["collected_devices"][0]["asset_number"].startswith("CLOSURE-NB-")
+
+
+def test_event_closure_report_supports_empty_events_and_returns_404_for_missing_event(
+    client: TestClient, auth_headers: dict[str, str]
+):
+    now = datetime.now(timezone.utc)
+    event = client.post(
+        "/api/v1/events",
+        json={
+            "name": f"Evento vazio {uuid4().hex[:6]}",
+            "location": "Local de Teste",
+            "starts_at": now.isoformat(),
+            "ends_at": (now + timedelta(days=1)).isoformat(),
+        },
+        headers=auth_headers,
+    ).json()
+
+    empty_report = client.get(
+        f"/api/v1/events/{event['id']}/closure-report",
+        headers=auth_headers,
+    )
+    assert empty_report.status_code == 200
+    assert empty_report.json()["total_devices"] == 0
+    assert empty_report.json()["total_collected"] == 0
+    assert empty_report.json()["total_pending"] == 0
+    assert empty_report.json()["collection_rate_percent"] == 0
+    assert empty_report.json()["pending_devices"] == []
+    assert empty_report.json()["collected_devices"] == []
+
+    missing_report = client.get(
+        f"/api/v1/events/{uuid4()}/closure-report",
+        headers=auth_headers,
+    )
+    assert missing_report.status_code == 404

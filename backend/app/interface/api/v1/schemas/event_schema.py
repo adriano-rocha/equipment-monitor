@@ -60,3 +60,27 @@ class EventResponse(BaseModel):
     geofence_polygon: list[list[float]] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class ClosureDeviceItem(BaseModel):
+    id: UUID
+    asset_number: str
+    device_type: str | None = None
+    model: str | None = None
+    location_point: str | None = None
+    battery_level: int | None = None
+    operational_state: str
+    last_seen: datetime | None = None
+
+
+class EventClosureReportResponse(BaseModel):
+    event_id: UUID
+    event_name: str
+    generated_at: datetime
+    total_devices: int
+    total_collected: int
+    total_pending: int
+    collection_rate_percent: float
+    counts_by_type: dict[str, int]
+    pending_devices: list[ClosureDeviceItem]
+    collected_devices: list[ClosureDeviceItem]

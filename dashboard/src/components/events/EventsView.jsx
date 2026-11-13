@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatBrasiliaDateTime, STATUS } from "../../utils/formatters";
 import { StatusBadge } from "../common/StatusBadge";
 import { GeofenceMap } from "./GeofenceMap";
-import { getEventDevices, getEvents } from "../../services/api";
+import { getAccessToken, getEventDevices, getEvents } from "../../services/api";
+import ClosureReportModal from "../reports/ClosureReportModal";
 import {
   AddDeviceToEventModal,
   ConfirmDeleteEventModal,
@@ -74,6 +75,7 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isClosureReportOpen, setIsClosureReportOpen] = useState(false);
   const [eventDevices, setEventDevices] = useState([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
 
@@ -456,6 +458,20 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
             className="header-actions"
             style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
           >
+            <button
+              type="button"
+              className="btn-action-edit"
+              style={{
+                padding: "0.5rem 1rem",
+                fontSize: "0.85rem",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+              onClick={() => setIsClosureReportOpen(true)}
+            >
+              📄 Romaneio de Fechamento
+            </button>
             <div
               style={{
                 display: "flex",
@@ -1102,6 +1118,23 @@ export function EventsView({ allDevices = [], focusTarget, onClearFocus }) {
                 setSelectedEvent(updated);
               }
             }}
+          />
+        )}
+
+        {isClosureReportOpen && (
+          <ClosureReportModal
+            isOpen={isClosureReportOpen}
+            onClose={() => setIsClosureReportOpen(false)}
+            eventId={selectedEvent.id}
+            eventName={selectedEvent.name}
+            apiBaseUrl={(
+              import.meta.env.VITE_API_URL ||
+              import.meta.env.VITE_API_BASE_URL ||
+              "http://localhost:8000/api/v1"
+            )
+              .replace(/\/api\/v1\/?$/, "")
+              .replace(/\/+$/, "")}
+            token={getAccessToken()}
           />
         )}
       </div>
