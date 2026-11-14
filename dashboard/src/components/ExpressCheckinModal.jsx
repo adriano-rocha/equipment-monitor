@@ -259,7 +259,7 @@ export default function ExpressCheckinModal({
             "Content-Type": "application/json",
             Authorization: token ? `Bearer ${token}` : "",
           },
-          body: JSON.stringify({ asset_code: item.asset_number }),
+          body: JSON.stringify({ device_id: item.id }),
         },
       );
       const data = await response.json();
@@ -278,7 +278,7 @@ export default function ExpressCheckinModal({
       playSound("success");
       setLastMessage({
         type: "success",
-        text: data.message,
+        text: `${data.asset_number} retornou ao estado ATIVO.`,
       });
       if (onCheckinSuccess) onCheckinSuccess(data);
     } catch (error) {

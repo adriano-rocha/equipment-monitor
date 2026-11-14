@@ -1684,8 +1684,16 @@ tbody tr:last-child td {
 
 .checkin-undo-button {
   min-height: 26px;
-  padding: 0 6px;
-  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #a1a1aa;
+  font-size: 12px;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.checkin-undo-button:hover:not(:disabled) {
+  background: rgb(39 39 42 / 80%);
+  color: #fbbf24;
 }
 
 .checkin-undo-button:disabled {
@@ -1844,9 +1852,21 @@ tbody tr:last-child td {
   border-bottom: 2px solid #168a53;
 }
 
-.closure-report-header img {
-  width: 120px;
-  max-height: 72px;
+.closure-report-logo-container {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.closure-report-logo-container img {
+  width: auto;
+  height: 40px;
+  max-height: 40px;
+  filter: brightness(0) saturate(100%);
   object-fit: contain;
 }
 
@@ -1940,6 +1960,18 @@ tbody tr:last-child td {
 .closure-report-table {
   min-width: 700px;
   color: #111827;
+}
+
+.closure-report-table.is-inventory {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.closure-report-table.is-inventory th,
+.closure-report-table.is-inventory td {
+  padding: 6px 5px;
+  font-size: 9px;
+  overflow-wrap: anywhere;
 }
 
 .closure-report-table th,
@@ -2059,6 +2091,11 @@ tbody tr:last-child td {
   margin: 12mm;
 }
 
+@page inventory {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
 @media print {
   html,
   body,
@@ -2105,6 +2142,17 @@ tbody tr:last-child td {
     padding: 0;
     background: #fff;
     color: #000;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .closure-report-document.is-inventory {
+    page: inventory;
+  }
+
+  .closure-report-logo-container {
+    border-color: #d1d5db;
+    background: #fff !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

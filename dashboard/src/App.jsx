@@ -21,6 +21,7 @@ import {
 } from "./components/devices/DeviceModals";
 import { EventsView } from "./components/events/EventsView";
 import ExpressCheckinModal from "./components/ExpressCheckinModal";
+import ClosureReportModal from "./components/reports/ClosureReportModal";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -55,6 +56,7 @@ function Dashboard({ onLogout }) {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCheckinOpen, setIsCheckinOpen] = useState(false);
+  const [isInventoryReportOpen, setIsInventoryReportOpen] = useState(false);
   const [createdDeviceData, setCreatedDeviceData] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [deletingDevice, setDeletingDevice] = useState(null);
@@ -63,6 +65,13 @@ function Dashboard({ onLogout }) {
   const recolhidosCount = useMemo(() => {
     return devices.filter((d) => d.operational_state === "RECOLHIDO").length;
   }, [devices]);
+  const reportApiBaseUrl = (
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://localhost:8000/api/v1"
+  )
+    .replace(/\/api\/v1\/?$/, "")
+    .replace(/\/+$/, "");
 
   const [dismissedAlerts, setDismissedAlerts] = useState(() => new Set());
   const [wsAlerts, setWsAlerts] = useState([]);
@@ -440,6 +449,14 @@ function Dashboard({ onLogout }) {
             </div>
 
             <div className="header-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsInventoryReportOpen(true)}
+              >
+                Romaneio do Inventário
+              </button>
+
               {/* Botão de Check-in Express / Fechamento de Turno */}
               <button
                 type="button"
@@ -747,6 +764,17 @@ function Dashboard({ onLogout }) {
             import.meta.env.VITE_API_URL ||
             "https://equipment-monitor-fd2u.onrender.com"
           }
+          token={getAccessToken()}
+        />
+      )}
+
+      {isInventoryReportOpen && (
+        <ClosureReportModal
+          isOpen={isInventoryReportOpen}
+          mode="inventory"
+          eventName="Inventário Completo"
+          onClose={() => setIsInventoryReportOpen(false)}
+          apiBaseUrl={reportApiBaseUrl}
           token={getAccessToken()}
         />
       )}

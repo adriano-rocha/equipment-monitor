@@ -87,7 +87,7 @@ export async function createDevice(deviceData) {
 }
 
 export async function updateDevice(deviceId, deviceData) {
-  const response = await api.patch(`/devices/${deviceId}`, deviceData);
+  const response = await api.put(`/devices/${deviceId}`, deviceData);
   return response.data;
 }
 

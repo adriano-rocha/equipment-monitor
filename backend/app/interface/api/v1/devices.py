@@ -33,6 +33,7 @@ from app.interface.api.v1.schemas.device_schema import (
     DeviceCreateResponse,
     DeviceCredentialsResponse,
     DeviceResponse,
+    DeviceUndoCheckinRequest,
     DeviceUpdateRequest,
 )
 from app.interface.deps import get_current_user, get_db_session
@@ -122,6 +123,7 @@ def create_device(
     )
 
 @router.patch("/devices/{device_id}", response_model=DeviceResponse)
+@router.put("/devices/{device_id}", response_model=DeviceResponse)
 def update_device(
     device_id: UUID,
     payload: DeviceUpdateRequest,
@@ -175,52 +177,88 @@ def delete_device(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/devices/undo-checkin", response_model=DeviceCheckinResponse)
+@router.post("/devices/undo-checkin", response_model=DeviceResponse)
 def undo_checkin_device(
-    payload: DeviceCheckinRequest,
+    payload: DeviceUndoCheckinRequest,
     session: Session = Depends(get_db_session),
-) -> DeviceCheckinResponse:
-    raw_code = payload.asset_code.strip()
+) -> DeviceResponse:
+    device = None
 
-    device = (
-        session.query(DeviceModel)
-        .filter(
-            DeviceModel.asset_number == raw_code,
-            DeviceModel.deleted_at.is_(None),
-        )
-        .with_for_update()
-        .first()
-    )
-
-    if not device and len(raw_code) == 4 and raw_code.isdigit():
+    if payload.device_id is not None:
         device = (
             session.query(DeviceModel)
             .filter(
-                DeviceModel.asset_number.endswith(raw_code),
+                DeviceModel.id == payload.device_id,
                 DeviceModel.deleted_at.is_(None),
             )
             .with_for_update()
             .first()
         )
 
+    if not device and payload.query is not None:
+        raw_query = payload.query.strip()
+        try:
+            query_id = UUID(raw_query)
+        except ValueError:
+            query_id = None
+
+        if query_id is not None:
+            device = (
+                session.query(DeviceModel)
+                .filter(
+                    DeviceModel.id == query_id,
+                    DeviceModel.deleted_at.is_(None),
+                )
+                .with_for_update()
+                .first()
+            )
+
+        if not device:
+            device = (
+                session.query(DeviceModel)
+                .filter(
+                    DeviceModel.asset_number == raw_query,
+                    DeviceModel.deleted_at.is_(None),
+                )
+                .with_for_update()
+                .first()
+            )
+
+        if not device and len(raw_query) == 4 and raw_query.isdigit():
+            device = (
+                session.query(DeviceModel)
+                .filter(
+                    DeviceModel.asset_number.endswith(raw_query),
+                    DeviceModel.deleted_at.is_(None),
+                )
+                .with_for_update()
+                .first()
+            )
+
     if not device:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Dispositivo com patrimônio ou final '{raw_code}' não foi encontrado.",
+            detail="Dispositivo não encontrado.",
         )
 
     device.operational_state = "ATIVO"
     session.commit()
     session.refresh(device)
+    settings = get_settings()
 
-    return DeviceCheckinResponse(
+    return DeviceResponse(
         id=device.id,
         asset_number=device.asset_number,
         device_type=device.device_type,
+        manufacturer=device.manufacturer,
         model=device.model,
+        serial_number=device.serial_number,
+        hostname=device.hostname,
+        reported_ip=device.reported_ip,
+        battery_level=device.battery_level,
         operational_state="ATIVO",
-        already_collected=False,
-        message=f"Equipamento {device.asset_number} reativado e retornado ao posto com sucesso!",
+        last_seen=device.last_seen,
+        status=calculate_communication_status(device.last_seen, settings),
     )
 
 

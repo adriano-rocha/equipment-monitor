@@ -178,6 +178,26 @@ def test_update_device_success(client: TestClient, auth_headers: dict[str, str])
     assert data["operational_state"] == "RECOLHIDO"
 
 
+def test_put_device_updates_operational_state(
+    client: TestClient, auth_headers: dict[str, str]
+):
+    create_res = client.post(
+        "/api/v1/devices",
+        json={"asset_number": f"NB-PUT-{uuid4().hex[:8]}"},
+        headers=auth_headers,
+    )
+    assert create_res.status_code == 201
+
+    response = client.put(
+        f"/api/v1/devices/{create_res.json()['id']}",
+        json={"operational_state": "EM_MANUTENCAO"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["operational_state"] == "EM_MANUTENCAO"
+
+
 def test_update_device_duplicate_asset_returns_409(client: TestClient, auth_headers: dict[str, str]):
     client.post("/api/v1/devices", json={"asset_number": "NB-ORIGINAL-A"}, headers=auth_headers)
     dev_b = client.post("/api/v1/devices", json={"asset_number": "NB-ORIGINAL-B"}, headers=auth_headers).json()
@@ -246,16 +266,23 @@ def test_undo_checkin_reactivates_device_by_exact_asset_number(
 
     undo_res = client.post(
         "/api/v1/devices/undo-checkin",
-        json={"asset_code": asset_number},
+        json={"query": asset_number},
         headers=auth_headers,
     )
 
     assert undo_res.status_code == 200
     assert undo_res.json()["operational_state"] == "ATIVO"
-    assert undo_res.json()["already_collected"] is False
-    assert undo_res.json()["message"] == (
-        f"Equipamento {asset_number} reativado e retornado ao posto com sucesso!"
+    assert undo_res.json()["asset_number"] == asset_number
+    assert undo_res.json()["id"] == create_res.json()["id"]
+    assert "status" in undo_res.json()
+
+    uuid_query_res = client.post(
+        "/api/v1/devices/undo-checkin",
+        json={"query": create_res.json()["id"]},
+        headers=auth_headers,
     )
+    assert uuid_query_res.status_code == 200
+    assert uuid_query_res.json()["id"] == create_res.json()["id"]
 
     list_res = client.get("/api/v1/devices", headers=auth_headers)
     device = next(item for item in list_res.json() if item["asset_number"] == asset_number)
@@ -282,7 +309,7 @@ def test_undo_checkin_supports_asset_suffix(
 
     undo_res = client.post(
         "/api/v1/devices/undo-checkin",
-        json={"asset_code": asset_number[-4:]},
+        json={"query": asset_number[-4:]},
         headers=auth_headers,
     )
 
@@ -290,14 +317,34 @@ def test_undo_checkin_supports_asset_suffix(
     assert undo_res.json()["asset_number"] == asset_number
     assert undo_res.json()["operational_state"] == "ATIVO"
 
+    device_id_res = client.post(
+        "/api/v1/devices/undo-checkin",
+        json={"device_id": create_res.json()["id"]},
+        headers=auth_headers,
+    )
+    assert device_id_res.status_code == 200
+    assert device_id_res.json()["id"] == create_res.json()["id"]
+
 
 def test_undo_checkin_returns_404_for_unknown_device(
     client: TestClient, auth_headers: dict[str, str]
 ):
     response = client.post(
         "/api/v1/devices/undo-checkin",
-        json={"asset_code": f"UNDO-MISSING-{uuid4().hex}"},
+        json={"query": f"UNDO-MISSING-{uuid4().hex}"},
         headers=auth_headers,
     )
 
     assert response.status_code == 404
+
+
+def test_undo_checkin_requires_query_or_device_id(
+    client: TestClient, auth_headers: dict[str, str]
+):
+    response = client.post(
+        "/api/v1/devices/undo-checkin",
+        json={},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
